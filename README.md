@@ -13,6 +13,7 @@ and control of IP cameras and network video recorders (NVR/DVR). The user interf
 - **Device management** – add, edit, synchronize channels, check reachability.
 - **Device discovery** on the local network (ONVIF WS-Discovery).
 - **Camera groups** – custom organization of cameras in the resource tree.
+- **Favorite cameras** – star cameras for quick access in the Favorites section at the top of the tree.
 - **Device import**:
   - from CSV files (automatic delimiter detection, English and Polish column headers),
   - from iVMS-4200 backups (no vendor libraries required).
@@ -88,6 +89,30 @@ The configuration (`config.json`) and logs (`logs/`) are stored in the user's pr
 | Linux   | `~/.config/NovaVMS`                          |
 
 The `NOVAVMS_DATA_DIR` environment variable overrides this location (e.g. portable use, testing).
+
+Settings in `config.json` are encrypted for the current system account:
+
+- Windows: DPAPI (`CurrentUser`), compatible with existing encrypted settings.
+- macOS: AES-256-GCM with a random key in the user's login Keychain.
+- Linux: AES-256-GCM with a random key in Secret Service via `libsecret-1.so.0`.
+  Install `libsecret-1-0` and a Secret Service provider, such as GNOME Keyring or a compatible KDE
+  service (e.g. `sudo apt install libsecret-1-0 gnome-keyring` on Ubuntu/Debian). The desktop D-Bus
+  session and an unlocked keyring must be available. No plaintext fallback is used on headless systems.
+
+The filename is retained, but the contents are binary. Existing JSON settings are automatically
+encrypted after a successful load, without creating a plaintext backup. The system may ask permission
+to unlock or access its credential store. Keys are not stored alongside the configuration, and missing
+or inaccessible keys are never silently regenerated for an existing encrypted file.
+Keep the original system profile/keychain to read the file. To transfer settings to another account or computer,
+use the application's JSON export/import. Exported JSON files are not encrypted; including passwords
+in an export also includes device secrets. A configuration that fails to load cannot be overwritten
+until it has been restored and successfully loaded.
+
+Managed exceptions, including caught exceptions, UI failures, background task failures and startup errors,
+are written to `logs/errors-YYYYMMDD.log` with timestamps, process/thread IDs and stack traces.
+If the application data directory cannot be written, logging falls back to `NovaVMS/logs` in the system
+temporary directory, then to standard error. Fatal native crashes, forced process termination and
+stack overflows may bypass managed exception handlers.
 
 ## Technologies
 

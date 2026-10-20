@@ -7,5 +7,6 @@ public enum GroupNodeKind
 {
     Custom,
     Device,
-    Unassigned
+    Unassigned,
+    Favorites
 }

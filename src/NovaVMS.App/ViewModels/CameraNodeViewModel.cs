@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using NovaVMS.Core.Models;
+using NovaVMS.App.Localization;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -35,6 +36,10 @@ public sealed partial class CameraNodeViewModel : ResourceNodeViewModel
     public Guid? ParentGroupId { get; }
 
     public bool CanRemoveFromGroup { get; }
+
+    public bool IsFavorite { get; init; }
+
+    public string FavoriteActionText => Localizer.Text(IsFavorite ? "Tree_RemoveFavorite" : "Tree_AddFavorite");
 
     public IReadOnlyList<MenuActionViewModel> AddToGroupActions { get; }
 

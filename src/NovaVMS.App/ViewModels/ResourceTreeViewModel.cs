@@ -9,8 +9,8 @@ using NovaVMS.App.Localization;
 namespace NovaVMS.App.ViewModels;
 
 /// <summary>
-/// Tree of camera groups with search. Custom groups are listed first, followed by
-/// groups created from devices and finally cameras that belong to no group.
+/// Tree of camera groups with search. Favorites are listed first, followed by custom
+/// groups, device groups and finally cameras that belong to no group.
 /// </summary>
 public sealed partial class ResourceTreeViewModel : ViewModelBase
 {
@@ -20,7 +20,7 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
     private readonly DeviceSyncService _sync;
     private readonly IDialogService _dialogs;
     private readonly StatusBarService _statusBar;
-    private readonly HashSet<Guid?> _expandedGroups = new();
+    private readonly Dictionary<(GroupNodeKind Kind, Guid? Id), bool> _expandedGroups = new();
     private bool _isFiltered;
 
     [ObservableProperty]
@@ -188,6 +188,15 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private async Task ToggleFavoriteAsync(CameraNodeViewModel? node)
+    {
+        var channel = node is null ? null : _configuration.FindCamera(node.Reference)?.Channel;
+        if (channel is null) return;
+        channel.IsFavorite = !channel.IsFavorite;
+        await _configuration.SaveAsync();
+    }
+
+    [RelayCommand]
     private async Task RemoveFromGroupAsync(CameraNodeViewModel? node)
     {
         var group = node?.ParentGroupId is Guid id ? _configuration.FindGroup(id) : null;
@@ -246,6 +255,10 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
         var customGroups = _configuration.Current.Groups.Where(group => group.IsCustom).ToList();
         var assigned = new HashSet<CameraReference>();
 
+        // Bookmarks are a separate view; they do not change a camera's group membership.
+        var favorites = _configuration.GetAllCameras().Where(camera => camera.Channel.IsFavorite).ToList();
+        AddGroupNode(null, Localizer.Text("Tree_Favorites"), GroupNodeKind.Favorites, favorites, customGroups, filter);
+
         var orderedGroups = customGroups.Concat(_configuration.Current.Groups.Where(group => !group.IsCustom));
         foreach (var group in orderedGroups)
         {
@@ -283,7 +296,8 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
         var groupMatches = filter.Length == 0 || name.Contains(filter, StringComparison.CurrentCultureIgnoreCase);
         var node = new ResourceGroupNodeViewModel(this, id, name, kind)
         {
-            IsExpanded = filter.Length > 0 || _expandedGroups.Contains(id)
+            IsExpanded = filter.Length > 0 || (_expandedGroups.TryGetValue((kind, id), out var expanded)
+                ? expanded : kind == GroupNodeKind.Favorites)
         };
 
         foreach (var camera in cameras)
@@ -296,12 +310,13 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
             var actions = BuildAddToGroupActions(camera.Reference, id, customGroups);
             node.Cameras.Add(new CameraNodeViewModel(this, camera.Reference, camera.DisplayName, camera.FullName, id, kind == GroupNodeKind.Custom, actions)
             {
-                IsOnline = IsOnline(camera)
+                IsOnline = IsOnline(camera),
+                IsFavorite = camera.Channel.IsFavorite
             });
         }
 
-        // A custom group is shown even when empty, so cameras can be dragged onto it.
-        if (node.Cameras.Count == 0 && (filter.Length > 0 || kind != GroupNodeKind.Custom))
+        // Keep Favorites discoverable when empty, and custom groups available as drop targets.
+        if (node.Cameras.Count == 0 && (filter.Length > 0 || kind is not (GroupNodeKind.Custom or GroupNodeKind.Favorites)))
         {
             return;
         }
@@ -331,14 +346,7 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
 
         foreach (var group in Groups)
         {
-            if (group.IsExpanded)
-            {
-                _expandedGroups.Add(group.Id);
-            }
-            else
-            {
-                _expandedGroups.Remove(group.Id);
-            }
+            _expandedGroups[(group.Kind, group.Id)] = group.IsExpanded;
         }
     }
 

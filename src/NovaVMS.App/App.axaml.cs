@@ -15,6 +15,7 @@ public partial class App : Application
 
     public override void Initialize()
     {
+        UnhandledExceptionLogger.AttachToDispatcher();
         AvaloniaXamlLoader.Load(this);
     }
 
@@ -22,7 +23,6 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            UnhandledExceptionLogger.AttachToDispatcher();
             global::LibVLCSharp.Shared.Core.Initialize();
 
             _services = ServiceConfiguration.Build();

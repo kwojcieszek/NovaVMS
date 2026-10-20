@@ -137,6 +137,7 @@
                 <mi:MaterialIcon Kind="FolderStar" Foreground="{DynamicResource NovaAccent}" IsVisible="{Binding IsCustom}" />
                 <mi:MaterialIcon Kind="Server" IsVisible="{Binding IsDeviceGroup}" />
                 <mi:MaterialIcon Kind="FolderOutline" IsVisible="{Binding IsUnassigned}" />
+                <mi:MaterialIcon Kind="Star" Foreground="{DynamicResource NovaAccent}" IsVisible="{Binding IsFavorites}" />
                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
               </StackPanel>
             </TreeDataTemplate>
@@ -151,6 +152,10 @@
                     <MenuItem Header="{l:Tr Tree_OpenInLiveView}"
                               Icon="{mi:MaterialIconExt Kind=PlayCircleOutline}"
                               Command="{Binding Owner.OpenNodeCommand}"
+                              CommandParameter="{Binding}" />
+                    <MenuItem Header="{Binding FavoriteActionText}"
+                              Icon="{mi:MaterialIconExt Kind=StarOutline}"
+                              Command="{Binding Owner.ToggleFavoriteCommand}"
                               CommandParameter="{Binding}" />
                     <MenuItem Header="{l:Tr Tree_AddToGroup}"
                               Icon="{mi:MaterialIconExt Kind=FolderStarOutline}"
@@ -172,6 +177,18 @@
                               CommandParameter="{Binding}" />
                   </ContextMenu>
                 </StackPanel.ContextMenu>
+                <Button Classes="icon"
+                        Padding="2"
+                        Width="22" Height="22"
+                        Focusable="False"
+                        Command="{Binding Owner.ToggleFavoriteCommand}"
+                        CommandParameter="{Binding}"
+                        ToolTip.Tip="{Binding FavoriteActionText}">
+                  <Panel>
+                    <mi:MaterialIcon Kind="Star" Foreground="{DynamicResource NovaAccent}" IsVisible="{Binding IsFavorite}" />
+                    <mi:MaterialIcon Kind="StarOutline" IsVisible="{Binding !IsFavorite}" />
+                  </Panel>
+                </Button>
                 <mi:MaterialIcon Kind="Cctv" Classes="status" Classes.online="{Binding IsOnline}" />
                 <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
               </StackPanel>

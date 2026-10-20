@@ -1,6 +1,5 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
@@ -93,7 +92,7 @@ public partial class MainWindow : Window
 
     private void OnTreeTapped(object? sender, TappedEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel viewModel || IsExpanderToggle(e.Source))
+        if (DataContext is not MainWindowViewModel viewModel || IsTreeButton(e.Source))
         {
             return;
         }
@@ -106,7 +105,7 @@ public partial class MainWindow : Window
 
     private void OnTreeDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (IsExpanderToggle(e.Source))
+        if (IsTreeButton(e.Source))
         {
             return;
         }
@@ -125,14 +124,14 @@ public partial class MainWindow : Window
         }
     }
 
-    private static bool IsExpanderToggle(object? source)
+    private static bool IsTreeButton(object? source)
     {
-        return (source as Visual)?.FindAncestorOfType<ToggleButton>(includeSelf: true) is not null;
+        return (source as Visual)?.FindAncestorOfType<Button>(includeSelf: true) is not null;
     }
 
     private void OnTreePointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (IsExpanderToggle(e.Source))
+        if (IsTreeButton(e.Source))
         {
             _dragStart = null;
             _dragNode = null;

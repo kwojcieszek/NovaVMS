@@ -8,8 +8,16 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        UnhandledExceptionLogger.Install();
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        try
+        {
+            UnhandledExceptionLogger.Install();
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
+        catch (Exception exception)
+        {
+            UnhandledExceptionLogger.Log("Application startup or main loop failure", exception);
+            Environment.ExitCode = 1;
+        }
     }
 
     public static AppBuilder BuildAvaloniaApp()

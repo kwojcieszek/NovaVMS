@@ -14,6 +14,9 @@ public sealed class Channel
 
     public bool Enabled { get; set; } = true;
 
+    /// <summary>User bookmark, shared by all occurrences of this camera in the resource tree.</summary>
+    public bool IsFavorite { get; set; }
+
     /// <summary>
     /// Main stream address reported by the device (ONVIF). Hikvision (ISAPI) devices build it from the channel number.
     /// </summary>

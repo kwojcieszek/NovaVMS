@@ -77,7 +77,9 @@ public sealed class DeviceSyncService
             // Prefer the encoder dimensions reported by the device; retain learned values as a fallback.
             foreach (var channel in channels)
             {
-                channel.MainAspectRatio ??= device.Channels.FirstOrDefault(old => old.Number == channel.Number)?.MainAspectRatio;
+                var previous = device.Channels.FirstOrDefault(old => old.Number == channel.Number);
+                channel.MainAspectRatio ??= previous?.MainAspectRatio;
+                channel.IsFavorite = previous?.IsFavorite ?? channel.IsFavorite;
             }
 
             device.Channels = channels.ToList();

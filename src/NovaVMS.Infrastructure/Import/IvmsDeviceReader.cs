@@ -18,6 +18,8 @@ public sealed class IvmsDeviceReader
     private const int MaximumDatabaseSize = 64 * 1024 * 1024;
     private const int PageSize = 1024;
     private const int ReserveSize = 48;
+    private static readonly Encoding StrictUtf8 = new UTF8Encoding(false, true);
+    private static readonly Encoding LegacyNameEncoding = CodePagesEncodingProvider.Instance.GetEncoding(1250)!;
 
     public async Task<DeviceCsvResult> ReadAsync(Stream source, Stream? encryptionSetup = null,
         CancellationToken cancellationToken = default)
@@ -67,12 +69,14 @@ public sealed class IvmsDeviceReader
             var warnings = new List<string>();
             using (var command = connection.CreateCommand())
             {
-                command.CommandText = "SELECT GUID, Name, LoginMode, LoginAddress, LoginPort, UserName, UserPwd, SN, AChanStartNo, AChanCount, DChanStartNo FROM HikDevice";
+                // Some iVMS backups store ANSI name bytes in a database labelled UTF-8.
+                // Read raw bytes before SQLite's UTF-8 conversion can replace Polish letters.
+                command.CommandText = "SELECT GUID, CAST(Name AS BLOB), LoginMode, LoginAddress, LoginPort, UserName, UserPwd, SN, AChanStartNo, AChanCount, DChanStartNo FROM HikDevice";
                 using var rows = command.ExecuteReader();
                 while (rows.Read())
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var name = rows.GetString(1);
+                    var name = DecodeName((byte[])rows.GetValue(1));
                     var host = rows.GetString(3).Trim();
                     if (rows.GetInt32(2) != 0 || string.IsNullOrWhiteSpace(host))
                     {
@@ -100,7 +104,7 @@ public sealed class IvmsDeviceReader
             using (var command = connection.CreateCommand())
             {
                 // Channel type 2 is a device resource, not an additional camera.
-                command.CommandText = "SELECT DeviceGUID, Name, ChannelType, ChannelNo FROM Channel WHERE ChannelType IN (0, 1) ORDER BY ChannelType, ChannelNo";
+                command.CommandText = "SELECT DeviceGUID, CAST(Name AS BLOB), ChannelType, ChannelNo FROM Channel WHERE ChannelType IN (0, 1) ORDER BY ChannelType, ChannelNo";
                 using var rows = command.ExecuteReader();
                 while (rows.Read())
                 {
@@ -113,7 +117,7 @@ public sealed class IvmsDeviceReader
                         : sdkNumber - item.DigitalStart + item.AnalogCount + 1;
                     if (number <= 0 || item.Device.Channels.Any(channel => channel.Number == number))
                         throw new FormatException(ImportText.Get("IvmsDamaged"));
-                    item.Device.Channels.Add(new Channel { Number = number, Name = rows.GetString(1) });
+                    item.Device.Channels.Add(new Channel { Number = number, Name = DecodeName((byte[])rows.GetValue(1)) });
                 }
             }
 
@@ -131,6 +135,12 @@ public sealed class IvmsDeviceReader
             CryptographicOperations.ZeroMemory(parameters.Iv);
             if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
         }
+    }
+
+    internal static string DecodeName(byte[] bytes)
+    {
+        try { return StrictUtf8.GetString(bytes); }
+        catch (DecoderFallbackException) { return LegacyNameEncoding.GetString(bytes); }
     }
 
     private static (byte[] Secret, byte[] Key, byte[] Iv) ReadParameters(byte[] setup)

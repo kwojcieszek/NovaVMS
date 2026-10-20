@@ -24,7 +24,8 @@ internal static class ServiceConfiguration
         services.AddSingleton<IDeviceClientFactory, DeviceClientFactory>();
         services.AddSingleton<IDeviceReachability, DeviceReachability>();
         services.AddSingleton<DeviceCsvReader>();
-        services.AddSingleton(_ => new LibVLC());
+        // Internal transition snapshots must not display filenames or preview thumbnails over video.
+        services.AddSingleton(_ => new LibVLC("--no-osd", "--no-snapshot-preview", "--no-video-title-show"));
 
         services.AddSingleton<ConfigurationService>();
         services.AddSingleton<DeviceSyncService>();

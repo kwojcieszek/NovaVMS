@@ -14,6 +14,11 @@ public sealed class VideoMedia : IDisposable
 
     private VideoMedia(Media media, Stream? stream, StreamMediaInput? input)
     {
+        // Apply to the input as well as LibVLC defaults. Internal handover snapshots must
+        // never insert VLC's picture-in-picture preview or filename into the live output.
+        media.AddOption(":no-snapshot-preview");
+        media.AddOption(":no-osd");
+        media.AddOption(":no-video-title-show");
         Media = media;
         _stream = stream;
         _input = input;

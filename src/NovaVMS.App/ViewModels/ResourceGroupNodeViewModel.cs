@@ -4,7 +4,7 @@ using NovaVMS.App.Models;
 namespace NovaVMS.App.ViewModels;
 
 /// <summary>
-/// Camera group in the resource tree. The unassigned group has no identifier.
+/// Camera group in the resource tree. Favorites and unassigned cameras have no group identifier.
 /// </summary>
 public sealed class ResourceGroupNodeViewModel : ResourceNodeViewModel
 {
@@ -25,7 +25,9 @@ public sealed class ResourceGroupNodeViewModel : ResourceNodeViewModel
 
     public bool IsUnassigned => Kind == GroupNodeKind.Unassigned;
 
-    public bool CanEdit => Kind != GroupNodeKind.Unassigned;
+    public bool IsFavorites => Kind == GroupNodeKind.Favorites;
+
+    public bool CanEdit => IsCustom || IsDeviceGroup;
 
     public ObservableCollection<CameraNodeViewModel> Cameras { get; } = new();
 }

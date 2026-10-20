@@ -21,6 +21,8 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     private readonly IDeviceClientFactory _clientFactory;
     private readonly StatusBarService _statusBar;
     private bool _isShutDown;
+    private bool _changingMaximizedTile;
+    private VideoTileViewModel? _requestedMaximizedTile;
 
     [ObservableProperty]
     private GridLayoutOption _selectedLayout = GridLayoutOption.Find(4);
@@ -80,7 +82,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     [RelayCommand]
     public void RestoreLayout()
     {
-        MaximizedTile = null;
+        RequestMaximizedTile(null);
     }
 
     /// <summary>
@@ -171,7 +173,34 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     public void ToggleMaximize(VideoTileViewModel tile)
     {
         SelectedTile = tile;
-        MaximizedTile = ReferenceEquals(MaximizedTile, tile) ? null : tile;
+        var current = _changingMaximizedTile ? _requestedMaximizedTile : MaximizedTile;
+        RequestMaximizedTile(ReferenceEquals(current, tile) ? null : tile);
+    }
+
+    private async void RequestMaximizedTile(VideoTileViewModel? requested)
+    {
+        _requestedMaximizedTile = requested;
+        if (_changingMaximizedTile || _isShutDown) return;
+        _changingMaximizedTile = true;
+        try
+        {
+            while (!_isShutDown && !ReferenceEquals(MaximizedTile, _requestedMaximizedTile))
+            {
+                var target = _requestedMaximizedTile;
+                var coveredTile = MaximizedTile ?? target;
+                if (coveredTile is null || !Tiles.Contains(coveredTile)) return;
+                try
+                {
+                    // Cover the native SUB surface before resizing it, not when MAIN is ready later.
+                    if (!await coveredTile.PrepareLayoutTransitionAsync()) return;
+                    if (_isShutDown || !Tiles.Contains(coveredTile)) return;
+                    if (!ReferenceEquals(target, _requestedMaximizedTile)) continue;
+                    MaximizedTile = target;
+                }
+                finally { await coveredTile.FinishLayoutTransitionAsync(); }
+            }
+        }
+        finally { _changingMaximizedTile = false; }
     }
 
     public async void ReportMainAspectRatio(CameraReference camera, string aspectRatio)
