@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NovaVMS.App.ViewModels"
+             xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
+             x:Class="NovaVMS.App.Views.VideoTileView"
+             x:DataType="vm:VideoTileViewModel">
+
+  <Border Classes="tile" Classes.selected="{Binding IsSelected}">
+    <DockPanel>
+      <Button x:Name="HeaderButton"
+              DockPanel.Dock="Top"
+              Classes="tileHeader"
+              DragDrop.AllowDrop="True"
+              IsVisible="{Binding ShowTitle}"
+              Command="{Binding SelectCommand}"
+              ToolTip.Tip="{Binding ErrorDetails}">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Right"
+                     Classes="muted"
+                     Classes.error="{Binding HasError}"
+                     Text="{Binding StatusText}"
+                     Margin="8,0,0,0" />
+          <TextBlock Text="{Binding Header}" TextTrimming="CharacterEllipsis" />
+        </DockPanel>
+      </Button>
+
+      <!-- The overlay window follows the visibility of the video view itself (not of its parents),
+           so hidden tiles must hide the view too, otherwise their overlays cover the maximized tile. -->
+      <vlc:VideoView x:Name="Video" MediaPlayer="{Binding VideoPlayer}" IsVisible="{Binding IsVisibleInGrid}">
+        <!-- The overlay lives in a separate window above the native VLC surface, which lets the video
+             react to clicks, double-clicks and drops and show the connection state on top of the picture.
+             The almost transparent background is required for the overlay to receive mouse input. -->
+        <vlc:VideoView.Content>
+          <Panel x:Name="VideoOverlay" Background="#01000000" DragDrop.AllowDrop="True">
+            <TextBlock Classes="overlayText"
+                       Text="{Binding OverlayText}"
+                       IsVisible="{Binding IsOverlayTextVisible}" />
+          </Panel>
+        </vlc:VideoView.Content>
+      </vlc:VideoView>
+    </DockPanel>
+  </Border>
+</UserControl>

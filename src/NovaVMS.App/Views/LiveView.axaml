@@ -1,0 +1,93 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.App.Localization"
+             xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:vm="using:NovaVMS.App.ViewModels"
+             xmlns:models="using:NovaVMS.App.Models"
+             xmlns:views="using:NovaVMS.App.Views"
+             x:Class="NovaVMS.App.Views.LiveView"
+             x:DataType="vm:LiveViewViewModel">
+
+  <DockPanel>
+
+    <!-- Toolbar below the grid -->
+    <Border DockPanel.Dock="Bottom" Padding="8,4" Background="{DynamicResource NovaPanelBackground}">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+          <Button Classes="toolbar"
+                  IsVisible="{Binding IsMaximized}"
+                  Command="{Binding RestoreLayoutCommand}"
+                  ToolTip.Tip="{l:Tr Live_RestoreSplitTip}">
+            <mi:MaterialIconText Kind="ArrowCollapseAll" Text="{l:Tr Live_RestoreSplit}" />
+          </Button>
+          <mi:MaterialIcon Kind="ViewGridOutline" VerticalAlignment="Center" ToolTip.Tip="{l:Tr Live_SplitTip}" />
+          <ComboBox ItemsSource="{Binding Layouts}"
+                    SelectedItem="{Binding SelectedLayout}"
+                    MinWidth="110">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="models:GridLayoutOption">
+                <TextBlock Text="{Binding Label}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <Button Classes="toolbar"
+                  Click="OnFullScreenClick"
+                  ToolTip.Tip="{l:Tr Live_FullScreenTip}">
+            <mi:MaterialIconText Kind="Fullscreen" Text="{l:Tr Live_FullScreen}" />
+          </Button>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="2">
+          <Button Classes="toolbar"
+                  Command="{Binding ToggleAudioCommand}"
+                  ToolTip.Tip="{l:Tr Live_AudioTip}">
+            <mi:MaterialIconText Kind="VolumeHigh" Text="{l:Tr Live_Audio}" />
+          </Button>
+          <Button Classes="toolbar"
+                  Command="{Binding TakeSnapshotCommand}"
+                  ToolTip.Tip="{l:Tr Live_SnapshotTip}">
+            <mi:MaterialIconText Kind="CameraOutline" Text="{l:Tr Live_Snapshot}" />
+          </Button>
+          <Button Classes="toolbar"
+                  Command="{Binding ToggleTileTitlesCommand}"
+                  ToolTip.Tip="{l:Tr Live_CameraNamesTip}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <mi:MaterialIcon Kind="EyeOutline" IsVisible="{Binding ShowTileTitles}" />
+              <mi:MaterialIcon Kind="EyeOffOutline" IsVisible="{Binding !ShowTileTitles}" />
+              <TextBlock Text="{l:Tr Live_CameraNames}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <Button Classes="toolbar"
+                  Command="{Binding CloseSelectedCommand}">
+            <mi:MaterialIconText Kind="Close" Text="{l:Tr Live_CloseTile}" />
+          </Button>
+          <Button Classes="toolbar"
+                  Command="{Binding CloseAllCommand}">
+            <mi:MaterialIconText Kind="CloseBoxMultipleOutline" Text="{l:Tr Live_CloseAll}" />
+          </Button>
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Tile grid -->
+    <ItemsControl Classes="tileGrid" ItemsSource="{Binding Tiles}" Background="{DynamicResource NovaWindowBackground}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <UniformGrid x:DataType="vm:LiveViewViewModel" Rows="{Binding Rows}" Columns="{Binding Columns}" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.Styles>
+        <!-- While a tile is maximized the other tiles are hidden and their streams are stopped until restored.
+             Selectors use the logical tree, where the item containers are children of the ItemsControl. -->
+        <Style Selector="ItemsControl.tileGrid > ContentPresenter" x:DataType="vm:VideoTileViewModel">
+          <Setter Property="IsVisible" Value="{Binding IsVisibleInGrid}" />
+        </Style>
+      </ItemsControl.Styles>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:VideoTileViewModel">
+          <views:VideoTileView />
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+  </DockPanel>
+</UserControl>

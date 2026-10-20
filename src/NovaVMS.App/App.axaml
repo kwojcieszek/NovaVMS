@@ -1,0 +1,177 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:controls="using:NovaVMS.App.Controls"
+             x:Class="NovaVMS.App.App"
+             Name="NovaVMS"
+             RequestedThemeVariant="Default">
+
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="NovaWindowBackground" Color="#FF1B1C1F" />
+          <SolidColorBrush x:Key="NovaPanelBackground" Color="#FF26272B" />
+          <SolidColorBrush x:Key="NovaHeaderBackground" Color="#FF131416" />
+          <SolidColorBrush x:Key="NovaTileBackground" Color="#FF0B0B0D" />
+          <SolidColorBrush x:Key="NovaTileHeaderBackground" Color="#FF202125" />
+          <SolidColorBrush x:Key="NovaTileBorder" Color="#FF2E2F34" />
+          <SolidColorBrush x:Key="NovaStrongText" Color="#FFFFFFFF" />
+          <SolidColorBrush x:Key="NovaMutedText" Color="#FF9A9CA3" />
+          <SolidColorBrush x:Key="NovaOnline" Color="#FF3FB950" />
+          <SolidColorBrush x:Key="NovaOffline" Color="#FF5C5F66" />
+          <SolidColorBrush x:Key="NovaError" Color="#FFE5534B" />
+          <SolidColorBrush x:Key="NovaHover" Color="#18FFFFFF" />
+          <SolidColorBrush x:Key="NovaTimelineTrack" Color="#FF17181A" />
+          <SolidColorBrush x:Key="NovaTimelineSegment" Color="#FF3D7BD9" />
+          <SolidColorBrush x:Key="NovaTimelineTick" Color="#FF3A3C42" />
+          <SolidColorBrush x:Key="NovaTimelineOutOfRange" Color="#88000000" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="NovaWindowBackground" Color="#FFF3F4F6" />
+          <SolidColorBrush x:Key="NovaPanelBackground" Color="#FFFFFFFF" />
+          <SolidColorBrush x:Key="NovaHeaderBackground" Color="#FFE7E8EB" />
+          <SolidColorBrush x:Key="NovaTileBackground" Color="#FF141518" />
+          <SolidColorBrush x:Key="NovaTileHeaderBackground" Color="#FFE3E4E8" />
+          <SolidColorBrush x:Key="NovaTileBorder" Color="#FFCFD2D7" />
+          <SolidColorBrush x:Key="NovaStrongText" Color="#FF111214" />
+          <SolidColorBrush x:Key="NovaMutedText" Color="#FF5F6368" />
+          <SolidColorBrush x:Key="NovaOnline" Color="#FF1F9D45" />
+          <SolidColorBrush x:Key="NovaOffline" Color="#FFAEB1B7" />
+          <SolidColorBrush x:Key="NovaError" Color="#FFC93C37" />
+          <SolidColorBrush x:Key="NovaHover" Color="#12000000" />
+          <SolidColorBrush x:Key="NovaTimelineTrack" Color="#FFE3E4E8" />
+          <SolidColorBrush x:Key="NovaTimelineSegment" Color="#FF2F6FD0" />
+          <SolidColorBrush x:Key="NovaTimelineTick" Color="#FFC5C8CE" />
+          <SolidColorBrush x:Key="NovaTimelineOutOfRange" Color="#40000000" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+
+      <SolidColorBrush x:Key="NovaAccent" Color="#FFD7263D" />
+      <!-- Text drawn over video stays light in both themes, because video tiles are always dark. -->
+      <SolidColorBrush x:Key="NovaOverlayText" Color="#FFE6E6E6" />
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Dark" Accent="#FFD7263D" RegionColor="#FF1B1C1F" />
+        <ColorPaletteResources x:Key="Light" Accent="#FFD7263D" RegionColor="#FFF3F4F6" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+    <mi:MaterialIconStyles />
+
+    <Style Selector="mi|MaterialIcon">
+      <Setter Property="Width" Value="16" />
+      <Setter Property="Height" Value="16" />
+    </Style>
+
+    <!-- Header tabs -->
+    <Style Selector="Button.tab">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource NovaMutedText}" />
+      <Setter Property="BorderThickness" Value="0,0,0,2" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="Padding" Value="14,0" />
+      <Setter Property="VerticalAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.tab.active">
+      <Setter Property="Foreground" Value="{DynamicResource NovaStrongText}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource NovaAccent}" />
+    </Style>
+    <Style Selector="Button.tab:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource NovaHover}" />
+    </Style>
+
+    <!-- Toolbar and icon-only buttons -->
+    <Style Selector="Button.toolbar">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="Button.icon">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Padding" Value="6" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- Live view tiles -->
+    <Style Selector="Border.tile">
+      <Setter Property="Background" Value="{DynamicResource NovaTileBackground}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource NovaTileBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Margin" Value="1" />
+    </Style>
+    <Style Selector="Border.tile.selected">
+      <Setter Property="BorderBrush" Value="{DynamicResource NovaAccent}" />
+    </Style>
+    <Style Selector="Button.tileHeader">
+      <Setter Property="Background" Value="{DynamicResource NovaTileHeaderBackground}" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="Padding" Value="6,2" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="TextBlock.overlayText">
+      <Setter Property="Foreground" Value="{DynamicResource NovaOverlayText}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="TextAlignment" Value="Center" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="12" />
+      <Setter Property="Opacity" Value="0.85" />
+    </Style>
+
+    <Style Selector="TextBlock.muted">
+      <Setter Property="Foreground" Value="{DynamicResource NovaMutedText}" />
+    </Style>
+    <Style Selector="TextBlock.error">
+      <Setter Property="Foreground" Value="{DynamicResource NovaError}" />
+    </Style>
+    <Style Selector="TextBlock.sectionTitle">
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+
+    <!-- Resource tree -->
+    <Style Selector="mi|MaterialIcon.status">
+      <Setter Property="Foreground" Value="{DynamicResource NovaOffline}" />
+    </Style>
+    <Style Selector="mi|MaterialIcon.status.online">
+      <Setter Property="Foreground" Value="{DynamicResource NovaOnline}" />
+    </Style>
+    <Style Selector="StackPanel.offline > TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource NovaMutedText}" />
+    </Style>
+
+    <!-- PTZ buttons -->
+    <Style Selector="Button.ptz">
+      <Setter Property="Width" Value="36" />
+      <Setter Property="Height" Value="36" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <!-- Recording timeline -->
+    <Style Selector="controls|TimelineBar">
+      <Setter Property="TrackBrush" Value="{DynamicResource NovaTimelineTrack}" />
+      <Setter Property="SegmentBrush" Value="{DynamicResource NovaTimelineSegment}" />
+      <Setter Property="TickBrush" Value="{DynamicResource NovaTimelineTick}" />
+      <Setter Property="LabelBrush" Value="{DynamicResource NovaMutedText}" />
+      <Setter Property="CursorBrush" Value="{DynamicResource NovaAccent}" />
+      <Setter Property="OutOfRangeBrush" Value="{DynamicResource NovaTimelineOutOfRange}" />
+    </Style>
+  </Application.Styles>
+</Application>

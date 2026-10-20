@@ -1,0 +1,241 @@
+using NovaVMS.Core.Exceptions;
+using System.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using NovaVMS.App.Models;
+using NovaVMS.App.Services;
+using NovaVMS.Core.Models;
+using NovaVMS.App.Localization;
+
+namespace NovaVMS.App.ViewModels;
+
+/// <summary>
+/// Main window: resource tree, live view, playback and PTZ.
+/// </summary>
+public sealed partial class MainWindowViewModel : ViewModelBase
+{
+    private readonly ConfigurationService _configuration;
+    private readonly DeviceSyncService _sync;
+    private readonly Func<SettingsWindowViewModel> _settingsFactory;
+    // Cancelled when the window closes so background work does not outlive the UI.
+    private readonly CancellationTokenSource _lifetime = new();
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsLivePage))]
+    [NotifyPropertyChangedFor(nameof(IsPlaybackPage))]
+    private AppPage _currentPage = AppPage.Live;
+
+    public MainWindowViewModel(
+        ConfigurationService configuration,
+        DeviceSyncService sync,
+        Func<SettingsWindowViewModel> settingsFactory,
+        ResourceTreeViewModel tree,
+        LiveViewViewModel live,
+        PlaybackViewModel playback,
+        PtzViewModel ptz,
+        StatusBarService statusBar)
+    {
+        _configuration = configuration;
+        _sync = sync;
+        _settingsFactory = settingsFactory;
+        Tree = tree;
+        Live = live;
+        Playback = playback;
+        Ptz = ptz;
+        StatusBar = statusBar;
+
+        Tree.PropertyChanged += OnTreePropertyChanged;
+        Tree.OpenRequested += OnTreeOpenRequested;
+        Live.PropertyChanged += OnLivePropertyChanged;
+    }
+
+    public ResourceTreeViewModel Tree { get; }
+
+    public LiveViewViewModel Live { get; }
+
+    public PlaybackViewModel Playback { get; }
+
+    public PtzViewModel Ptz { get; }
+
+    public StatusBarService StatusBar { get; }
+
+    public bool IsLivePage => CurrentPage == AppPage.Live;
+
+    public bool IsPlaybackPage => CurrentPage == AppPage.Playback;
+
+    public SettingsWindowViewModel CreateSettings()
+    {
+        return _settingsFactory();
+    }
+
+    /// <summary>
+    /// Stops streams and background work. Called while the main window is closing,
+    /// before native video surfaces are destroyed.
+    /// </summary>
+    public void PrepareShutdown()
+    {
+        if (!_lifetime.IsCancellationRequested)
+        {
+            _lifetime.Cancel();
+        }
+
+        Live.Shutdown();
+        Playback.Shutdown();
+    }
+
+    /// <summary>
+    /// Releases media players once the main window is closed and its video views are detached.
+    /// Releasing them later, at application exit, crashes the runtime inside LibVLC callbacks.
+    /// </summary>
+    public void CompleteShutdown()
+    {
+        Live.Dispose();
+        Playback.Dispose();
+    }
+
+    [RelayCommand]
+    private async Task InitializeAsync()
+    {
+        await _configuration.LoadAsync();
+        Live.ApplyDefaultLayout();
+
+        var deviceCount = _configuration.Current.Devices.Count;
+        if (deviceCount == 0)
+        {
+            StatusBar.Message = Localizer.Text("Main_NoDevices");
+            return;
+        }
+
+        StatusBar.Message = Localizer.Text("Main_Connecting");
+        try
+        {
+            var online = await _sync.SyncAllAsync(_lifetime.Token);
+            StatusBar.Message = Localizer.Format("Main_DevicesOnline", online, deviceCount);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            // The application is closing.
+        }
+        catch (Exception exception) when (DeviceFailure.IsExpected(exception))
+        {
+            StatusBar.Message = DeviceOperationErrors.Report("Initial device synchronization", exception);
+        }
+    }
+
+    [RelayCommand]
+    private void ShowLive()
+    {
+        CurrentPage = AppPage.Live;
+    }
+
+    [RelayCommand]
+    private void ShowPlayback()
+    {
+        CurrentPage = AppPage.Playback;
+    }
+
+    [RelayCommand]
+    private async Task CycleThemeAsync()
+    {
+        var settings = _configuration.Current.Settings;
+        settings.Theme = settings.Theme switch
+        {
+            ThemeMode.System => ThemeMode.Light,
+            ThemeMode.Light => ThemeMode.Dark,
+            _ => ThemeMode.System
+        };
+
+        await _configuration.SaveAsync();
+        StatusBar.Message = Localizer.Format("Main_ThemeChanged", ThemeOption.Find(settings.Theme).Label);
+    }
+
+    [RelayCommand]
+    private void OpenSelected()
+    {
+        Open(Tree.SelectedNode);
+    }
+
+    /// <summary>
+    /// Shows the whole group in the live view grid. Used when a group is clicked in the tree.
+    /// </summary>
+    [RelayCommand]
+    private void ShowGroup(ResourceGroupNodeViewModel? group)
+    {
+        if (group is not null && IsLivePage)
+        {
+            Open(group);
+        }
+    }
+
+    private void Open(ResourceNodeViewModel? node)
+    {
+        switch (node)
+        {
+            case CameraNodeViewModel camera when IsPlaybackPage:
+            {
+                Playback.SetCamera(camera.Reference);
+                break;
+            }
+            case CameraNodeViewModel camera:
+            {
+                Live.OpenCamera(camera.Reference);
+                break;
+            }
+            case ResourceGroupNodeViewModel group when IsLivePage:
+            {
+                var cameras = Tree.GetCameras(group);
+                if (cameras.Count == 0)
+                {
+                    StatusBar.Message = Localizer.Format("Main_GroupEmpty", group.Name);
+                    break;
+                }
+
+                Live.ShowCameras(cameras);
+                StatusBar.Message = Localizer.Format("Main_ShowingGroup", group.Name, cameras.Count);
+                break;
+            }
+        }
+    }
+
+    partial void OnCurrentPageChanged(AppPage value)
+    {
+        if (value == AppPage.Playback)
+        {
+            if (Tree.SelectedNode is CameraNodeViewModel camera)
+            {
+                Playback.SetCamera(camera.Reference);
+            }
+        }
+        else if (Playback.StopCommand.CanExecute(null))
+        {
+            Playback.StopCommand.Execute(null);
+        }
+    }
+
+    private void OnTreeOpenRequested(object? sender, ResourceNodeViewModel node)
+    {
+        CurrentPage = AppPage.Live;
+        Open(node);
+    }
+
+    private void OnTreePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(ResourceTreeViewModel.SelectedNode))
+        {
+            return;
+        }
+
+        if (IsPlaybackPage && Tree.SelectedNode is CameraNodeViewModel camera)
+        {
+            Playback.SetCamera(camera.Reference);
+        }
+    }
+
+    private void OnLivePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(LiveViewViewModel.SelectedCamera))
+        {
+            Ptz.SetTarget(Live.SelectedCamera);
+        }
+    }
+}

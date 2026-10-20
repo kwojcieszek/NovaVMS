@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="using:NovaVMS.App.Localization"
+        xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        xmlns:vm="using:NovaVMS.App.ViewModels"
+        xmlns:views="using:NovaVMS.App.Views"
+        x:Class="NovaVMS.App.Views.SettingsWindow"
+        x:DataType="vm:SettingsWindowViewModel"
+        Title="{l:Tr Settings_Title}"
+        Width="1320" Height="820"
+        MinWidth="1080" MinHeight="640"
+        Icon="/Assets/novavms.ico"
+        WindowStartupLocation="CenterOwner"
+		WindowState="Maximized"
+        Background="{DynamicResource NovaWindowBackground}">
+
+  <DockPanel>
+    <TabControl Margin="8" TabStripPlacement="Left">
+      <TabItem>
+        <TabItem.Header>
+          <mi:MaterialIconText Kind="Server" FontSize="16" Text="{l:Tr Settings_Devices}" />
+        </TabItem.Header>
+        <views:DevicesSettingsView DataContext="{Binding Devices}" />
+      </TabItem>
+      <TabItem>
+        <TabItem.Header>
+          <mi:MaterialIconText Kind="FolderStarMultipleOutline" FontSize="16" Text="{l:Tr Settings_Groups}" />
+        </TabItem.Header>
+        <views:GroupsSettingsView DataContext="{Binding Groups}" />
+      </TabItem>
+      <TabItem>
+        <TabItem.Header>
+          <mi:MaterialIconText Kind="TuneVariant" FontSize="16" Text="{l:Tr Settings_General}" />
+        </TabItem.Header>
+        <views:GeneralSettingsView DataContext="{Binding General}" />
+      </TabItem>
+    </TabControl>
+  </DockPanel>
+</Window>

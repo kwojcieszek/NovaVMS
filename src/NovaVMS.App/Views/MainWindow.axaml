@@ -1,0 +1,199 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="using:NovaVMS.App.Localization"
+        xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        xmlns:vm="using:NovaVMS.App.ViewModels"
+        xmlns:views="using:NovaVMS.App.Views"
+        x:Class="NovaVMS.App.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="NovaVMS"
+        Width="1440" Height="900"
+        MinWidth="1000" MinHeight="640"
+        Icon="/Assets/novavms.ico"
+        WindowStartupLocation="CenterScreen"
+		WindowState="Maximized"
+        Background="{DynamicResource NovaWindowBackground}">
+
+  <DockPanel>
+
+    <!-- Header: view tabs, theme and settings -->
+    <Border DockPanel.Dock="Top" Height="40" Background="{DynamicResource NovaHeaderBackground}">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2" Margin="0,0,8,0">
+          <Button Classes="icon"
+                  Command="{Binding CycleThemeCommand}"
+                  ToolTip.Tip="{l:Tr App_ThemeToggleTip}"
+                  Content="{mi:MaterialIconExt Kind=ThemeLightDark}" />
+          <Button Classes="toolbar"
+                  VerticalAlignment="Center"
+                  Click="OnSettingsClick">
+            <mi:MaterialIconText Kind="CogOutline" Text="{l:Tr App_Settings}" />
+          </Button>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal">
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="14,0,18,0" VerticalAlignment="Center">
+            <mi:MaterialIcon Kind="Cctv" Width="20" Height="20" Foreground="{DynamicResource NovaAccent}" />
+            <TextBlock Text="NovaVMS" FontSize="15" FontWeight="Bold" VerticalAlignment="Center" />
+          </StackPanel>
+          <Button Classes="tab"
+                  Classes.active="{Binding IsLivePage}"
+                  Command="{Binding ShowLiveCommand}">
+            <mi:MaterialIconText Kind="Video" Text="{l:Tr App_LiveView}" />
+          </Button>
+          <Button Classes="tab"
+                  Classes.active="{Binding IsPlaybackPage}"
+                  Command="{Binding ShowPlaybackCommand}">
+            <mi:MaterialIconText Kind="History" Text="{l:Tr App_Playback}" />
+          </Button>
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Status bar -->
+    <Border DockPanel.Dock="Bottom" Padding="12,4" Background="{DynamicResource NovaHeaderBackground}">
+      <TextBlock Classes="muted" FontSize="12" Text="{Binding StatusBar.Message}" />
+    </Border>
+
+    <Grid ColumnDefinitions="290,4,*">
+
+      <!-- Resource panel -->
+      <DockPanel Grid.Column="0" Background="{DynamicResource NovaPanelBackground}">
+        <Expander DockPanel.Dock="Bottom"
+                  HorizontalAlignment="Stretch"
+                  CornerRadius="0"
+                  IsVisible="{Binding IsLivePage}">
+          <Expander.Header>
+            <mi:MaterialIconText Kind="CameraControl" Text="{l:Tr App_PtzControl}" />
+          </Expander.Header>
+          <views:PtzPanel DataContext="{Binding Ptz}" />
+        </Expander>
+
+        <DockPanel DockPanel.Dock="Top" Margin="10,10,6,6">
+          <Button DockPanel.Dock="Right"
+                  Classes="icon"
+                  Margin="2,0,0,0"
+                  Command="{Binding Tree.AddCustomGroupCommand}"
+                  ToolTip.Tip="{l:Tr Tree_NewCustomGroupTip}"
+                  Content="{mi:MaterialIconExt Kind=FolderPlusOutline}" />
+          <Button DockPanel.Dock="Right"
+                  Classes="icon"
+                  Margin="4,0,0,0"
+                  Command="{Binding Tree.ToggleSearchCommand}"
+                  ToolTip.Tip="{l:Tr Tree_ToggleSearchTip}">
+            <Panel>
+              <mi:MaterialIcon Kind="MagnifyMinusOutline" IsVisible="{Binding Tree.IsSearchVisible}" />
+              <mi:MaterialIcon Kind="Magnify" IsVisible="{Binding !Tree.IsSearchVisible}" />
+            </Panel>
+          </Button>
+          <Panel>
+            <TextBox Watermark="{l:Tr Tree_SearchWatermark}"
+                     Text="{Binding Tree.SearchText}"
+                     IsVisible="{Binding Tree.IsSearchVisible}" />
+            <TextBlock Text="{l:Tr Tree_Cameras}"
+                       FontWeight="SemiBold"
+                       VerticalAlignment="Center"
+                       Margin="4,0,0,0"
+                       IsVisible="{Binding !Tree.IsSearchVisible}" />
+          </Panel>
+        </DockPanel>
+
+        <TreeView x:Name="ResourceTree"
+                  ItemsSource="{Binding Tree.Groups}"
+                  SelectedItem="{Binding Tree.SelectedNode}"
+                  DragDrop.AllowDrop="True"
+                  Tapped="OnTreeTapped">
+          <TreeView.Styles>
+            <Style Selector="TreeViewItem" x:DataType="vm:ResourceNodeViewModel">
+              <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+            </Style>
+          </TreeView.Styles>
+          <TreeView.DataTemplates>
+            <TreeDataTemplate DataType="vm:ResourceGroupNodeViewModel"
+                              x:DataType="vm:ResourceGroupNodeViewModel"
+                              ItemsSource="{Binding Cameras}">
+              <StackPanel Orientation="Horizontal" Spacing="8" Background="Transparent">
+                <StackPanel.ContextMenu>
+                  <ContextMenu>
+                    <MenuItem Header="{l:Tr Tree_OpenAll}"
+                              Icon="{mi:MaterialIconExt Kind=ViewGridOutline}"
+                              Command="{Binding Owner.OpenNodeCommand}"
+                              CommandParameter="{Binding}" />
+                    <MenuItem Header="{l:Tr Tree_Rename}"
+                              Icon="{mi:MaterialIconExt Kind=PencilOutline}"
+                              IsVisible="{Binding CanEdit}"
+                              Command="{Binding Owner.RenameGroupCommand}"
+                              CommandParameter="{Binding}" />
+                    <MenuItem Header="{l:Tr Tree_DeleteGroup}"
+                              Icon="{mi:MaterialIconExt Kind=DeleteOutline}"
+                              IsVisible="{Binding CanEdit}"
+                              Command="{Binding Owner.DeleteGroupCommand}"
+                              CommandParameter="{Binding}" />
+                    <Separator />
+                    <MenuItem Header="{l:Tr Tree_NewCustomGroupMenu}"
+                              Icon="{mi:MaterialIconExt Kind=FolderPlusOutline}"
+                              Command="{Binding Owner.AddCustomGroupCommand}" />
+                  </ContextMenu>
+                </StackPanel.ContextMenu>
+                <mi:MaterialIcon Kind="FolderStar" Foreground="{DynamicResource NovaAccent}" IsVisible="{Binding IsCustom}" />
+                <mi:MaterialIcon Kind="Server" IsVisible="{Binding IsDeviceGroup}" />
+                <mi:MaterialIcon Kind="FolderOutline" IsVisible="{Binding IsUnassigned}" />
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+              </StackPanel>
+            </TreeDataTemplate>
+            <DataTemplate DataType="vm:CameraNodeViewModel" x:DataType="vm:CameraNodeViewModel">
+              <StackPanel Orientation="Horizontal"
+                          Spacing="8"
+                          Background="Transparent"
+                          Classes.offline="{Binding !IsOnline}"
+                          ToolTip.Tip="{Binding FullName}">
+                <StackPanel.ContextMenu>
+                  <ContextMenu>
+                    <MenuItem Header="{l:Tr Tree_OpenInLiveView}"
+                              Icon="{mi:MaterialIconExt Kind=PlayCircleOutline}"
+                              Command="{Binding Owner.OpenNodeCommand}"
+                              CommandParameter="{Binding}" />
+                    <MenuItem Header="{l:Tr Tree_AddToGroup}"
+                              Icon="{mi:MaterialIconExt Kind=FolderStarOutline}"
+                              IsEnabled="{Binding HasAddToGroupActions}"
+                              ItemsSource="{Binding AddToGroupActions}">
+                      <MenuItem.ItemContainerTheme>
+                        <ControlTheme TargetType="MenuItem"
+                                      BasedOn="{StaticResource {x:Type MenuItem}}"
+                                      x:DataType="vm:MenuActionViewModel">
+                          <Setter Property="Header" Value="{Binding Header}" />
+                          <Setter Property="Command" Value="{Binding Command}" />
+                        </ControlTheme>
+                      </MenuItem.ItemContainerTheme>
+                    </MenuItem>
+                    <MenuItem Header="{l:Tr Tree_RemoveFromGroup}"
+                              Icon="{mi:MaterialIconExt Kind=FolderRemoveOutline}"
+                              IsVisible="{Binding CanRemoveFromGroup}"
+                              Command="{Binding Owner.RemoveFromGroupCommand}"
+                              CommandParameter="{Binding}" />
+                  </ContextMenu>
+                </StackPanel.ContextMenu>
+                <mi:MaterialIcon Kind="Cctv" Classes="status" Classes.online="{Binding IsOnline}" />
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+              </StackPanel>
+            </DataTemplate>
+          </TreeView.DataTemplates>
+        </TreeView>
+      </DockPanel>
+
+      <GridSplitter Grid.Column="1"
+                    ResizeDirection="Columns"
+                    Background="{DynamicResource NovaHeaderBackground}" />
+
+      <!-- Main views -->
+      <Panel Grid.Column="2">
+        <Panel IsVisible="{Binding IsLivePage}">
+          <views:LiveView DataContext="{Binding Live}" />
+        </Panel>
+        <Panel IsVisible="{Binding IsPlaybackPage}">
+          <views:PlaybackView DataContext="{Binding Playback}" />
+        </Panel>
+      </Panel>
+
+    </Grid>
+  </DockPanel>
+</Window>

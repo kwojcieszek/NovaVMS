@@ -1,0 +1,101 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.App.Localization"
+             xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:vm="using:NovaVMS.App.ViewModels"
+             xmlns:models="using:NovaVMS.App.Models"
+             xmlns:core="using:NovaVMS.Core.Models"
+             x:Class="NovaVMS.App.Views.GroupsSettingsView"
+             x:DataType="vm:GroupsSettingsViewModel">
+
+  <Grid ColumnDefinitions="*,16,*,16,*" Margin="8">
+
+    <!-- Groups -->
+    <DockPanel Grid.Column="0">
+      <TextBlock DockPanel.Dock="Top" Classes="sectionTitle" Text="{l:Tr Groups_Title}" />
+      <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,8,0,0">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Button Command="{Binding AddGroupCommand}">
+            <mi:MaterialIconText Kind="FolderPlusOutline" Text="{l:Tr Groups_New}" />
+          </Button>
+          <Button Command="{Binding DeleteGroupCommand}">
+            <mi:MaterialIconText Kind="DeleteOutline" Text="{l:Tr Common_Delete}" />
+          </Button>
+        </StackPanel>
+        <TextBox Watermark="{l:Tr Groups_NameWatermark}"
+                 Text="{Binding EditGroupName}"
+                 ToolTip.Tip="{l:Tr Groups_NameTip}" />
+        <TextBlock Classes="muted" Margin="0,8,0,0" TextWrapping="Wrap" Text="{l:Tr Groups_FromRecorder}" />
+        <DockPanel>
+          <Button DockPanel.Dock="Right"
+                  Margin="6,0,0,0"
+                  Command="{Binding CreateGroupFromDeviceCommand}"
+                  ToolTip.Tip="{l:Tr Groups_CreateTip}"
+                  Content="{mi:MaterialIconExt Kind=Plus}" />
+          <ComboBox ItemsSource="{Binding Devices}"
+                    SelectedItem="{Binding SelectedSourceDevice}"
+                    HorizontalAlignment="Stretch"
+                    PlaceholderText="{l:Tr Groups_SelectDevice}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="core:Device">
+                <TextBlock Text="{Binding DisplayName}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </DockPanel>
+      </StackPanel>
+      <ListBox ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="core:CameraGroup">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <mi:MaterialIcon Kind="FolderStar" Foreground="{DynamicResource NovaAccent}" IsVisible="{Binding IsCustom}" />
+              <mi:MaterialIcon Kind="Server" IsVisible="{Binding !IsCustom}" />
+              <TextBlock Text="{Binding Name}" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </DockPanel>
+
+    <!-- Cameras in the group -->
+    <DockPanel Grid.Column="2">
+      <TextBlock DockPanel.Dock="Top" Classes="sectionTitle" Text="{l:Tr Groups_CamerasInGroup}" />
+      <Button DockPanel.Dock="Bottom"
+              Margin="0,8,0,0"
+              Command="{Binding RemoveCameraCommand}">
+        <mi:MaterialIconText Kind="ArrowRightBold" Text="{l:Tr Groups_RemoveFromGroup}" />
+      </Button>
+      <ListBox ItemsSource="{Binding GroupCameras}" SelectedItem="{Binding SelectedGroupCamera}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="models:CameraDescriptor">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <mi:MaterialIcon Kind="Cctv" />
+              <TextBlock Text="{Binding FullName}" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </DockPanel>
+
+    <!-- Available cameras -->
+    <DockPanel Grid.Column="4">
+      <TextBlock DockPanel.Dock="Top" Classes="sectionTitle" Text="{l:Tr Groups_Available}" />
+      <Button DockPanel.Dock="Bottom"
+              Margin="0,8,0,0"
+              Command="{Binding AddCameraCommand}">
+        <mi:MaterialIconText Kind="ArrowLeftBold" Text="{l:Tr Tree_AddToGroup}" />
+      </Button>
+      <ListBox ItemsSource="{Binding AvailableCameras}" SelectedItem="{Binding SelectedAvailableCamera}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="models:CameraDescriptor">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <mi:MaterialIcon Kind="Cctv" />
+              <TextBlock Text="{Binding FullName}" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </DockPanel>
+
+  </Grid>
+</UserControl>

@@ -1,0 +1,73 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.App.Localization"
+             xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:vm="using:NovaVMS.App.ViewModels"
+             xmlns:core="using:NovaVMS.Core.Models"
+             x:Class="NovaVMS.App.Views.PtzPanel"
+             x:DataType="vm:PtzViewModel">
+
+  <StackPanel Spacing="8" Margin="4">
+    <TextBlock Classes="muted"
+               FontSize="11"
+               TextTrimming="CharacterEllipsis"
+               Text="{Binding TargetName}" />
+
+    <!-- The camera moves while a direction button is held down -->
+    <Grid ColumnDefinitions="Auto,14,*" IsEnabled="{Binding HasTarget}">
+      <UniformGrid Grid.Column="0" Rows="3" Columns="3" Width="120" Height="120">
+        <Button Classes="ptz" Tag="{x:Static core:PtzDirection.UpLeft}" Content="{mi:MaterialIconExt Kind=ArrowTopLeft}" />
+        <Button Classes="ptz" Tag="{x:Static core:PtzDirection.Up}" Content="{mi:MaterialIconExt Kind=ArrowUp}" />
+        <Button Classes="ptz" Tag="{x:Static core:PtzDirection.UpRight}" Content="{mi:MaterialIconExt Kind=ArrowTopRight}" />
+        <Button Classes="ptz" Tag="{x:Static core:PtzDirection.Left}" Content="{mi:MaterialIconExt Kind=ArrowLeft}" />
+        <mi:MaterialIcon Kind="Crosshairs" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.5" />
+        <Button Classes="ptz" Tag="{x:Static core:PtzDirection.Right}" Content="{mi:MaterialIconExt Kind=ArrowRight}" />
+        <Button Classes="ptz" Tag="{x:Static core:PtzDirection.DownLeft}" Content="{mi:MaterialIconExt Kind=ArrowBottomLeft}" />
+        <Button Classes="ptz" Tag="{x:Static core:PtzDirection.Down}" Content="{mi:MaterialIconExt Kind=ArrowDown}" />
+        <Button Classes="ptz" Tag="{x:Static core:PtzDirection.DownRight}" Content="{mi:MaterialIconExt Kind=ArrowBottomRight}" />
+      </UniformGrid>
+
+      <StackPanel Grid.Column="2" Spacing="6" VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Button Classes="ptz" Tag="{x:Static core:PtzDirection.ZoomIn}" ToolTip.Tip="{l:Tr Ptz_ZoomIn}" Content="{mi:MaterialIconExt Kind=MagnifyPlusOutline}" />
+          <Button Classes="ptz" Tag="{x:Static core:PtzDirection.ZoomOut}" ToolTip.Tip="{l:Tr Ptz_ZoomOut}" Content="{mi:MaterialIconExt Kind=MagnifyMinusOutline}" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <mi:MaterialIcon Kind="SpeedometerMedium" />
+          <TextBlock Classes="muted" FontSize="11" VerticalAlignment="Center">
+            <Run Text="{l:Tr Ptz_Speed}" />
+            <Run Text="{Binding Speed}" />
+          </TextBlock>
+        </StackPanel>
+        <Slider Minimum="1" Maximum="7"
+                TickFrequency="1"
+                IsSnapToTickEnabled="True"
+                Value="{Binding Speed}" />
+      </StackPanel>
+    </Grid>
+
+    <TextBlock Classes="muted" FontSize="11" Text="{l:Tr Ptz_Presets}" />
+    <DockPanel IsEnabled="{Binding HasTarget}">
+      <Button DockPanel.Dock="Right"
+              Margin="6,0,0,0"
+              Command="{Binding GotoPresetCommand}"
+              ToolTip.Tip="{l:Tr Ptz_GotoPresetTip}"
+              Content="{mi:MaterialIconExt Kind=Target}" />
+      <Button DockPanel.Dock="Right"
+              Margin="6,0,0,0"
+              Command="{Binding LoadPresetsCommand}"
+              ToolTip.Tip="{l:Tr Ptz_LoadPresetsTip}"
+              Content="{mi:MaterialIconExt Kind=Refresh}" />
+      <ComboBox ItemsSource="{Binding Presets}"
+                SelectedItem="{Binding SelectedPreset}"
+                HorizontalAlignment="Stretch"
+                PlaceholderText="{l:Tr Ptz_LoadPresetsPlaceholder}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="core:PtzPreset">
+            <TextBlock Text="{Binding DisplayName}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+    </DockPanel>
+  </StackPanel>
+</UserControl>

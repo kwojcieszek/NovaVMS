@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- Translations for the whole solution: one JSON file per language, read by JsonTextCatalog. -->
+    <EmbeddedResource Include="Resources\Strings\*.json" LogicalName="NovaVMS.Core.Resources.Strings.%(Filename)%(Extension)" WithCulture="false" />
+  </ItemGroup>
+
+</Project>

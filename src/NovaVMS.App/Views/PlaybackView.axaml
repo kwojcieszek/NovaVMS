@@ -1,0 +1,109 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.App.Localization"
+             xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:vm="using:NovaVMS.App.ViewModels"
+             xmlns:core="using:NovaVMS.Core.Models"
+             xmlns:controls="using:NovaVMS.App.Controls"
+             xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
+             x:Class="NovaVMS.App.Views.PlaybackView"
+             x:DataType="vm:PlaybackViewModel">
+
+  <DockPanel>
+
+    <!-- Day and time range -->
+    <Border DockPanel.Dock="Top" Padding="12,8" Background="{DynamicResource NovaPanelBackground}">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
+          <CalendarDatePicker SelectedDate="{Binding SelectedDate}" Width="150" ToolTip.Tip="{l:Tr Playback_DayTip}" />
+          <mi:MaterialIcon Kind="ClockOutline" VerticalAlignment="Center" />
+          <TextBlock Classes="muted" Text="{l:Tr Playback_From}" VerticalAlignment="Center" />
+          <TimePicker SelectedTime="{Binding FromTime}" ClockIdentifier="24HourClock" MinWidth="0" Width="130" />
+          <TextBlock Classes="muted" Text="{l:Tr Playback_To}" VerticalAlignment="Center" />
+          <TimePicker SelectedTime="{Binding ToTime}" ClockIdentifier="24HourClock" MinWidth="0" Width="130" />
+          <Button Classes="icon"
+                  Command="{Binding ResetTimeRangeCommand}"
+                  ToolTip.Tip="{l:Tr Playback_WholeDayTip}"
+                  Content="{mi:MaterialIconExt Kind=Restore}" />
+          <Button Classes="accent"
+                  Command="{Binding SearchCommand}">
+            <mi:MaterialIconText Kind="Magnify" Text="{l:Tr Playback_Search}" />
+          </Button>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <mi:MaterialIcon Kind="Cctv" Width="18" Height="18" />
+          <TextBlock Text="{Binding CameraName}"
+                     FontSize="15" FontWeight="SemiBold"
+                     VerticalAlignment="Center"
+                     TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Timeline and transport controls -->
+    <Border DockPanel.Dock="Bottom" Padding="12,8" Background="{DynamicResource NovaPanelBackground}">
+      <StackPanel Spacing="8">
+        <controls:TimelineBar Height="48"
+                              Cursor="Hand"
+                              Day="{Binding Day}"
+                              Segments="{Binding Segments}"
+                              Position="{Binding TimelinePosition}"
+                              RangeStart="{Binding RangeStartSeconds}"
+                              RangeEnd="{Binding RangeEndSeconds}"
+                              IsInteracting="{Binding IsSeeking}"
+                              SeekCommand="{Binding SeekCommand}" />
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Right"
+                     Classes="muted"
+                     VerticalAlignment="Center"
+                     Text="{Binding StatusText}" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Command="{Binding TogglePauseCommand}" ToolTip.Tip="{l:Tr Playback_PauseTip}">
+              <Panel>
+                <mi:MaterialIcon Kind="Pause" IsVisible="{Binding !IsPaused}" />
+                <mi:MaterialIcon Kind="Play" IsVisible="{Binding IsPaused}" />
+              </Panel>
+            </Button>
+            <Button Command="{Binding StopCommand}" ToolTip.Tip="{l:Tr Playback_StopTip}" Content="{mi:MaterialIconExt Kind=Stop}" />
+            <TextBlock Text="{Binding CurrentTimeText}"
+                       FontSize="16" FontWeight="SemiBold"
+                       VerticalAlignment="Center"
+                       Margin="12,0" />
+          </StackPanel>
+        </DockPanel>
+        <TextBlock Classes="muted"
+                   FontSize="11"
+                   Text="{l:Tr Playback_TimelineHint}" />
+      </StackPanel>
+    </Border>
+
+    <!-- Recorded segments -->
+    <Border DockPanel.Dock="Right" Width="230" Background="{DynamicResource NovaPanelBackground}">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="12,8">
+          <mi:MaterialIcon Kind="FilmstripBox" />
+          <TextBlock Classes="sectionTitle" Margin="0" Text="{l:Tr Playback_Recordings}" />
+        </StackPanel>
+        <ListBox ItemsSource="{Binding Segments}" SelectedItem="{Binding SelectedSegment}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="core:RecordingSegment">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <mi:MaterialIcon Kind="PlayCircleOutline" />
+                <TextBlock>
+                  <Run Text="{Binding Start, StringFormat='{}{0:HH:mm:ss}'}" />
+                  <Run Text=" – " />
+                  <Run Text="{Binding End, StringFormat='{}{0:HH:mm:ss}'}" />
+                </TextBlock>
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
+
+    <Border Background="{DynamicResource NovaTileBackground}" Margin="1">
+      <vlc:VideoView MediaPlayer="{Binding VideoPlayer}" />
+    </Border>
+
+  </DockPanel>
+</UserControl>

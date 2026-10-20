@@ -1,0 +1,196 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.App.Localization"
+             xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:vm="using:NovaVMS.App.ViewModels"
+             xmlns:core="using:NovaVMS.Core.Models"
+             xmlns:models="using:NovaVMS.App.Models"
+             x:Class="NovaVMS.App.Views.DevicesSettingsView"
+             x:DataType="vm:DevicesSettingsViewModel">
+
+  <Grid ColumnDefinitions="*,20,380" Margin="8">
+
+    <!-- Device table, import and discovery -->
+    <DockPanel Grid.Column="0">
+      <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
+        <Button Command="{Binding NewDeviceCommand}">
+          <mi:MaterialIconText Kind="Plus" Text="{l:Tr Devices_New}" />
+        </Button>
+        <Button Command="{Binding DeleteDeviceCommand}">
+          <mi:MaterialIconText Kind="DeleteOutline" Text="{l:Tr Common_Delete}" />
+        </Button>
+        <Button Command="{Binding CheckStatesNowCommand}">
+          <mi:MaterialIconText Kind="LanCheck" Text="{l:Tr Devices_CheckNow}" />
+        </Button>
+      </StackPanel>
+
+      <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,12,*" Margin="0,8,0,0">
+        <Expander Grid.Column="0" HorizontalAlignment="Stretch" VerticalAlignment="Top">
+          <Expander.Header>
+            <mi:MaterialIconText Kind="LanConnect" Text="{l:Tr Devices_Discovery}" />
+          </Expander.Header>
+          <StackPanel Spacing="6">
+            <Button Command="{Binding DiscoverCommand}">
+              <mi:MaterialIconText Kind="Magnify" Text="{l:Tr Devices_SearchDevices}" />
+            </Button>
+            <DataGrid ItemsSource="{Binding DiscoveredDevices}"
+                      SelectedItem="{Binding SelectedDiscoveredDevice}"
+                      SelectionMode="Single"
+                      IsReadOnly="True"
+                      CanUserResizeColumns="True"
+                      CanUserSortColumns="True"
+                      GridLinesVisibility="Horizontal"
+                      HeadersVisibility="Column"
+                      MaxHeight="220">
+              <DataGrid.Columns>
+                <DataGridTextColumn x:DataType="core:DiscoveredDevice" Header="{l:Tr Devices_ColumnAddress}" Binding="{Binding Address}" Width="Auto" FontWeight="SemiBold" />
+                <DataGridTextColumn x:DataType="core:DiscoveredDevice" Header="{l:Tr Devices_ColumnName}" Binding="{Binding Name}" Width="*" />
+                <DataGridTextColumn x:DataType="core:DiscoveredDevice" Header="{l:Tr Devices_ColumnModel}" Binding="{Binding Hardware}" Width="*" />
+                <DataGridTextColumn x:DataType="core:DiscoveredDevice" Header="{l:Tr Devices_ColumnService}" Binding="{Binding ServiceAddress}" Width="*" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </StackPanel>
+        </Expander>
+
+        <Expander Grid.Column="2" HorizontalAlignment="Stretch" VerticalAlignment="Top">
+          <Expander.Header>
+            <mi:MaterialIconText Kind="FileDelimitedOutline" Text="{l:Tr Devices_ImportTitle}" />
+          </Expander.Header>
+          <StackPanel Spacing="6">
+            <TextBlock Classes="muted"
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       Text="{l:Tr Devices_ImportCsvHint}" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Command="{Binding ImportCsvCommand}" IsEnabled="{Binding !IsBusy}">
+                <mi:MaterialIconText Kind="Import" Text="{l:Tr Devices_ImportCsv}" />
+              </Button>
+              <Button Command="{Binding SaveCsvTemplateCommand}">
+                <mi:MaterialIconText Kind="FileDownloadOutline" Text="{l:Tr Devices_Template}" />
+              </Button>
+            </StackPanel>
+            <Button Command="{Binding ImportIvmsCommand}" IsEnabled="{Binding !IsBusy}">
+              <mi:MaterialIconText Kind="Import" Text="{l:Tr Devices_ImportIvms}" />
+            </Button>
+            <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Devices_IvmsHint}" />
+          </StackPanel>
+        </Expander>
+      </Grid>
+
+      <DataGrid ItemsSource="{Binding Devices}"
+                SelectedItem="{Binding SelectedDevice}"
+                SelectionMode="Single"
+                IsReadOnly="True"
+                CanUserReorderColumns="True"
+                CanUserResizeColumns="True"
+                CanUserSortColumns="True"
+                GridLinesVisibility="Horizontal"
+                HeadersVisibility="Column">
+        <DataGrid.Columns>
+          <DataGridTemplateColumn Header="{l:Tr Devices_ColumnState}" Width="Auto" SortMemberPath="State">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="vm:DeviceRowViewModel">
+                <Panel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="8,0" ToolTip.Tip="{Binding StateText}">
+                  <mi:MaterialIcon Kind="CheckCircle"
+                                   Width="20" Height="20"
+                                   Foreground="{DynamicResource NovaOnline}"
+                                   IsVisible="{Binding IsOnline}" />
+                  <mi:MaterialIcon Kind="CloseCircle"
+                                   Width="20" Height="20"
+                                   Foreground="{DynamicResource NovaError}"
+                                   IsVisible="{Binding IsOffline}" />
+                  <mi:MaterialIcon Kind="ProgressClock"
+                                   Width="20" Height="20"
+                                   Foreground="{DynamicResource NovaOffline}"
+                                   IsVisible="{Binding IsChecking}" />
+                </Panel>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnName}" Binding="{Binding Name}" Width="2*" FontWeight="SemiBold" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnAddress}" Binding="{Binding Address}" Width="1.4*" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnPort}" Binding="{Binding Port}" Width="Auto" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnProtocol}" Binding="{Binding Protocol}" Width="1.4*" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnType}" Binding="{Binding Type}" Width="Auto" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnModel}" Binding="{Binding Model}" Width="1.4*" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnSerial}" Binding="{Binding SerialNumber}" Width="1.6*" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnFirmware}" Binding="{Binding FirmwareVersion}" Width="1.2*" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnChannels}" Binding="{Binding ChannelCount}" Width="Auto" />
+        </DataGrid.Columns>
+      </DataGrid>
+    </DockPanel>
+
+    <!-- Device form -->
+    <ScrollViewer Grid.Column="2">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="sectionTitle" FontSize="18" TextWrapping="Wrap" Text="{Binding FormTitle}" />
+
+        <TextBlock Classes="muted" Text="{l:Tr Devices_Name}" />
+        <TextBox Watermark="{l:Tr Devices_NameWatermark}" Text="{Binding EditName}" />
+
+        <TextBlock Classes="muted" Text="{l:Tr Devices_Protocol}" />
+        <ComboBox ItemsSource="{Binding Protocols}"
+                  SelectedItem="{Binding EditProtocol}"
+                  HorizontalAlignment="Stretch">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="models:ProtocolOption">
+              <TextBlock Text="{Binding Label}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Devices_ProtocolHint}" />
+
+        <TextBlock Classes="muted" Text="{l:Tr Devices_Host}" />
+        <TextBox Watermark="192.168.1.64" Text="{Binding EditHost}" />
+
+        <Grid ColumnDefinitions="*,12,*" IsVisible="{Binding IsNetworkProtocol}">
+          <StackPanel Grid.Column="0" Spacing="6">
+            <TextBlock Classes="muted" Text="{l:Tr Devices_HttpPort}" />
+            <TextBox Text="{Binding EditHttpPort}" />
+          </StackPanel>
+          <StackPanel Grid.Column="2" Spacing="6">
+            <TextBlock Classes="muted" Text="{l:Tr Devices_RtspPort}" />
+            <TextBox Text="{Binding EditRtspPort}" />
+          </StackPanel>
+        </Grid>
+
+        <StackPanel Spacing="6" IsVisible="{Binding IsSdkProtocol}">
+          <TextBlock Classes="muted" Text="{l:Tr Devices_SdkPort}" />
+          <TextBox Text="{Binding EditSdkPort}" />
+        </StackPanel>
+
+        <CheckBox Content="{l:Tr Devices_UseHttps}" IsChecked="{Binding EditUseHttps}" IsVisible="{Binding IsNetworkProtocol}" />
+
+        <TextBlock Classes="muted" Text="{l:Tr Devices_User}" />
+        <TextBox Text="{Binding EditUsername}" />
+
+        <TextBlock Classes="muted" Text="{l:Tr Devices_Password}" />
+        <TextBox PasswordChar="•" Text="{Binding EditPassword}" />
+
+        <TextBlock Classes="muted" Text="{l:Tr Devices_StreamKey}" />
+        <TextBox PasswordChar="•" Text="{Binding EditStreamEncryptionKey}" />
+        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Devices_StreamKeyHint}" />
+
+        <WrapPanel Orientation="Horizontal" Margin="0,10,0,0">
+          <Button Classes="accent"
+                  Margin="0,0,8,8"
+                  Command="{Binding SaveDeviceCommand}">
+            <mi:MaterialIconText Kind="ContentSaveOutline" Text="{l:Tr Devices_SaveConnect}" />
+          </Button>
+          <Button Margin="0,0,8,8" Command="{Binding RefreshChannelsCommand}">
+            <mi:MaterialIconText Kind="Refresh" Text="{l:Tr Devices_RefreshChannels}" />
+          </Button>
+          <ProgressBar Width="90" Margin="0,0,0,8" IsIndeterminate="True" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
+        </WrapPanel>
+
+        <TextBlock Classes="muted"
+                   FontSize="11"
+                   TextWrapping="Wrap"
+                   Text="{l:Tr Devices_SaveHint}" />
+
+        <TextBlock Classes="muted" Margin="0,8,0,0" TextWrapping="Wrap" Text="{Binding InfoText}" />
+      </StackPanel>
+    </ScrollViewer>
+
+  </Grid>
+</UserControl>

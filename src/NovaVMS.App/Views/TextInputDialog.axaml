@@ -1,0 +1,30 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="using:NovaVMS.App.Localization"
+        xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        x:Class="NovaVMS.App.Views.TextInputDialog"
+        Width="420"
+        SizeToContent="Height"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Icon="/Assets/novavms.ico"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource NovaWindowBackground}">
+
+  <StackPanel Margin="16" Spacing="10">
+    <TextBlock x:Name="MessageText" TextWrapping="Wrap" />
+    <TextBox x:Name="InputBox" />
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+      <Button Classes="accent"
+              IsDefault="True"
+              MinWidth="90"
+              Click="OnOkClick">
+        <mi:MaterialIconText Kind="Check" Text="{l:Tr Common_Ok}" />
+      </Button>
+      <Button IsCancel="True"
+              MinWidth="90"
+              Click="OnCancelClick"
+              Content="{l:Tr Common_Cancel}" />
+    </StackPanel>
+  </StackPanel>
+</Window>

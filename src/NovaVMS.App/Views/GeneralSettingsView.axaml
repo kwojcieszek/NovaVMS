@@ -1,0 +1,114 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.App.Localization"
+             xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:vm="using:NovaVMS.App.ViewModels"
+             xmlns:models="using:NovaVMS.App.Models"
+             x:Class="NovaVMS.App.Views.GeneralSettingsView"
+             x:DataType="vm:GeneralSettingsViewModel">
+
+  <ScrollViewer>
+    <StackPanel Spacing="6" Margin="8" MaxWidth="560" HorizontalAlignment="Left">
+
+      <TextBlock Classes="sectionTitle" FontSize="18" Text="{l:Tr General_Appearance}" />
+      <TextBlock Classes="muted" Text="{l:Tr General_Language}" />
+      <ComboBox ItemsSource="{Binding Languages}"
+                SelectedItem="{Binding SelectedLanguage}"
+                HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="models:LanguageOption">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+
+      <TextBlock Classes="muted" Text="{l:Tr General_Theme}" />
+      <ComboBox ItemsSource="{Binding Themes}"
+                SelectedItem="{Binding SelectedTheme}"
+                HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="models:ThemeOption">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+
+      <TextBlock Classes="sectionTitle" FontSize="18" Margin="0,16,0,6" Text="{l:Tr App_LiveView}" />
+      <TextBlock Classes="muted" Text="{l:Tr General_Stream}" />
+      <ComboBox ItemsSource="{Binding StreamModes}"
+                SelectedItem="{Binding SelectedStreamMode}"
+                HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="models:StreamModeOption">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+
+      <TextBlock Classes="muted" Text="{l:Tr General_DefaultSplit}" />
+      <ComboBox ItemsSource="{Binding Layouts}"
+                SelectedItem="{Binding DefaultLayout}"
+                HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="models:GridLayoutOption">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+
+      <TextBlock Classes="muted" TextWrapping="Wrap" Text="{l:Tr General_NetworkBuffer}" />
+      <NumericUpDown Value="{Binding NetworkCachingMs}"
+                     Minimum="{Binding MinimumNetworkCaching}"
+                     Maximum="{Binding MaximumNetworkCaching}"
+                     Increment="50"
+                     FormatString="0" />
+
+      <TextBlock Classes="muted" TextWrapping="Wrap" Text="{l:Tr General_MainStreamBuffer}" />
+      <NumericUpDown Value="{Binding MainStreamCachingMs}"
+                     Minimum="{Binding MinimumNetworkCaching}"
+                     Maximum="{Binding MaximumNetworkCaching}"
+                     Increment="100"
+                     FormatString="0" />
+
+      <CheckBox Content="{l:Tr General_ShowTitles}" IsChecked="{Binding ShowTileTitles}" />
+      <CheckBox Content="{l:Tr General_ShowSearch}" IsChecked="{Binding ShowCameraSearch}" />
+
+      <TextBlock Classes="sectionTitle" FontSize="18" Margin="0,16,0,6" Text="{l:Tr General_SdkTitle}" />
+      <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr General_SdkHint}" />
+      <TextBlock Classes="muted" Text="{l:Tr General_SdkFolder}" />
+      <Grid ColumnDefinitions="*,8,Auto">
+        <TextBox Grid.Column="0"
+                 Text="{Binding HcNetSdkDirectory}"
+                 Watermark="{l:Tr General_SdkFolderWatermark}" />
+        <Button Grid.Column="2" Command="{Binding BrowseSdkDirectoryCommand}">
+          <mi:MaterialIconText Kind="FolderSearchOutline" Text="{l:Tr General_SdkBrowse}" />
+        </Button>
+      </Grid>
+      <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{Binding SdkStatusText}" />
+
+      <TextBlock Classes="sectionTitle" FontSize="18" Margin="0,16,0,6" Text="{l:Tr Groups_Title}" />
+      <CheckBox Content="{l:Tr General_AutoGroups}" IsChecked="{Binding AutoCreateDeviceGroups}" />
+
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,12,0,0">
+        <mi:MaterialIcon Kind="ContentSaveCheckOutline" />
+        <TextBlock Classes="muted" FontSize="11" VerticalAlignment="Center" Text="{l:Tr General_AutoSaved}" />
+      </StackPanel>
+
+      <TextBlock Classes="sectionTitle" FontSize="18" Margin="0,24,0,6" Text="{l:Tr General_Backup}" />
+      <TextBlock Classes="muted"
+                 TextWrapping="Wrap"
+                 Text="{l:Tr General_BackupHint}" />
+      <CheckBox Content="{l:Tr General_IncludePasswords}" IsChecked="{Binding IncludePasswordsInExport}" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Command="{Binding ExportCommand}">
+          <mi:MaterialIconText Kind="Export" Text="{l:Tr General_Export}" />
+        </Button>
+        <Button Command="{Binding ImportCommand}">
+          <mi:MaterialIconText Kind="Import" Text="{l:Tr General_Import}" />
+        </Button>
+      </StackPanel>
+
+      <TextBlock Classes="muted" Margin="0,12,0,0" TextWrapping="Wrap" Text="{Binding StatusText}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

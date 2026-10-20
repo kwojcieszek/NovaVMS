@@ -1,0 +1,314 @@
+using System.Text.Json;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using NovaVMS.App.Localization;
+using NovaVMS.App.Models;
+using NovaVMS.App.Services;
+using NovaVMS.Core.Models;
+using NovaVMS.Protocols.HcNetSdk;
+
+namespace NovaVMS.App.ViewModels;
+
+/// <summary>
+/// Settings page: appearance, live view options and settings export / import.
+/// Every change is saved and applied immediately.
+/// </summary>
+public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposable
+{
+    private const int MinNetworkCachingMs = 0;
+    private const int MaxNetworkCachingMs = 5000;
+
+    private readonly ConfigurationService _configuration;
+    private readonly IDialogService _dialogs;
+    // Set while values are copied from the configuration, so loading them does not trigger a save.
+    private bool _isLoading;
+
+    [ObservableProperty]
+    private LanguageOption _selectedLanguage;
+
+    [ObservableProperty]
+    private ThemeOption _selectedTheme;
+
+    [ObservableProperty]
+    private StreamModeOption _selectedStreamMode;
+
+    [ObservableProperty]
+    private GridLayoutOption _defaultLayout;
+
+    [ObservableProperty]
+    private decimal? _networkCachingMs;
+
+    [ObservableProperty]
+    private decimal? _mainStreamCachingMs;
+
+    [ObservableProperty]
+    private bool _autoCreateDeviceGroups;
+
+    [ObservableProperty]
+    private bool _showTileTitles;
+
+    [ObservableProperty]
+    private bool _showCameraSearch;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SdkStatusText))]
+    private string _hcNetSdkDirectory;
+
+    [ObservableProperty]
+    private bool _includePasswordsInExport;
+
+    [ObservableProperty]
+    private string _statusText = string.Empty;
+
+    public GeneralSettingsViewModel(ConfigurationService configuration, IDialogService dialogs)
+    {
+        _configuration = configuration;
+        _dialogs = dialogs;
+
+        var settings = configuration.Current.Settings;
+        _selectedLanguage = LanguageOption.Find(settings.Language);
+        _selectedTheme = ThemeOption.Find(settings.Theme);
+        _selectedStreamMode = StreamModeOption.Find(settings.GridStreamMode);
+        _defaultLayout = GridLayoutOption.Find(settings.DefaultLayoutCount);
+        _networkCachingMs = settings.NetworkCachingMs;
+        _mainStreamCachingMs = settings.MainStreamCachingMs;
+        _autoCreateDeviceGroups = settings.AutoCreateDeviceGroups;
+        _showTileTitles = settings.ShowTileTitles;
+        _showCameraSearch = settings.ShowCameraSearch;
+        _hcNetSdkDirectory = settings.HcNetSdkDirectory;
+
+        // Settings can also change outside this page (e.g. the theme button in the header).
+        _configuration.Changed += OnConfigurationChanged;
+        Localizer.Instance.LanguageChanged += OnLanguageChanged;
+    }
+
+    public IReadOnlyList<LanguageOption> Languages => LanguageOption.All;
+
+    public IReadOnlyList<ThemeOption> Themes => ThemeOption.All;
+
+    public IReadOnlyList<StreamModeOption> StreamModes => StreamModeOption.All;
+
+    public IReadOnlyList<GridLayoutOption> Layouts => GridLayoutOption.All;
+
+    public decimal MinimumNetworkCaching => MinNetworkCachingMs;
+
+    public decimal MaximumNetworkCaching => MaxNetworkCachingMs;
+
+    /// <summary>
+    /// State of the Hikvision SDK library in the selected folder.
+    /// </summary>
+    public string SdkStatusText
+    {
+        get
+        {
+            if (!HcNetSdkRuntime.IsPlatformSupported)
+            {
+                return Localizer.Text("General_SdkUnsupported");
+            }
+
+            var directory = HcNetSdkRuntime.ResolveDirectory(HcNetSdkDirectory);
+            var loadedVersion = HcNetSdkRuntime.LoadedVersion;
+            if (loadedVersion is not null)
+            {
+                return string.Equals(HcNetSdkRuntime.LoadedDirectory, directory, StringComparison.OrdinalIgnoreCase)
+                    ? Localizer.Format("General_SdkLoaded", loadedVersion)
+                    : Localizer.Text("General_SdkRestart");
+            }
+
+            return HcNetSdkRuntime.FindLibrary(HcNetSdkDirectory) is null
+                ? Localizer.Format("General_SdkMissing", directory)
+                : Localizer.Text("General_SdkFound");
+        }
+    }
+
+    public void Dispose()
+    {
+        _configuration.Changed -= OnConfigurationChanged;
+        Localizer.Instance.LanguageChanged -= OnLanguageChanged;
+    }
+
+    partial void OnSelectedLanguageChanged(LanguageOption value)
+    {
+        ApplyChanges();
+    }
+
+    partial void OnSelectedThemeChanged(ThemeOption value)
+    {
+        ApplyChanges();
+    }
+
+    partial void OnSelectedStreamModeChanged(StreamModeOption value)
+    {
+        ApplyChanges();
+    }
+
+    partial void OnDefaultLayoutChanged(GridLayoutOption value)
+    {
+        ApplyChanges();
+    }
+
+    partial void OnNetworkCachingMsChanged(decimal? value)
+    {
+        ApplyChanges();
+    }
+
+    partial void OnMainStreamCachingMsChanged(decimal? value)
+    {
+        ApplyChanges();
+    }
+
+    partial void OnAutoCreateDeviceGroupsChanged(bool value)
+    {
+        ApplyChanges();
+    }
+
+    partial void OnShowTileTitlesChanged(bool value)
+    {
+        ApplyChanges();
+    }
+
+    partial void OnShowCameraSearchChanged(bool value)
+    {
+        ApplyChanges();
+    }
+
+    partial void OnHcNetSdkDirectoryChanged(string value)
+    {
+        ApplyChanges();
+    }
+
+    private void ApplyChanges()
+    {
+        if (_isLoading)
+        {
+            return;
+        }
+
+        var settings = _configuration.Current.Settings;
+        settings.Language = SelectedLanguage.Code;
+        settings.Theme = SelectedTheme.Value;
+        settings.GridStreamMode = SelectedStreamMode.Value;
+        settings.DefaultLayoutCount = DefaultLayout.Count;
+        settings.NetworkCachingMs = (int)Math.Clamp(NetworkCachingMs ?? settings.NetworkCachingMs, MinNetworkCachingMs, MaxNetworkCachingMs);
+        settings.MainStreamCachingMs = (int)Math.Clamp(MainStreamCachingMs ?? settings.MainStreamCachingMs, MinNetworkCachingMs, MaxNetworkCachingMs);
+        settings.AutoCreateDeviceGroups = AutoCreateDeviceGroups;
+        settings.ShowTileTitles = ShowTileTitles;
+        settings.ShowCameraSearch = ShowCameraSearch;
+        settings.HcNetSdkDirectory = HcNetSdkDirectory.Trim();
+
+        _ = SaveAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        try
+        {
+            await _configuration.SaveAsync();
+            StatusText = string.Empty;
+        }
+        catch (IOException exception)
+        {
+            StatusText = Localizer.Format("General_SaveFailed", exception.Message);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            StatusText = Localizer.Format("General_SaveFailed", exception.Message);
+        }
+    }
+
+    private void OnConfigurationChanged(object? sender, EventArgs e)
+    {
+        LoadFromSettings(_configuration.Current.Settings);
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(SdkStatusText));
+    }
+
+    [RelayCommand]
+    private async Task BrowseSdkDirectoryAsync()
+    {
+        var folder = await _dialogs.PickFolderAsync(Localizer.Text("General_SdkBrowseTitle"));
+        if (folder is not null)
+        {
+            HcNetSdkDirectory = folder;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ExportAsync()
+    {
+        await using var stream = await _dialogs.SaveJsonFileAsync(Localizer.Text("General_ExportTitle"), $"novavms-settings-{DateTime.Now:yyyyMMdd}.json");
+        if (stream is null)
+        {
+            return;
+        }
+
+        await _configuration.ExportAsync(stream, IncludePasswordsInExport);
+        if (stream.CanSeek)
+        {
+            // Truncate in case an existing, longer file was overwritten.
+            stream.SetLength(stream.Position);
+        }
+
+        StatusText = IncludePasswordsInExport
+            ? Localizer.Text("General_ExportedWithPasswords")
+            : Localizer.Text("General_ExportedWithoutPasswords");
+    }
+
+    [RelayCommand]
+    private async Task ImportAsync()
+    {
+        AppConfiguration imported;
+        await using (var stream = await _dialogs.OpenJsonFileAsync(Localizer.Text("General_ImportTitle")))
+        {
+            if (stream is null)
+            {
+                return;
+            }
+
+            try
+            {
+                imported = await _configuration.ReadImportAsync(stream);
+            }
+            catch (JsonException)
+            {
+                StatusText = Localizer.Text("General_ImportInvalid");
+                return;
+            }
+        }
+
+        var message = Localizer.Format("General_ImportConfirm", imported.Devices.Count, imported.Groups.Count);
+        if (!await _dialogs.ConfirmAsync(Localizer.Text("General_ImportTitle"), message))
+        {
+            return;
+        }
+
+        var result = await _configuration.ImportAsync(imported);
+        LoadFromSettings(_configuration.Current.Settings);
+        StatusText = Localizer.Format("General_Imported", result.DevicesAdded, result.DevicesUpdated, result.GroupsAdded, result.GroupsUpdated);
+    }
+
+    private void LoadFromSettings(AppSettings settings)
+    {
+        _isLoading = true;
+        try
+        {
+            SelectedLanguage = LanguageOption.Find(settings.Language);
+            SelectedTheme = ThemeOption.Find(settings.Theme);
+            SelectedStreamMode = StreamModeOption.Find(settings.GridStreamMode);
+            DefaultLayout = GridLayoutOption.Find(settings.DefaultLayoutCount);
+            NetworkCachingMs = settings.NetworkCachingMs;
+            MainStreamCachingMs = settings.MainStreamCachingMs;
+            AutoCreateDeviceGroups = settings.AutoCreateDeviceGroups;
+            ShowTileTitles = settings.ShowTileTitles;
+            ShowCameraSearch = settings.ShowCameraSearch;
+            HcNetSdkDirectory = settings.HcNetSdkDirectory;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

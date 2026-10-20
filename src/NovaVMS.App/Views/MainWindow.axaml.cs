@@ -1,0 +1,220 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.VisualTree;
+using NovaVMS.App.Models;
+using NovaVMS.App.Services;
+using NovaVMS.App.ViewModels;
+
+namespace NovaVMS.App.Views;
+
+public partial class MainWindow : Window
+{
+    private const double DragThreshold = 6;
+
+    private Point? _dragStart;
+    private ResourceNodeViewModel? _dragNode;
+
+    public MainWindow()
+    {
+        InitializeComponent();
+
+        // Tunnelling, because TreeViewItem handles pointer presses itself for selection.
+        ResourceTree.AddHandler(PointerPressedEvent, OnTreePointerPressed, RoutingStrategies.Tunnel);
+        ResourceTree.AddHandler(PointerMovedEvent, OnTreePointerMoved, RoutingStrategies.Tunnel);
+        ResourceTree.AddHandler(PointerReleasedEvent, OnTreePointerReleased, RoutingStrategies.Tunnel);
+        // Intercept group double-clicks before the item header toggles expansion.
+        ResourceTree.AddHandler(DoubleTappedEvent, OnTreeDoubleTapped, RoutingStrategies.Tunnel);
+        ResourceTree.AddHandler(DragDrop.DragOverEvent, OnTreeDragOver);
+        ResourceTree.AddHandler(DragDrop.DropEvent, OnTreeDrop);
+    }
+
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        // Stop video while the native surfaces still exist; LibVLC must not render into destroyed windows.
+        UnhandledExceptionLogger.IsShuttingDown = true;
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            viewModel.PrepareShutdown();
+        }
+
+        base.OnClosing(e);
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        base.OnClosed(e);
+
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            viewModel.CompleteShutdown();
+        }
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape && WindowState == WindowState.FullScreen)
+        {
+            WindowState = WindowState.Normal;
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape && DataContext is MainWindowViewModel viewModel && viewModel.Live.IsMaximized)
+        {
+            viewModel.Live.RestoreLayout();
+            e.Handled = true;
+        }
+
+        base.OnKeyDown(e);
+    }
+
+    private static ResourceNodeViewModel? GetNode(object? source)
+    {
+        return (source as StyledElement)?.DataContext as ResourceNodeViewModel;
+    }
+
+    private async void OnSettingsClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        var settingsViewModel = viewModel.CreateSettings();
+        var settingsWindow = new SettingsWindow
+        {
+            DataContext = settingsViewModel
+        };
+
+        await settingsWindow.ShowDialog(this);
+        settingsViewModel.Dispose();
+    }
+
+    private void OnTreeTapped(object? sender, TappedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel || IsExpanderToggle(e.Source))
+        {
+            return;
+        }
+
+        if (GetNode(e.Source) is ResourceGroupNodeViewModel group)
+        {
+            viewModel.ShowGroupCommand.Execute(group);
+        }
+    }
+
+    private void OnTreeDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (IsExpanderToggle(e.Source))
+        {
+            return;
+        }
+
+        // Only the chevron changes expansion when a group is clicked.
+        // The single click still shows its cameras in the live view.
+        if (GetNode(e.Source) is ResourceGroupNodeViewModel)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        if (DataContext is MainWindowViewModel viewModel && GetNode(e.Source) is CameraNodeViewModel)
+        {
+            viewModel.OpenSelectedCommand.Execute(null);
+        }
+    }
+
+    private static bool IsExpanderToggle(object? source)
+    {
+        return (source as Visual)?.FindAncestorOfType<ToggleButton>(includeSelf: true) is not null;
+    }
+
+    private void OnTreePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (IsExpanderToggle(e.Source))
+        {
+            _dragStart = null;
+            _dragNode = null;
+            return;
+        }
+
+        if (!e.GetCurrentPoint(ResourceTree).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        _dragStart = e.GetPosition(ResourceTree);
+        _dragNode = GetNode(e.Source);
+    }
+
+    private void OnTreePointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        _dragStart = null;
+        _dragNode = null;
+    }
+
+    private async void OnTreePointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_dragStart is not Point start || _dragNode is null || DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        if (!e.GetCurrentPoint(ResourceTree).Properties.IsLeftButtonPressed)
+        {
+            _dragStart = null;
+            _dragNode = null;
+            return;
+        }
+
+        var delta = e.GetPosition(ResourceTree) - start;
+        if (Math.Abs(delta.X) < DragThreshold && Math.Abs(delta.Y) < DragThreshold)
+        {
+            return;
+        }
+
+        var cameras = viewModel.Tree.GetCameras(_dragNode);
+        _dragStart = null;
+        _dragNode = null;
+        if (cameras.Count == 0)
+        {
+            return;
+        }
+
+        await DragDrop.DoDragDropAsync(e, CameraDragData.Create(cameras), DragDropEffects.Copy);
+    }
+
+    private void OnTreeDragOver(object? sender, DragEventArgs e)
+    {
+        var target = DataContext is MainWindowViewModel viewModel
+            ? viewModel.Tree.GetDropTarget(GetNode(e.Source))
+            : null;
+
+        e.DragEffects = target is not null && CameraDragData.Contains(e.DataTransfer)
+            ? DragDropEffects.Copy
+            : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private async void OnTreeDrop(object? sender, DragEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        var target = viewModel.Tree.GetDropTarget(GetNode(e.Source));
+        if (target?.Id is not Guid groupId)
+        {
+            return;
+        }
+
+        var cameras = CameraDragData.Read(e.DataTransfer);
+        e.Handled = true;
+        if (cameras.Count > 0)
+        {
+            await viewModel.Tree.AddCamerasToGroupAsync(groupId, cameras);
+        }
+    }
+}
