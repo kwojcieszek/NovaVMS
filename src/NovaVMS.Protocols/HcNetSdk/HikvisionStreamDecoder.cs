@@ -9,8 +9,8 @@ using NovaVMS.Protocols.Resources;
 namespace NovaVMS.Protocols.HcNetSdk;
 
 /// <summary>
-/// Feeds encrypted Hikvision packets to PlayCtrl. Its decoded YV12 video is exposed
-/// as YUV4MPEG2, which LibVLC can display without knowing the proprietary encryption.
+/// Feeds Hikvision packets to PlayCtrl, with an optional decryption key. Its decoded
+/// YV12 video is exposed as YUV4MPEG2, bypassing LibVLC's handling of vendor timing.
 /// Audio callbacks are deliberately excluded from this video-only path.
 /// </summary>
 internal sealed class HikvisionStreamDecoder : IDisposable
@@ -45,7 +45,7 @@ internal sealed class HikvisionStreamDecoder : IDisposable
     public HikvisionStreamDecoder(IPlayCtrlApi api, string key, bool playback, Action<byte[]> output, Action<string> failed)
     {
         _api = api;
-        _key = EncodeKey(key);
+        _key = string.IsNullOrEmpty(key) ? [] : EncodeKey(key);
         _playback = playback;
         _output = output;
         _failed = failed;
@@ -70,12 +70,14 @@ internal sealed class HikvisionStreamDecoder : IDisposable
                 if (packet.Type == HcNetSdkConstants.DataSystemHeader)
                 {
                     if (_opened) throw new IOException(ProtocolText.Get("StreamDecoderChanged"));
-                    Require(_api.SetMode(_port, _playback ? 1u : 0u));
-                    Require(_api.OpenStream(_port, packet.Bytes, (uint)packet.Bytes.Length, 4 * 1024 * 1024));
+                    Require(_api.SetMode(_port, _playback ? 1u : 0u), "PlayM4_SetStreamOpenMode");
+                    Require(_api.OpenStream(_port, packet.Bytes, (uint)packet.Bytes.Length, 4 * 1024 * 1024), "PlayM4_OpenStream");
                     _opened = true;
-                    Require(_api.SetKey(_port, 1, _key, _key.Length));
-                    Require(_api.SetCallback(_port, Callback, IntPtr.Zero, 0, IntPtr.Zero));
-                    Require(_api.Play(_port, IntPtr.Zero));
+                    // PlayM4_SetSecretKey measures key length in bits, not bytes.
+                    if (_key.Length > 0)
+                        Require(_api.SetKey(_port, 1, _key, checked(_key.Length * 8)), "PlayM4_SetSecretKey");
+                    Require(_api.SetCallback(_port, Callback, IntPtr.Zero, 0, IntPtr.Zero), "PlayM4_SetDecCallBackExMend");
+                    Require(_api.Play(_port, IntPtr.Zero), "PlayM4_Play");
                     _playing = true;
                 }
                 else if (packet.Type == HcNetSdkConstants.DataStream)
@@ -85,7 +87,7 @@ internal sealed class HikvisionStreamDecoder : IDisposable
                     while (!_api.Input(_port, packet.Bytes, (uint)packet.Bytes.Length))
                     {
                         if (_api.Error(_port) != 11 || wait.Elapsed > TimeSpan.FromSeconds(5))
-                            Require(false);
+                            Require(false, "PlayM4_InputData");
                         await Task.Delay(5, _stop.Token);
                     }
                 }
@@ -110,9 +112,9 @@ internal sealed class HikvisionStreamDecoder : IDisposable
         }
     }
 
-    private void Require(bool success)
+    private void Require(bool success, string operation)
     {
-        if (!success) throw new IOException(ProtocolText.Format("StreamDecoderError", _api.Error(_port)));
+        if (!success) throw new IOException($"{operation}: {ProtocolText.Format("StreamDecoderError", _api.Error(_port))}");
     }
 
     private void Fail(string message)

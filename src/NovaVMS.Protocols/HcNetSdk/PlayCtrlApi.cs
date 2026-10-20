@@ -18,7 +18,7 @@ internal interface IPlayCtrlApi
     bool GetPort(out int port);
     bool SetMode(int port, uint mode);
     bool OpenStream(int port, byte[] header, uint size, uint capacity);
-    bool SetKey(int port, int type, byte[] key, int length);
+    bool SetKey(int port, int type, byte[] key, int lengthBits);
     bool SetCallback(int port, PlayCtrlDecodeCallback callback, IntPtr destination, int size, IntPtr user);
     bool Play(int port, IntPtr window);
     bool Input(int port, byte[] bytes, uint size);
@@ -35,7 +35,7 @@ internal sealed class PlayCtrlApi : IPlayCtrlApi
     [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate bool GetPortCall(out int port);
     [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate bool ModeCall(int port, uint mode);
     [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate bool OpenCall(int port, byte[] header, uint size, uint capacity);
-    [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate bool KeyCall(int port, int type, byte[] key, int length);
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate bool KeyCall(int port, int type, byte[] key, int lengthBits);
     [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate bool CallbackCall(int port, PlayCtrlDecodeCallback callback, IntPtr destination, int size, IntPtr user);
     [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate bool PlayCall(int port, IntPtr window);
     [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate bool InputCall(int port, byte[] data, uint size);
@@ -86,7 +86,7 @@ internal sealed class PlayCtrlApi : IPlayCtrlApi
     public bool GetPort(out int port) => _getPort(out port);
     public bool SetMode(int port, uint mode) => _mode(port, mode);
     public bool OpenStream(int port, byte[] header, uint size, uint capacity) => _open(port, header, size, capacity);
-    public bool SetKey(int port, int type, byte[] key, int length) => _key(port, type, key, length);
+    public bool SetKey(int port, int type, byte[] key, int lengthBits) => _key(port, type, key, lengthBits);
     public bool SetCallback(int port, PlayCtrlDecodeCallback callback, IntPtr destination, int size, IntPtr user) => _callback(port, callback, destination, size, user);
     public bool Play(int port, IntPtr window) => _play(port, window);
     public bool Input(int port, byte[] bytes, uint size) => _input(port, bytes, size);

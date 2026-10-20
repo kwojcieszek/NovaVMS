@@ -6,9 +6,9 @@ namespace NovaVMS.Core.Models;
 /// </summary>
 public sealed class VideoSource
 {
-    private readonly Func<Stream>? _openStream;
+    private readonly Func<bool, Stream>? _openStream;
 
-    private VideoSource(Uri? uri, Func<Stream>? openStream)
+    private VideoSource(Uri? uri, Func<bool, Stream>? openStream)
     {
         Uri = uri;
         _openStream = openStream;
@@ -34,16 +34,23 @@ public sealed class VideoSource
     public static VideoSource FromStream(Func<Stream> openStream)
     {
         ArgumentNullException.ThrowIfNull(openStream);
+        return new VideoSource(null, _ => openStream());
+    }
+
+    /// <summary>Creates a stream with audio configured before the device starts sending data.</summary>
+    public static VideoSource FromStream(Func<bool, Stream> openStream)
+    {
+        ArgumentNullException.ThrowIfNull(openStream);
         return new VideoSource(null, openStream);
     }
 
-    public Stream OpenStream()
+    public Stream OpenStream(bool withAudio = true)
     {
         if (_openStream is null)
         {
             throw new InvalidOperationException("The video source is a network address, not a data stream.");
         }
 
-        return _openStream();
+        return _openStream(withAudio);
     }
 }

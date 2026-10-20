@@ -74,7 +74,7 @@ public sealed class DeviceSyncService
                 device.Name = info.DeviceName;
             }
 
-            // Learned locally, not reported by the device.
+            // Prefer the encoder dimensions reported by the device; retain learned values as a fallback.
             foreach (var channel in channels)
             {
                 channel.MainAspectRatio ??= device.Channels.FirstOrDefault(old => old.Number == channel.Number)?.MainAspectRatio;

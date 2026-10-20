@@ -74,6 +74,8 @@ public sealed class OnvifDeviceClient : IDeviceClient
             {
                 Number = index + 1,
                 MainStreamUri = mainUri,
+                MainAspectRatio = main.Width > 0 && main.Height > 0
+                    ? VideoDisplayGeometry.FromDimensions((uint)main.Width, (uint)main.Height) : null,
                 SubStreamUri = subUri,
                 ProfileToken = ptzProfile.Token
             });

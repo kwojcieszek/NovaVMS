@@ -429,7 +429,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
                 camera.Device.Username,
                 camera.Device.Password,
                 _configuration.Current.Settings.GetNetworkCachingMs(streamType),
-                streamType == StreamType.Sub ? camera.Channel.MainAspectRatio : null);
+                camera.Channel.MainAspectRatio);
 
             tile.Play(reference, camera.FullName, request);
         }

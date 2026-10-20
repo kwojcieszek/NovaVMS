@@ -33,6 +33,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
     private long _switchStartedAt;
     private long _switchFirstDecodedAt;
     private bool _isAspectRatioReported;
+    private readonly VideoDisplayGeometry _displayGeometry = new();
     private long _lastFrameAt;
     private int _lastDisplayedFrames;
     private bool _softwareFallback;
@@ -177,6 +178,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         if (!Equals(Camera, camera))
         {
             _softwareFallback = false;
+            _displayGeometry.Reset(request.AspectRatio);
         }
         _player.EnableHardwareDecoding = !_softwareFallback;
         Camera = camera;
@@ -252,6 +254,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         StopPlayer();
 
         Camera = null;
+        _displayGeometry.Reset();
         CameraName = null;
         _request = null;
         Header = Number.ToString();
@@ -359,7 +362,8 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         StatusText = string.Empty;
         ErrorDetails = null;
 
-        _player.AspectRatio = _request.AspectRatio;
+        _displayGeometry.Learn(_request.AspectRatio);
+        _player.AspectRatio = _displayGeometry.AspectRatio;
         _isAspectRatioReported = false;
         _lastDisplayedFrames = 0;
         _lastFrameAt = Stopwatch.GetTimestamp();
@@ -419,6 +423,9 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void BeginSwitch(TilePlayRequest request)
     {
+        // Capture the shown picture before opening another resolution or decoder.
+        // In particular, a first SUB -> MAIN switch may have no saved main ratio yet.
+        PreserveDisplayGeometry();
         CancelSwitch();
 
         var player = InactivePlayer;
@@ -444,7 +451,8 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         _switchStartedAt = Stopwatch.GetTimestamp();
         _switchFirstDecodedAt = 0;
         player.Mute = !IsAudioEnabled;
-        player.AspectRatio = request.AspectRatio;
+        _displayGeometry.Learn(request.AspectRatio);
+        player.AspectRatio = _displayGeometry.AspectRatio;
         player.Play(_switchMedia.Media);
         _switchTimer.Start();
     }
@@ -459,15 +467,38 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        uint width = 0;
-        uint height = 0;
-        if (!_player.Size(0, ref width, ref height) || width == 0 || height == 0)
+        var aspectRatio = ReadNaturalAspectRatio(_player, _media);
+        if (aspectRatio is null)
         {
             return;
         }
 
         _isAspectRatioReported = true;
-        _host.ReportMainAspectRatio(Camera, $"{width}:{height}");
+        _host.ReportMainAspectRatio(Camera, aspectRatio);
+    }
+
+    private void PreserveDisplayGeometry()
+    {
+        if (_displayGeometry.AspectRatio is null)
+            _displayGeometry.Learn(ReadNaturalAspectRatio(_player, _media));
+        if (_displayGeometry.AspectRatio is not null && _player.AspectRatio != _displayGeometry.AspectRatio)
+            _player.AspectRatio = _displayGeometry.AspectRatio;
+    }
+
+    private static string? ReadNaturalAspectRatio(MediaPlayer player, VideoMedia? media)
+    {
+        if (media is not null)
+        {
+            foreach (var track in media.Media.Tracks)
+            {
+                if (track.TrackType != TrackType.Video) continue;
+                var video = track.Data.Video;
+                var ratio = VideoDisplayGeometry.FromDimensions(video.Width, video.Height, video.SarNum, video.SarDen);
+                if (ratio is not null) return ratio;
+            }
+        }
+        uint width = 0, height = 0;
+        return player.Size(0, ref width, ref height) ? VideoDisplayGeometry.FromDimensions(width, height) : null;
     }
 
     private static bool HasVideoSurface(MediaPlayer player)
@@ -501,7 +532,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         var isReady = stats.DisplayedPictures > 0
             || (player.State == VLCState.Playing && _switchFirstDecodedAt != 0
                 && Stopwatch.GetElapsedTime(_switchFirstDecodedAt).TotalMilliseconds >= _switchRequest.NetworkCachingMs);
-        if (isReady)
+        if (isReady && ReadNaturalAspectRatio(player, _switchMedia) is not null)
         {
             CompleteSwitch();
         }
@@ -520,6 +551,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         _switchRequest = null;
 
         _player.Mute = !IsAudioEnabled;
+        PreserveDisplayGeometry();
         _isAspectRatioReported = false;
         _lastDisplayedFrames = 0;
         _lastFrameAt = Stopwatch.GetTimestamp();
@@ -593,6 +625,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
     private void OnProgressTick(object? sender, EventArgs e)
     {
         if (_media is null || _request is null || _isDisposed || !IsVisibleInGrid || !_isViewReady) return;
+        PreserveDisplayGeometry();
         ReportAspectRatio();
         var stats = _media.Media.Statistics;
         if (stats.DisplayedPictures != _lastDisplayedFrames)
@@ -629,6 +662,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
             }
 
             _player.Mute = !IsAudioEnabled;
+            PreserveDisplayGeometry();
             Status = TileStatus.Playing;
             ReportAspectRatio();
             StatusText = string.Empty;

@@ -9,7 +9,8 @@ namespace NovaVMS.Protocols.HcNetSdk;
 
 /// <summary>
 /// Live or recorded video received through the SDK. The device sends MPEG program stream (or transport stream)
-/// packets that the player demultiplexes directly; the vendor's system header is skipped.
+/// packets. PlayCtrl decodes video-only main streams and encrypted streams; other streams
+/// are demultiplexed by the player, with the vendor's system header skipped.
 /// The transfer starts in the background as soon as the stream is created and stops when it is disposed.
 /// </summary>
 internal sealed class HcNetSdkVideoStream : BlockingPipeStream, IVideoStreamStatus
@@ -43,13 +44,13 @@ internal sealed class HcNetSdkVideoStream : BlockingPipeStream, IVideoStreamStat
     public string? ErrorMessage => _errorMessage ?? (_decoder is { HasFrames: false }
         ? ProtocolText.Get("StreamDecryptionNoFrames") : null);
 
-    private HcNetSdkVideoStream(bool isPlayback, string encryptionKey)
-        : base(string.IsNullOrEmpty(encryptionKey) ? (isPlayback ? PlaybackBufferBytes : LiveBufferBytes) : 64 * 1024 * 1024,
-            dropWhenFull: !isPlayback && string.IsNullOrEmpty(encryptionKey), IdleTimeout)
+    private HcNetSdkVideoStream(bool isPlayback, string encryptionKey, bool decodeVideo = false)
+        : base(decodeVideo || !string.IsNullOrEmpty(encryptionKey) ? 64 * 1024 * 1024 : (isPlayback ? PlaybackBufferBytes : LiveBufferBytes),
+            dropWhenFull: !isPlayback && !decodeVideo && string.IsNullOrEmpty(encryptionKey), IdleTimeout)
     {
         _id = Interlocked.Increment(ref _nextId);
         _isPlayback = isPlayback;
-        if (!string.IsNullOrEmpty(encryptionKey))
+        if (decodeVideo || !string.IsNullOrEmpty(encryptionKey))
             _decoder = new HikvisionStreamDecoder(PlayCtrlApi.Get(), encryptionKey, isPlayback, Append, message =>
             {
                 _errorMessage = message;
@@ -58,9 +59,9 @@ internal sealed class HcNetSdkVideoStream : BlockingPipeStream, IVideoStreamStat
         ActiveStreams[_id] = this;
     }
 
-    public static Stream OpenLive(Device device, int channelNumber, StreamType streamType)
+    public static Stream OpenLive(Device device, int channelNumber, StreamType streamType, bool decodeVideo = false)
     {
-        var stream = new HcNetSdkVideoStream(isPlayback: false, device.StreamEncryptionKey);
+        var stream = new HcNetSdkVideoStream(isPlayback: false, device.StreamEncryptionKey, decodeVideo);
         _ = Task.Run(() => stream.StartAsync(device, session => stream.StartLive(session, channelNumber, streamType)));
         return stream;
     }

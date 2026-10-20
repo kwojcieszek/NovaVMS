@@ -25,7 +25,7 @@ public sealed class Channel
     public string? SubStreamUri { get; set; }
 
     /// <summary>
-    /// Picture proportions of the main stream ("width:height"), learned when it is first played. The sub stream
+    /// Picture proportions of the main stream ("width:height"), reported by the encoder or learned during playback. The sub stream
     /// is a scaled copy of the same picture, often in a different shape (e.g. 960×576), and is shown with these.
     /// </summary>
     public string? MainAspectRatio { get; set; }

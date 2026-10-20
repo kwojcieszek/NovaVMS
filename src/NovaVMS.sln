@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaVMS.Infrastructure", "N
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaVMS.App", "NovaVMS.App\NovaVMS.App.csproj", "{320F2674-18D6-4246-A7B9-2991716F74CD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaVMS.Protocols.Tests", "NovaVMS.Protocols.Tests\NovaVMS.Protocols.Tests.csproj", "{D0957B72-88B2-46B5-A0D1-F2CAC1956B10}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,6 +71,18 @@ Global
 		{320F2674-18D6-4246-A7B9-2991716F74CD}.Release|x64.Build.0 = Release|Any CPU
 		{320F2674-18D6-4246-A7B9-2991716F74CD}.Release|x86.ActiveCfg = Release|Any CPU
 		{320F2674-18D6-4246-A7B9-2991716F74CD}.Release|x86.Build.0 = Release|Any CPU
+		{D0957B72-88B2-46B5-A0D1-F2CAC1956B10}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D0957B72-88B2-46B5-A0D1-F2CAC1956B10}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D0957B72-88B2-46B5-A0D1-F2CAC1956B10}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D0957B72-88B2-46B5-A0D1-F2CAC1956B10}.Debug|x64.Build.0 = Debug|Any CPU
+		{D0957B72-88B2-46B5-A0D1-F2CAC1956B10}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D0957B72-88B2-46B5-A0D1-F2CAC1956B10}.Debug|x86.Build.0 = Debug|Any CPU
+		{D0957B72-88B2-46B5-A0D1-F2CAC1956B10}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D0957B72-88B2-46B5-A0D1-F2CAC1956B10}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D0957B72-88B2-46B5-A0D1-F2CAC1956B10}.Release|x64.ActiveCfg = Release|Any CPU
+		{D0957B72-88B2-46B5-A0D1-F2CAC1956B10}.Release|x64.Build.0 = Release|Any CPU
+		{D0957B72-88B2-46B5-A0D1-F2CAC1956B10}.Release|x86.ActiveCfg = Release|Any CPU
+		{D0957B72-88B2-46B5-A0D1-F2CAC1956B10}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

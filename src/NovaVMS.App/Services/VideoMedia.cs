@@ -29,7 +29,7 @@ public sealed class VideoMedia : IDisposable
 
         if (source.IsStream)
         {
-            var stream = source.OpenStream();
+            var stream = source.OpenStream(withAudio);
             var input = new StreamMediaInput(stream);
             var streamMedia = new Media(libVlc, input);
             streamMedia.AddOption($":network-caching={networkCachingMs}");
