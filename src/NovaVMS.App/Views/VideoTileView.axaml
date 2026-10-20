@@ -24,20 +24,34 @@
         </DockPanel>
       </Button>
 
-      <!-- The overlay window follows the visibility of the video view itself (not of its parents),
-           so hidden tiles must hide the view too, otherwise their overlays cover the maximized tile. -->
-      <vlc:VideoView x:Name="Video" MediaPlayer="{Binding VideoPlayer}" IsVisible="{Binding IsVisibleInGrid}">
-        <!-- The overlay lives in a separate window above the native VLC surface, which lets the video
-             react to clicks, double-clicks and drops and show the connection state on top of the picture.
-             The almost transparent background is required for the overlay to receive mouse input. -->
-        <vlc:VideoView.Content>
-          <Panel x:Name="VideoOverlay" Background="#01000000" DragDrop.AllowDrop="True">
-            <TextBlock Classes="overlayText"
-                       Text="{Binding OverlayText}"
-                       IsVisible="{Binding IsOverlayTextVisible}" />
-          </Panel>
-        </vlc:VideoView.Content>
-      </vlc:VideoView>
+      <!-- Two video views: during a stream switch (e.g. sub to main after maximizing) the hidden one opens
+           the new stream while the shown one keeps playing, then they swap. -->
+      <Panel>
+        <!-- The overlay window follows the visibility of the video view itself (not of its parents),
+             so hidden tiles must hide the view too, otherwise their overlays cover the maximized tile. -->
+        <vlc:VideoView x:Name="Video" MediaPlayer="{Binding PrimaryPlayer}" IsVisible="{Binding IsPrimaryViewVisible}">
+          <!-- The overlay lives in a separate window above the native VLC surface, which lets the video
+               react to clicks, double-clicks and drops and show the connection state on top of the picture.
+               The almost transparent background is required for the overlay to receive mouse input. -->
+          <vlc:VideoView.Content>
+            <Panel x:Name="VideoOverlay" Background="#01000000" DragDrop.AllowDrop="True">
+              <TextBlock Classes="overlayText"
+                         Text="{Binding OverlayText}"
+                         IsVisible="{Binding IsOverlayTextVisible}" />
+            </Panel>
+          </vlc:VideoView.Content>
+        </vlc:VideoView>
+
+        <vlc:VideoView x:Name="SecondaryVideo" MediaPlayer="{Binding SecondaryPlayer}" IsVisible="{Binding IsSecondaryViewVisible}">
+          <vlc:VideoView.Content>
+            <Panel x:Name="SecondaryVideoOverlay" Background="#01000000" DragDrop.AllowDrop="True">
+              <TextBlock Classes="overlayText"
+                         Text="{Binding OverlayText}"
+                         IsVisible="{Binding IsOverlayTextVisible}" />
+            </Panel>
+          </vlc:VideoView.Content>
+        </vlc:VideoView>
+      </Panel>
     </DockPanel>
   </Border>
 </UserControl>

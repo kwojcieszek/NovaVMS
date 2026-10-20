@@ -23,7 +23,7 @@ public sealed class VideoMedia : IDisposable
 
     public string? ErrorMessage => (_stream as IVideoStreamStatus)?.ErrorMessage;
 
-    public static VideoMedia Create(LibVLC libVlc, VideoSource source, string username, string password, int networkCachingMs)
+    public static VideoMedia Create(LibVLC libVlc, VideoSource source, string username, string password, int networkCachingMs, bool withAudio = true)
     {
         ArgumentNullException.ThrowIfNull(source);
 
@@ -33,6 +33,7 @@ public sealed class VideoMedia : IDisposable
             var input = new StreamMediaInput(stream);
             var streamMedia = new Media(libVlc, input);
             streamMedia.AddOption($":network-caching={networkCachingMs}");
+            AddAudioOption(streamMedia, withAudio);
             return new VideoMedia(streamMedia, stream, input);
         }
 
@@ -44,7 +45,20 @@ public sealed class VideoMedia : IDisposable
         // High-resolution I-frames can exceed Live555's 250 KB default and get truncated.
         media.AddOption(":rtsp-frame-buffer-size=4194304");
         media.AddOption($":network-caching={networkCachingMs}");
+        AddAudioOption(media, withAudio);
         return new VideoMedia(media, null, null);
+    }
+
+    /// <summary>
+    /// A muted player still decodes audio and keeps an audio output synchronizing the video clock.
+    /// With many streams carrying audio (e.g. Hikvision main streams) this makes the video stutter.
+    /// </summary>
+    private static void AddAudioOption(Media media, bool withAudio)
+    {
+        if (!withAudio)
+        {
+            media.AddOption(":no-audio");
+        }
     }
 
     /// <summary>

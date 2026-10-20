@@ -154,7 +154,7 @@
   "General_Language": "Język",
   "General_Stream": "Strumień w oknach podglądu",
   "General_DefaultSplit": "Domyślny podział przy starcie",
-  "General_NetworkBuffer": "Bufor sieciowy (ms) - większa wartość daje płynniejszy obraz kosztem opóźnienia",
+  "General_NetworkBuffer": "Bufor strumienia pomocniczego (ms) - kafelki w podziale; większa wartość daje płynniejszy obraz kosztem opóźnienia",
   "General_MainStreamBuffer": "Bufor strumienia głównego (ms) - powiększony kafelek, pojedynczy podgląd i nagrania; zbyt mały powoduje przycinanie obrazu",
   "General_ShowTitles": "Pokazuj nazwy kamer w oknach",
   "General_ShowSearch": "Pokazuj wyszukiwarkę kamer nad drzewem",

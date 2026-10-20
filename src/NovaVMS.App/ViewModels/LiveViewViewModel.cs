@@ -174,6 +174,18 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         MaximizedTile = ReferenceEquals(MaximizedTile, tile) ? null : tile;
     }
 
+    public async void ReportMainAspectRatio(CameraReference camera, string aspectRatio)
+    {
+        var channel = _configuration.FindCamera(camera)?.Channel;
+        if (channel is null || channel.MainAspectRatio == aspectRatio)
+        {
+            return;
+        }
+
+        channel.MainAspectRatio = aspectRatio;
+        await _configuration.SaveAsync();
+    }
+
     public void DropCameras(VideoTileViewModel tile, IReadOnlyList<CameraReference> cameras)
     {
         if (cameras.Count == 1)
@@ -416,7 +428,8 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
                 streamType,
                 camera.Device.Username,
                 camera.Device.Password,
-                _configuration.Current.Settings.GetNetworkCachingMs(streamType));
+                _configuration.Current.Settings.GetNetworkCachingMs(streamType),
+                streamType == StreamType.Sub ? camera.Channel.MainAspectRatio : null);
 
             tile.Play(reference, camera.FullName, request);
         }

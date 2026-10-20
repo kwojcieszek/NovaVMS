@@ -26,17 +26,21 @@ public partial class VideoTileView : UserControl
         InitializeComponent();
 
         VideoOverlay.AddHandler(PointerPressedEvent, OnTilePointerPressed);
+        SecondaryVideoOverlay.AddHandler(PointerPressedEvent, OnTilePointerPressed);
         // Tunnelling, because the header button marks pointer presses as handled.
         HeaderButton.AddHandler(PointerPressedEvent, OnTilePointerPressed, RoutingStrategies.Tunnel);
 
-        foreach (var dropTarget in new Control[] { VideoOverlay, HeaderButton })
+        foreach (var dropTarget in new Control[] { VideoOverlay, SecondaryVideoOverlay, HeaderButton })
         {
             dropTarget.AddHandler(DragDrop.DragOverEvent, OnDragOver);
             dropTarget.AddHandler(DragDrop.DropEvent, OnDrop);
         }
 
-        Video.AttachedToVisualTree += OnVideoAttached;
-        Video.DetachedFromVisualTree += OnVideoDetached;
+        foreach (var video in new[] { Video, SecondaryVideo })
+        {
+            video.AttachedToVisualTree += OnVideoAttached;
+            video.DetachedFromVisualTree += OnVideoDetached;
+        }
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -45,8 +49,9 @@ public partial class VideoTileView : UserControl
 
         // The overlay is hosted in a separate window, so it does not inherit the data context.
         VideoOverlay.DataContext = DataContext;
+        SecondaryVideoOverlay.DataContext = DataContext;
 
-        if (Video.IsAttachedToVisualTree())
+        if (AreVideosAttached())
         {
             NotifyViewReadyAfterLayout();
         }
@@ -71,11 +76,16 @@ public partial class VideoTileView : UserControl
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (Video.IsAttachedToVisualTree() && DataContext is VideoTileViewModel tile)
+            if (AreVideosAttached() && DataContext is VideoTileViewModel tile)
             {
                 tile.SetViewReady(true);
             }
         }, DispatcherPriority.Background);
+    }
+
+    private bool AreVideosAttached()
+    {
+        return Video.IsAttachedToVisualTree() && SecondaryVideo.IsAttachedToVisualTree();
     }
 
     private void OnTilePointerPressed(object? sender, PointerPressedEventArgs e)

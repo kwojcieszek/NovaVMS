@@ -154,7 +154,7 @@
   "General_Language": "Language",
   "General_Stream": "Stream used in tiles",
   "General_DefaultSplit": "Default split at startup",
-  "General_NetworkBuffer": "Network buffer (ms) - a higher value gives smoother video at the cost of latency",
+  "General_NetworkBuffer": "Sub stream buffer (ms) - tiles in a split; a higher value gives smoother video at the cost of latency",
   "General_MainStreamBuffer": "Main stream buffer (ms) - maximized tile, single view and recordings; too low a value makes the picture stutter",
   "General_ShowTitles": "Show camera names on tiles",
   "General_ShowSearch": "Show camera search above the tree",

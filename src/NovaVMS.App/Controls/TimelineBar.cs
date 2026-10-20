@@ -62,7 +62,7 @@ public sealed class TimelineBar : Control
     private const double NarrowWidth = 700;
     private const double CursorThickness = 2;
 
-    private static readonly Typeface LabelTypeface = new(FontFamily.Default);
+    private static readonly Typeface LabelTypeface = new(new FontFamily("fonts:Inter#Inter, $Default"));
 
     static TimelineBar()
     {

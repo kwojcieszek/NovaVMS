@@ -7,13 +7,17 @@ public sealed class AppSettings
 {
     public GridStreamMode GridStreamMode { get; set; } = GridStreamMode.Auto;
 
-    public int NetworkCachingMs { get; set; } = 300;
+    /// <summary>
+    /// Network buffer for the sub stream (tiles in a split). With many cameras a short buffer makes the
+    /// player drop late frames and the picture stutters. The name is kept for existing configuration files.
+    /// </summary>
+    public int NetworkCachingMs { get; set; } = 1000;
 
     /// <summary>
     /// Network buffer for the main stream (maximized tile, single view, recordings). Its large key frames
     /// arrive in bursts; a short buffer makes the player drop late frames and the picture stutters.
     /// </summary>
-    public int MainStreamCachingMs { get; set; } = 1000;
+    public int MainStreamCachingMs { get; set; } = 2000;
 
     public int GetNetworkCachingMs(StreamType streamType)
     {

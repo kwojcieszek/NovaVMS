@@ -12,4 +12,9 @@ public interface ITileHost
     void ToggleMaximize(VideoTileViewModel tile);
 
     void DropCameras(VideoTileViewModel tile, IReadOnlyList<CameraReference> cameras);
+
+    /// <summary>
+    /// Reports the picture proportions ("width:height") of a camera's main stream.
+    /// </summary>
+    void ReportMainAspectRatio(CameraReference camera, string aspectRatio);
 }
