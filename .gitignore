@@ -5,4 +5,3 @@ obj/
 *.user
 *.suo
 .DS_Store
-artifacts/
