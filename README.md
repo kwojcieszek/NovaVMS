@@ -12,6 +12,10 @@ and control of IP cameras and network video recorders (NVR/DVR). The user interf
   save automatically. The first saved view opens at startup. Right-click a view to rename or delete it,
   or a camera inside it to remove that camera from the view.
 - **Playback** – recording segment search with a timeline.
+  Adjacent recording files appear as continuous coverage, with real recording gaps preserved.
+  Shuttle forwards or backwards at 2×, 4×, 8× or 16× using successive time previews, or play normally at 1×.
+  Export a date/time range to MP4 in a chosen folder, with progress and cancellation. Continuous coverage
+  produces one file; real gaps split exported files. Export runs independently of the preview.
   Uses the recorder's selected protocol: native HCNetSDK search and playback, ISAPI search with RTSP,
   or ONVIF Profile G search and replay. ONVIF playback requires the device to expose Profile G services
   and identify the recordings belonging to the selected camera.
@@ -35,6 +39,45 @@ and control of IP cameras and network video recorders (NVR/DVR). The user interf
   (see [Settings database](#settings-database)).
 - **Localization** – English and Polish.
 - **Themes** – light, dark or follow the system.
+- **Application updates (Windows)** – automatic checks at startup and every six hours, or manual checks
+  in Settings → General. Downloaded ZIP updates are applied by a separate helper after every NovaVMS
+  process from the installation directory exits; the application then restarts. Failed file replacements
+  restore the previous files. User settings and files absent from the package are preserved.
+
+## Hosting application updates
+
+In Settings → General → Application updates, enter the URL of your release directory and optionally
+enable automatic checks. Installation is started explicitly with **Download and install**.
+
+Create a complete Windows release (including its `updater` folder):
+
+```powershell
+./scripts/Publish-Release.ps1 -Version 2026.10.22
+```
+
+Upload the generated `novavms_2026_10_22.zip` and `latest.json` from `artifacts/releases` to the same
+server directory. Keep separate server directories for x64 and ARM64 releases. The script publishes a
+self-contained build, so the temporary installer also has its required .NET runtime. The release date
+sets both the application version and the package filename.
+
+Example `latest.json`:
+
+```json
+{
+  "version": "2026.10.22",
+  "file": "novavms_2026_10_22.zip"
+}
+```
+
+The release script additionally includes `sha256`; when supplied, the application verifies it before
+closing. A server directory listing can be used instead of `latest.json` if directory browsing is enabled.
+Without either a manifest or a directory listing, a static server cannot tell the application which ZIP
+is newest. A direct `latest.json` URL or a versioned ZIP URL can also be configured.
+
+The ZIP must contain the complete published application at its root (one enclosing directory is also
+accepted), with no user configuration or logs. Installation does not kill a process forcibly: if an instance
+does not exit within 90 seconds, application files are left untouched. Updates require write access to
+the installation directory. Download, backup and installer logs are retained in `%TEMP%/NovaVMS-updates`.
 
 ## Supported protocols
 

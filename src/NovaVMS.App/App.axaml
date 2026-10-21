@@ -26,6 +26,8 @@
           <SolidColorBrush x:Key="NovaTimelineSegment" Color="#FF3D7BD9" />
           <SolidColorBrush x:Key="NovaTimelineTick" Color="#FF3A3C42" />
           <SolidColorBrush x:Key="NovaTimelineOutOfRange" Color="#88000000" />
+          <SolidColorBrush x:Key="NovaViewIcon" Color="#FFF5C518" />
+          <SolidColorBrush x:Key="NovaFavoriteIcon" Color="#FF34D399" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
           <SolidColorBrush x:Key="NovaWindowBackground" Color="#FFF3F4F6" />
@@ -44,6 +46,8 @@
           <SolidColorBrush x:Key="NovaTimelineSegment" Color="#FF2F6FD0" />
           <SolidColorBrush x:Key="NovaTimelineTick" Color="#FFC5C8CE" />
           <SolidColorBrush x:Key="NovaTimelineOutOfRange" Color="#40000000" />
+          <SolidColorBrush x:Key="NovaViewIcon" Color="#FFD69E00" />
+          <SolidColorBrush x:Key="NovaFavoriteIcon" Color="#FF16A34A" />
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
 

@@ -72,10 +72,19 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     [ObservableProperty]
     private string _statusText = string.Empty;
 
-    public GeneralSettingsViewModel(ConfigurationService configuration, IDialogService dialogs)
+    [ObservableProperty]
+    private bool _autoCheckForUpdates;
+
+    [ObservableProperty]
+    private string _updateServerUrl = string.Empty;
+
+    public ApplicationUpdateService Updates { get; }
+
+    public GeneralSettingsViewModel(ConfigurationService configuration, IDialogService dialogs, ApplicationUpdateService updates)
     {
         _configuration = configuration;
         _dialogs = dialogs;
+        Updates = updates;
 
         var settings = configuration.Current.Settings;
         _selectedLanguage = LanguageOption.Find(settings.Language);
@@ -90,6 +99,8 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         _showTileTitles = settings.ShowTileTitles;
         _showCameraSearch = settings.ShowCameraSearch;
         _hcNetSdkDirectory = settings.HcNetSdkDirectory;
+        _autoCheckForUpdates = settings.AutoCheckForUpdates;
+        _updateServerUrl = settings.UpdateServerUrl ?? "";
 
         // Settings can also change outside this page (e.g. the theme button in the header).
         _configuration.Changed += OnConfigurationChanged;
@@ -205,6 +216,9 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         ApplyChanges();
     }
 
+    partial void OnAutoCheckForUpdatesChanged(bool value) => ApplyChanges();
+    partial void OnUpdateServerUrlChanged(string value) => ApplyChanges();
+
     private void ApplyChanges()
     {
         if (_isLoading)
@@ -226,6 +240,8 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         settings.ShowTileTitles = ShowTileTitles;
         settings.ShowCameraSearch = ShowCameraSearch;
         settings.HcNetSdkDirectory = HcNetSdkDirectory.Trim();
+        settings.AutoCheckForUpdates = AutoCheckForUpdates;
+        settings.UpdateServerUrl = UpdateServerUrl.Trim();
 
         _ = SaveAsync();
     }
@@ -339,6 +355,8 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
             ShowTileTitles = settings.ShowTileTitles;
             ShowCameraSearch = settings.ShowCameraSearch;
             HcNetSdkDirectory = settings.HcNetSdkDirectory;
+            AutoCheckForUpdates = settings.AutoCheckForUpdates;
+            UpdateServerUrl = settings.UpdateServerUrl ?? "";
         }
         finally
         {

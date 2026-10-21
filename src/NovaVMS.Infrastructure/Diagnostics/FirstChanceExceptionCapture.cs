@@ -1,4 +1,5 @@
 using System.Runtime.ExceptionServices;
+using System.Runtime.CompilerServices;
 
 namespace NovaVMS.Infrastructure.Diagnostics;
 
@@ -7,6 +8,8 @@ public sealed class FirstChanceExceptionCapture(Action<string, Exception> log) :
 {
     private readonly object _gate = new();
     private bool _installed;
+    private readonly ConditionalWeakTable<Exception, Captured> _seen = new();
+    private sealed class Captured { public int Value; }
     [ThreadStatic] private static bool _isHandling;
 
     public void Install()
@@ -31,9 +34,16 @@ public sealed class FirstChanceExceptionCapture(Action<string, Exception> log) :
 
     private void OnException(object? sender, FirstChanceExceptionEventArgs e)
     {
-        if (_isHandling) return;
+        // Cancellation is routine when tiles close, a stream changes or a TCP probe times out.
+        // Unhandled cancellations still reach the UI/domain/task exception handlers.
+        if (_isHandling || e.Exception is OperationCanceledException) return;
         _isHandling = true;
-        try { log("First-chance exception", e.Exception); }
+        try
+        {
+            var captured = _seen.GetValue(e.Exception, _ => new Captured());
+            if (Interlocked.Exchange(ref captured.Value, 1) != 0) return;
+            log("First-chance exception", e.Exception);
+        }
         catch { }
         finally { _isHandling = false; }
     }

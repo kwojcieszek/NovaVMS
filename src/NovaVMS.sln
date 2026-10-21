@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaVMS.Infrastructure.Test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaVMS.App.Tests", "NovaVMS.App.Tests\NovaVMS.App.Tests.csproj", "{78DEC390-25D4-489A-A3F3-68C992299415}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaVMS.Updater", "NovaVMS.Updater\NovaVMS.Updater.csproj", "{1DF905F0-4319-44AA-B41C-2A734ADE0C07}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -111,6 +113,18 @@ Global
 		{78DEC390-25D4-489A-A3F3-68C992299415}.Release|x64.Build.0 = Release|Any CPU
 		{78DEC390-25D4-489A-A3F3-68C992299415}.Release|x86.ActiveCfg = Release|Any CPU
 		{78DEC390-25D4-489A-A3F3-68C992299415}.Release|x86.Build.0 = Release|Any CPU
+		{1DF905F0-4319-44AA-B41C-2A734ADE0C07}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1DF905F0-4319-44AA-B41C-2A734ADE0C07}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1DF905F0-4319-44AA-B41C-2A734ADE0C07}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1DF905F0-4319-44AA-B41C-2A734ADE0C07}.Debug|x64.Build.0 = Debug|Any CPU
+		{1DF905F0-4319-44AA-B41C-2A734ADE0C07}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1DF905F0-4319-44AA-B41C-2A734ADE0C07}.Debug|x86.Build.0 = Debug|Any CPU
+		{1DF905F0-4319-44AA-B41C-2A734ADE0C07}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1DF905F0-4319-44AA-B41C-2A734ADE0C07}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1DF905F0-4319-44AA-B41C-2A734ADE0C07}.Release|x64.ActiveCfg = Release|Any CPU
+		{1DF905F0-4319-44AA-B41C-2A734ADE0C07}.Release|x64.Build.0 = Release|Any CPU
+		{1DF905F0-4319-44AA-B41C-2A734ADE0C07}.Release|x86.ActiveCfg = Release|Any CPU
+		{1DF905F0-4319-44AA-B41C-2A734ADE0C07}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

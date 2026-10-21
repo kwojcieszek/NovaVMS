@@ -18,7 +18,6 @@ public sealed class IvmsDeviceReader
     private const int MaximumDatabaseSize = 64 * 1024 * 1024;
     private const int PageSize = 1024;
     private const int ReserveSize = 48;
-    private static readonly Encoding StrictUtf8 = new UTF8Encoding(false, true);
     private static readonly Encoding LegacyNameEncoding = CodePagesEncodingProvider.Instance.GetEncoding(1250)!;
 
     public async Task<DeviceCsvResult> ReadAsync(Stream source, Stream? encryptionSetup = null,
@@ -146,8 +145,8 @@ public sealed class IvmsDeviceReader
 
     internal static string DecodeName(byte[] bytes)
     {
-        try { return StrictUtf8.GetString(bytes); }
-        catch (DecoderFallbackException) { return LegacyNameEncoding.GetString(bytes); }
+        return System.Text.Unicode.Utf8.IsValid(bytes)
+            ? Encoding.UTF8.GetString(bytes) : LegacyNameEncoding.GetString(bytes);
     }
 
     private static List<CameraGroup> ReadGroups(byte[] encrypted, byte[] secret,

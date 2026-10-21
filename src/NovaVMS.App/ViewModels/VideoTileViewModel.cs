@@ -358,9 +358,11 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         });
     }
 
+    public bool CanAcceptDrop => _host.CanDropCameras;
+
     public void AcceptDrop(IReadOnlyList<CameraReference> cameras)
     {
-        if (cameras.Count > 0)
+        if (cameras.Count > 0 && CanAcceptDrop)
         {
             _host.DropCameras(this, cameras);
         }

@@ -11,6 +11,11 @@ public interface ITileHost
 
     void ToggleMaximize(VideoTileViewModel tile);
 
+    /// <summary>
+    /// Whether cameras dragged from the tree may be dropped on the tiles.
+    /// </summary>
+    bool CanDropCameras { get; }
+
     void DropCameras(VideoTileViewModel tile, IReadOnlyList<CameraReference> cameras);
 
     /// <summary>

@@ -17,16 +17,12 @@ public sealed partial class CameraNodeViewModel : ResourceNodeViewModel
         CameraReference reference,
         string name,
         string fullName,
-        Guid? parentGroupId,
-        bool canRemoveFromGroup,
-        IReadOnlyList<MenuActionViewModel> addToGroupActions)
+        Guid? parentGroupId)
         : base(owner, name)
     {
         Reference = reference;
         FullName = fullName;
         ParentGroupId = parentGroupId;
-        CanRemoveFromGroup = canRemoveFromGroup;
-        AddToGroupActions = addToGroupActions;
     }
 
     public CameraReference Reference { get; }
@@ -35,8 +31,6 @@ public sealed partial class CameraNodeViewModel : ResourceNodeViewModel
 
     public Guid? ParentGroupId { get; }
 
-    public bool CanRemoveFromGroup { get; }
-
     public Guid? ParentViewId { get; init; }
     public int ViewSlotIndex { get; init; }
     public bool CanRemoveFromView => ParentViewId.HasValue;
@@ -44,8 +38,4 @@ public sealed partial class CameraNodeViewModel : ResourceNodeViewModel
     public bool IsFavorite { get; init; }
 
     public string FavoriteActionText => Localizer.Text(IsFavorite ? "Tree_RemoveFavorite" : "Tree_AddFavorite");
-
-    public IReadOnlyList<MenuActionViewModel> AddToGroupActions { get; }
-
-    public bool HasAddToGroupActions => AddToGroupActions.Count > 0;
 }

@@ -36,7 +36,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         LiveViewViewModel live,
         PlaybackViewModel playback,
         PtzViewModel ptz,
-        StatusBarService statusBar)
+        StatusBarService statusBar,
+        ApplicationUpdateService updates)
     {
         _configuration = configuration;
         _sync = sync;
@@ -47,6 +48,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Playback = playback;
         Ptz = ptz;
         StatusBar = statusBar;
+        Updates = updates;
 
         Tree.PropertyChanged += OnTreePropertyChanged;
         Tree.OpenRequested += OnTreeOpenRequested;
@@ -66,6 +68,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public PtzViewModel Ptz { get; }
 
     public StatusBarService StatusBar { get; }
+    public ApplicationUpdateService Updates { get; }
 
     public bool IsLivePage => CurrentPage == AppPage.Live;
 
@@ -112,6 +115,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         await _configuration.LoadAsync();
         // A newer version from the settings database is applied before devices connect.
         await _settingsSync.StartAsync();
+        Updates.Start();
         Live.ApplyDefaultLayout();
         if (_configuration.Current.Views.FirstOrDefault() is { } firstView)
             await OpenSavedViewAsync(firstView.Id);

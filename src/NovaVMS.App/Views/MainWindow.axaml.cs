@@ -28,8 +28,6 @@ public partial class MainWindow : Window
         ResourceTree.AddHandler(PointerReleasedEvent, OnTreePointerReleased, RoutingStrategies.Tunnel);
         // Intercept group double-clicks before the item header toggles expansion.
         ResourceTree.AddHandler(DoubleTappedEvent, OnTreeDoubleTapped, RoutingStrategies.Tunnel);
-        ResourceTree.AddHandler(DragDrop.DragOverEvent, OnTreeDragOver);
-        ResourceTree.AddHandler(DragDrop.DropEvent, OnTreeDrop);
     }
 
     protected override async void OnClosing(WindowClosingEventArgs e)
@@ -189,38 +187,5 @@ public partial class MainWindow : Window
         }
 
         await DragDrop.DoDragDropAsync(e, CameraDragData.Create(cameras), DragDropEffects.Copy);
-    }
-
-    private void OnTreeDragOver(object? sender, DragEventArgs e)
-    {
-        var target = DataContext is MainWindowViewModel viewModel
-            ? viewModel.Tree.GetDropTarget(GetNode(e.Source))
-            : null;
-
-        e.DragEffects = target is not null && CameraDragData.Contains(e.DataTransfer)
-            ? DragDropEffects.Copy
-            : DragDropEffects.None;
-        e.Handled = true;
-    }
-
-    private async void OnTreeDrop(object? sender, DragEventArgs e)
-    {
-        if (DataContext is not MainWindowViewModel viewModel)
-        {
-            return;
-        }
-
-        var target = viewModel.Tree.GetDropTarget(GetNode(e.Source));
-        if (target?.Id is not Guid groupId)
-        {
-            return;
-        }
-
-        var cameras = CameraDragData.Read(e.DataTransfer);
-        e.Handled = true;
-        if (cameras.Count > 0)
-        {
-            await viewModel.Tree.AddCamerasToGroupAsync(groupId, cameras);
-        }
     }
 }

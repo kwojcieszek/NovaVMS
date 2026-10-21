@@ -56,20 +56,15 @@ public sealed class DeviceCsvReader
     /// </summary>
     private static string Decode(byte[] bytes)
     {
-        var strictUtf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
         var preamble = Encoding.UTF8.GetPreamble();
         var offset = bytes.AsSpan().StartsWith(preamble) ? preamble.Length : 0;
 
-        try
-        {
-            return strictUtf8.GetString(bytes, offset, bytes.Length - offset);
-        }
-        catch (DecoderFallbackException)
-        {
-            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-            var codePage = CultureInfo.CurrentCulture.TextInfo.ANSICodePage;
-            return Encoding.GetEncoding(codePage).GetString(bytes);
-        }
+        if (System.Text.Unicode.Utf8.IsValid(bytes.AsSpan(offset)))
+            return Encoding.UTF8.GetString(bytes, offset, bytes.Length - offset);
+
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        var codePage = CultureInfo.CurrentCulture.TextInfo.ANSICodePage;
+        return Encoding.GetEncoding(codePage).GetString(bytes);
     }
 
     public DeviceCsvResult Parse(string text)

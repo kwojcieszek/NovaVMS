@@ -96,10 +96,11 @@ public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClien
     {
         EnsureAvailable();
         EnsureStreamDecoder();
-        // PlayCtrl handles the recorder's native video timing. Keep the multiplexed
-        // stream when audio is requested; the decoded YUV path carries video only.
+        // PlayCtrl handles the recorder's native video timing for MAIN and SUB alike; LibVLC's
+        // program-stream demuxer stops after the first frame on some recorders. Keep the
+        // multiplexed stream when audio is requested; the decoded YUV path carries video only.
         return VideoSource.FromStream(withAudio => HcNetSdkVideoStream.OpenLive(_device, channelNumber, streamType,
-            decodeVideo: streamType == StreamType.Main && !withAudio));
+            decodeVideo: !withAudio));
     }
 
     public async Task<IReadOnlyList<RecordingSegment>> SearchRecordingsAsync(int channelNumber, DateTime from, DateTime to, CancellationToken cancellationToken = default)

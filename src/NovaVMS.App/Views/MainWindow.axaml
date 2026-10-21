@@ -52,6 +52,17 @@
     </Border>
 
     <!-- Status bar -->
+    <Border DockPanel.Dock="Top" Padding="12,6" Background="{DynamicResource NovaPanelBackground}"
+            IsVisible="{Binding Updates.HasUpdate}">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" Classes="accent" Command="{Binding Updates.InstallCommand}" Content="{l:Tr Updates_Install}" />
+        <StackPanel Spacing="2" VerticalAlignment="Center">
+          <TextBlock Text="{Binding Updates.AvailableText}" />
+          <TextBlock Classes="muted" Text="{Binding Updates.StatusText}" FontSize="11" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
     <Border DockPanel.Dock="Bottom" Padding="12,4" Background="{DynamicResource NovaHeaderBackground}">
       <TextBlock Classes="muted" FontSize="12" Text="{Binding StatusBar.Message}" />
     </Border>
@@ -71,12 +82,6 @@
         </Expander>
 
         <DockPanel DockPanel.Dock="Top" Margin="10,10,6,6">
-          <Button DockPanel.Dock="Right"
-                  Classes="icon"
-                  Margin="2,0,0,0"
-                  Command="{Binding Tree.AddCustomGroupCommand}"
-                  ToolTip.Tip="{l:Tr Tree_NewCustomGroupTip}"
-                  Content="{mi:MaterialIconExt Kind=FolderPlusOutline}" />
           <Button DockPanel.Dock="Right"
                   Classes="icon"
                   Margin="4,0,0,0"
@@ -102,7 +107,6 @@
         <TreeView x:Name="ResourceTree"
                   ItemsSource="{Binding Tree.Groups}"
                   SelectedItem="{Binding Tree.SelectedNode}"
-                  DragDrop.AllowDrop="True"
                   Tapped="OnTreeTapped">
           <TreeView.Styles>
             <Style Selector="TreeViewItem" x:DataType="vm:ResourceNodeViewModel">
@@ -126,32 +130,23 @@
                               CommandParameter="{Binding}" />
                     <MenuItem Header="{l:Tr Tree_Rename}"
                               Icon="{mi:MaterialIconExt Kind=PencilOutline}"
-                              IsVisible="{Binding CanEdit}"
-                              Command="{Binding Owner.RenameGroupCommand}"
-                              CommandParameter="{Binding}" />
-                    <MenuItem Header="{l:Tr Tree_DeleteGroup}"
-                              Icon="{mi:MaterialIconExt Kind=DeleteOutline}"
-                              IsVisible="{Binding CanEditGroup}"
-                              Command="{Binding Owner.DeleteGroupCommand}"
+                              IsVisible="{Binding IsSavedView}"
+                              Command="{Binding Owner.RenameViewCommand}"
                               CommandParameter="{Binding}" />
                     <MenuItem Header="{l:Tr Views_SaveNew}" IsVisible="{Binding IsViewsFolder}"
                               Icon="{mi:MaterialIconExt Kind=ContentSavePlusOutline}"
                               Command="{Binding Owner.RequestSaveViewCommand}" />
                     <MenuItem Header="{l:Tr Views_Delete}" IsVisible="{Binding IsSavedView}"
                               Icon="{mi:MaterialIconExt Kind=DeleteOutline}"
-                              Command="{Binding Owner.DeleteGroupCommand}" CommandParameter="{Binding}" />
-                    <Separator />
-                    <MenuItem Header="{l:Tr Tree_NewCustomGroupMenu}"
-                              Icon="{mi:MaterialIconExt Kind=FolderPlusOutline}"
-                              Command="{Binding Owner.AddCustomGroupCommand}" />
+                              Command="{Binding Owner.DeleteViewCommand}" CommandParameter="{Binding}" />
                   </ContextMenu>
                 </StackPanel.ContextMenu>
-                <mi:MaterialIcon Kind="ViewDashboardOutline" Foreground="{DynamicResource NovaAccent}" IsVisible="{Binding IsViewsFolder}" />
-                <mi:MaterialIcon Kind="ViewGridOutline" IsVisible="{Binding IsSavedView}" />
+                <mi:MaterialIcon Kind="ViewDashboard" Foreground="{DynamicResource NovaViewIcon}" IsVisible="{Binding IsViewsFolder}" />
+                <mi:MaterialIcon Kind="ViewGridOutline" Foreground="{DynamicResource NovaViewIcon}" IsVisible="{Binding IsSavedView}" />
                 <mi:MaterialIcon Kind="FolderStar" Foreground="{DynamicResource NovaAccent}" IsVisible="{Binding IsCustom}" />
                 <mi:MaterialIcon Kind="Server" IsVisible="{Binding IsDeviceGroup}" />
                 <mi:MaterialIcon Kind="FolderOutline" IsVisible="{Binding IsUnassigned}" />
-                <mi:MaterialIcon Kind="Star" Foreground="{DynamicResource NovaAccent}" IsVisible="{Binding IsFavorites}" />
+                <mi:MaterialIcon Kind="Star" Foreground="{DynamicResource NovaFavoriteIcon}" IsVisible="{Binding IsFavorites}" />
                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
               </StackPanel>
             </TreeDataTemplate>
@@ -171,24 +166,6 @@
                               Icon="{mi:MaterialIconExt Kind=StarOutline}"
                               Command="{Binding Owner.ToggleFavoriteCommand}"
                               CommandParameter="{Binding}" />
-                    <MenuItem Header="{l:Tr Tree_AddToGroup}"
-                              Icon="{mi:MaterialIconExt Kind=FolderStarOutline}"
-                              IsEnabled="{Binding HasAddToGroupActions}"
-                              ItemsSource="{Binding AddToGroupActions}">
-                      <MenuItem.ItemContainerTheme>
-                        <ControlTheme TargetType="MenuItem"
-                                      BasedOn="{StaticResource {x:Type MenuItem}}"
-                                      x:DataType="vm:MenuActionViewModel">
-                          <Setter Property="Header" Value="{Binding Header}" />
-                          <Setter Property="Command" Value="{Binding Command}" />
-                        </ControlTheme>
-                      </MenuItem.ItemContainerTheme>
-                    </MenuItem>
-                    <MenuItem Header="{l:Tr Tree_RemoveFromGroup}"
-                              Icon="{mi:MaterialIconExt Kind=FolderRemoveOutline}"
-                              IsVisible="{Binding CanRemoveFromGroup}"
-                              Command="{Binding Owner.RemoveFromGroupCommand}"
-                              CommandParameter="{Binding}" />
                     <MenuItem Header="{l:Tr Views_RemoveCamera}"
                               Icon="{mi:MaterialIconExt Kind=Close}"
                               IsVisible="{Binding CanRemoveFromView}"
@@ -204,7 +181,7 @@
                         CommandParameter="{Binding}"
                         ToolTip.Tip="{Binding FavoriteActionText}">
                   <Panel>
-                    <mi:MaterialIcon Kind="Star" Foreground="{DynamicResource NovaAccent}" IsVisible="{Binding IsFavorite}" />
+                    <mi:MaterialIcon Kind="Star" Foreground="{DynamicResource NovaFavoriteIcon}" IsVisible="{Binding IsFavorite}" />
                     <mi:MaterialIcon Kind="StarOutline" IsVisible="{Binding !IsFavorite}" />
                   </Panel>
                 </Button>

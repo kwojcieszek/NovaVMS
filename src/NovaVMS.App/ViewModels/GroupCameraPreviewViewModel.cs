@@ -86,6 +86,7 @@ public sealed partial class GroupCameraPreviewViewModel : ViewModelBase, ITileHo
     }
     public void SelectTile(VideoTileViewModel tile) { }
     public void ToggleMaximize(VideoTileViewModel tile) { }
+    public bool CanDropCameras => false;
     public void DropCameras(VideoTileViewModel tile, IReadOnlyList<CameraReference> cameras) { }
     public void ReportMainAspectRatio(CameraReference camera, string aspectRatio) { }
 }

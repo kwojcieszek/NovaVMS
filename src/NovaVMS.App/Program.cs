@@ -11,6 +11,10 @@ internal static class Program
         try
         {
             UnhandledExceptionLogger.Install();
+            // An installer holds this file exclusively until all replacement/rollback work is complete.
+            var updateLock = Path.Combine(AppContext.BaseDirectory, ".novavms-update.lock");
+            if (File.Exists(updateLock))
+                using (new FileStream(updateLock, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) { }
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
         catch (Exception exception)

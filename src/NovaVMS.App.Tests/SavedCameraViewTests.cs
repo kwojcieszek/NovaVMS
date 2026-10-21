@@ -20,7 +20,6 @@ public sealed class SavedCameraViewTests
         Assert.True(view.IsSavedView);
         Assert.Equal(configuration.Current.Views[0].Id, view.Id);
         Assert.Equal(configuration.Current.Views[0].Layout.Cameras.OfType<CameraReference>(), view.Cameras.Select(camera => camera.Reference));
-        Assert.Null(tree.GetDropTarget(view));
         Assert.Single(tree.Groups.Single(group => group.IsUnassigned).Cameras);
         Assert.Empty(configuration.Current.Groups);
         Assert.Single(folder.Children);
@@ -54,10 +53,10 @@ public sealed class SavedCameraViewTests
     {
         var (configuration, tree) = await CreateAsync();
         var id = configuration.Current.Views[0].Id;
-        await tree.RenameGroupCommand.ExecuteAsync(tree.Groups[1].Views[0]);
+        await tree.RenameViewCommand.ExecuteAsync(tree.Groups[1].Views[0]);
         Assert.Equal(id, configuration.Current.Views[0].Id);
         Assert.Equal("Renamed view", configuration.Current.Views[0].Name);
-        await tree.DeleteGroupCommand.ExecuteAsync(tree.Groups[1].Views[0]);
+        await tree.DeleteViewCommand.ExecuteAsync(tree.Groups[1].Views[0]);
         Assert.Empty(configuration.Current.Views);
         Assert.Empty(tree.Groups[1].Views);
         Assert.Single(configuration.Current.Devices);
@@ -109,7 +108,7 @@ public sealed class SavedCameraViewTests
             MaximizedTileIndex = 1, Layout = new GroupLiveView { LayoutId = "standard-6", LayoutCount = 6,
                 Cameras = [null, reference], EmptySlots = [0] } }] };
         var configuration = new ConfigurationService(new Store(config), new JsonConfigurationSerializer());
-        var tree = new ResourceTreeViewModel(configuration, new DeviceSyncService(configuration, null!), new Dialogs(), new StatusBarService());
+        var tree = new ResourceTreeViewModel(configuration, new DeviceSyncService(configuration, null!), new Dialogs());
         await configuration.LoadAsync();
         return (configuration, tree);
     }

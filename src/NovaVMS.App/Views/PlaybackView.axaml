@@ -4,6 +4,7 @@
              xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:vm="using:NovaVMS.App.ViewModels"
              xmlns:core="using:NovaVMS.Core.Models"
+             xmlns:models="using:NovaVMS.App.Models"
              xmlns:controls="using:NovaVMS.App.Controls"
              xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
              x:Class="NovaVMS.App.Views.PlaybackView"
@@ -65,6 +66,14 @@
               </Panel>
             </Button>
             <Button Command="{Binding StopCommand}" ToolTip.Tip="{l:Tr Playback_StopTip}" Content="{mi:MaterialIconExt Kind=Stop}" />
+            <TextBlock Text="{l:Tr Playback_Shuttle}" VerticalAlignment="Center" />
+            <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding SelectedSpeed}" MinWidth="100"
+                      ToolTip.Tip="{l:Tr Playback_ShuttleTip}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="models:PlaybackSpeedOption"><TextBlock Text="{Binding Label}" /></DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <Button Command="{Binding NormalSpeedCommand}" Content="▶ 1×" ToolTip.Tip="{l:Tr Playback_NormalSpeed}" />
             <TextBlock Text="{Binding CurrentTimeText}"
                        FontSize="16" FontWeight="SemiBold"
                        VerticalAlignment="Center"
@@ -78,8 +87,30 @@
     </Border>
 
     <!-- Recorded segments -->
-    <Border DockPanel.Dock="Right" Width="230" Background="{DynamicResource NovaPanelBackground}">
+    <Border DockPanel.Dock="Right" Width="290" Background="{DynamicResource NovaPanelBackground}">
       <DockPanel>
+        <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="12">
+          <TextBlock Classes="sectionTitle" Text="{l:Tr Playback_Export}" Margin="0,8" />
+          <TextBlock Classes="muted" Text="{l:Tr Playback_ExportFrom}" />
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <CalendarDatePicker SelectedDate="{Binding ExportFromDate}" Width="145" />
+            <TextBox Text="{Binding ExportFromText}" Width="105" Watermark="HH:mm:ss" />
+          </StackPanel>
+          <Button Command="{Binding MarkExportStartCommand}" Content="{l:Tr Playback_MarkFrom}" />
+          <TextBlock Classes="muted" Text="{l:Tr Playback_ExportTo}" />
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <CalendarDatePicker SelectedDate="{Binding ExportToDate}" Width="145" />
+            <TextBox Text="{Binding ExportToText}" Width="105" Watermark="HH:mm:ss" />
+          </StackPanel>
+          <Button Command="{Binding MarkExportEndCommand}" Content="{l:Tr Playback_MarkTo}" />
+          <TextBlock Classes="muted" Text="{l:Tr Playback_ExportHint}" TextWrapping="Wrap" FontSize="11" />
+          <Button Classes="accent" Command="{Binding ExportCommand}">
+            <mi:MaterialIconText Kind="Download" Text="{l:Tr Playback_ExportMp4}" />
+          </Button>
+          <ProgressBar Minimum="0" Maximum="100" Value="{Binding ExportProgress}" IsVisible="{Binding IsExporting}" />
+          <Button Command="{Binding CancelExportCommand}" IsVisible="{Binding IsExporting}" Content="{l:Tr Playback_CancelExport}" />
+          <TextBlock Text="{Binding ExportStatus}" TextWrapping="Wrap" FontSize="11" />
+        </StackPanel>
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="12,8">
           <mi:MaterialIcon Kind="FilmstripBox" />
           <TextBlock Classes="sectionTitle" Margin="0" Text="{l:Tr Playback_Recordings}" />

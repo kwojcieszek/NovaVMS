@@ -31,6 +31,7 @@ internal static class ServiceConfiguration
         services.AddSingleton(_ => new LibVLC("--no-osd", "--no-snapshot-preview", "--no-video-title-show"));
 
         services.AddSingleton<ConfigurationService>();
+        services.AddSingleton<ApplicationUpdateService>();
         services.AddSingleton<DeviceSyncService>();
         services.AddSingleton<SettingsSyncService>();
         services.AddSingleton<DeviceConnectionCleanupService>();
@@ -43,6 +44,7 @@ internal static class ServiceConfiguration
         services.AddSingleton<ResourceTreeViewModel>();
         services.AddSingleton<LiveViewViewModel>();
         services.AddSingleton<PlaybackViewModel>();
+        services.AddSingleton<RecordingExporter>();
         services.AddSingleton<PtzViewModel>();
         services.AddSingleton<MainWindowViewModel>();
 

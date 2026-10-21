@@ -5,6 +5,9 @@ namespace NovaVMS.Core.Models;
 /// </summary>
 public sealed class AppSettings
 {
+    public bool AutoCheckForUpdates { get; set; }
+    public string UpdateServerUrl { get; set; } = string.Empty;
+
     internal AppSettings Copy() => (AppSettings)MemberwiseClone();
     public GridStreamMode GridStreamMode { get; set; } = GridStreamMode.Auto;
 

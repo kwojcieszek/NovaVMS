@@ -37,8 +37,6 @@ public sealed class ResourceGroupNodeViewModel : ResourceNodeViewModel
     public bool IsViewsFolder => Kind == GroupNodeKind.ViewsFolder;
     public bool IsSavedView => Kind == GroupNodeKind.SavedView;
     public bool IsCameraGroup => !IsViewsFolder && !IsSavedView;
-    public bool CanEdit => IsCustom || IsDeviceGroup || IsSavedView;
-    public bool CanEditGroup => IsCustom || IsDeviceGroup;
     public ObservableCollection<ResourceGroupNodeViewModel> Views { get; } = new();
     public IEnumerable<ResourceNodeViewModel> Children => IsViewsFolder ? Views : Cameras;
 

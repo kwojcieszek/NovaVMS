@@ -96,6 +96,39 @@ public sealed class HikvisionStreamDecoderTests
         finally { gate.Set(); }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RepeatedIdenticalHeaderKeepsLiveAndRecordingDecoderRunning(bool playback)
+    {
+        var api = new FakePlayCtrl();
+        var frames = 0;
+        var complete = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var failed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var decoder = new HikvisionStreamDecoder(api, "key", playback,
+            _ => { if (Interlocked.Increment(ref frames) == 2) complete.TrySetResult(); }, message => failed.TrySetResult(message));
+        decoder.Feed(HcNetSdkConstants.DataSystemHeader, [1, 2, 3]);
+        decoder.Feed(HcNetSdkConstants.DataStream, [4, 5, 6]);
+        decoder.Feed(HcNetSdkConstants.DataSystemHeader, [1, 2, 3]);
+        decoder.Feed(HcNetSdkConstants.DataStream, [7, 8, 9]);
+        await complete.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.False(failed.Task.IsCompleted);
+        Assert.Equal(1, api.OpenCalls);
+        Assert.Equal(1, api.KeyCalls);
+    }
+
+    [Fact]
+    public async Task ActuallyChangedHeaderStillRequestsReconnect()
+    {
+        var api = new FakePlayCtrl();
+        var failed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var decoder = new HikvisionStreamDecoder(api, "", true, _ => { }, message => failed.TrySetResult(message));
+        decoder.Feed(HcNetSdkConstants.DataSystemHeader, [1, 2, 3]);
+        decoder.Feed(HcNetSdkConstants.DataSystemHeader, [1, 2, 4]);
+        Assert.False(string.IsNullOrWhiteSpace(await failed.Task.WaitAsync(TimeSpan.FromSeconds(3))));
+        Assert.Equal(1, api.OpenCalls);
+    }
+
     private sealed class FakePlayCtrl : IPlayCtrlApi
     {
         private static int _nextPort;
@@ -106,13 +139,15 @@ public sealed class HikvisionStreamDecoderTests
         public int KeyCalls { get; private set; }
         public int KeyLengthBits { get; private set; }
         public int InputCalls { get; private set; }
+        public int OpenCalls { get; private set; }
         public bool Stopped { get; private set; }
         public bool Closed { get; private set; }
         public bool Freed { get; private set; }
         public bool GetPort(out int port) { port = Interlocked.Increment(ref _nextPort); return true; }
-        public bool SetMode(int port, uint mode) => mode == 0;
+        public bool SetMode(int port, uint mode) => mode is 0 or 1;
         public bool OpenStream(int port, byte[] header, uint size, uint capacity)
         {
+            OpenCalls++;
             OpenEntered.TrySetResult();
             if (OpenGate is not null && !OpenGate.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
             return true;

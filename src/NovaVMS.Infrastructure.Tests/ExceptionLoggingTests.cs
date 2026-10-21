@@ -102,6 +102,34 @@ public sealed class ExceptionLoggingTests : IDisposable
     }
 
     private string ReadLog() => File.ReadAllText(Assert.Single(Directory.GetFiles(_directory, "errors-*.log")));
+
+    [Fact]
+    public void RoutineCancellationIsNotCapturedButUnexpectedErrorsRemainVisible()
+    {
+        var captured = new ConcurrentQueue<Exception>();
+        using var capture = new FirstChanceExceptionCapture((_, exception) => captured.Enqueue(exception));
+        capture.Install();
+        try { throw new OperationCanceledException(); } catch (OperationCanceledException) { }
+        try { throw new TaskCanceledException(); } catch (OperationCanceledException) { }
+        var error = new InvalidOperationException("real-error");
+        try { throw error; } catch (InvalidOperationException) { }
+        Assert.Same(error, Assert.Single(captured));
+    }
+
+    [Fact]
+    public async Task AsyncRethrowsAreCapturedOnlyOncePerExceptionInstance()
+    {
+        var captured = new ConcurrentQueue<Exception>();
+        using var capture = new FirstChanceExceptionCapture((_, exception) => captured.Enqueue(exception));
+        capture.Install();
+        var expected = new IOException("same-marker");
+        await Assert.ThrowsAsync<IOException>(async () => await Task.Run(() => throw expected));
+        try { throw expected; } catch (IOException) { }
+        var distinct = new IOException("same-marker");
+        try { throw distinct; } catch (IOException) { }
+        Assert.Single(captured, exception => ReferenceEquals(exception, expected));
+        Assert.Single(captured, exception => ReferenceEquals(exception, distinct));
+    }
     private static void ThrowForLog(string message) => throw new InvalidOperationException(message);
 
     public void Dispose()

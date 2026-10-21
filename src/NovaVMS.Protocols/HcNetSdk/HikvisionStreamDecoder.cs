@@ -33,6 +33,7 @@ internal sealed class HikvisionStreamDecoder : IDisposable
     private int _disposed;
     private bool _opened;
     private bool _playing;
+    private byte[]? _header;
     private int _width, _height;
     private int _hasFrames;
 
@@ -77,10 +78,17 @@ internal sealed class HikvisionStreamDecoder : IDisposable
                 Interlocked.Add(ref _queuedPacketBytes, -packet.Bytes.Length);
                 if (packet.Type == HcNetSdkConstants.DataSystemHeader)
                 {
-                    if (_opened) throw new IOException(ProtocolText.Get("StreamDecoderChanged"));
+                    // Recorders repeat their system header at recording-file boundaries.
+                    // An identical header does not change the decoder's format or encryption state.
+                    if (_opened)
+                    {
+                        if (_header.AsSpan().SequenceEqual(packet.Bytes)) continue;
+                        throw new IOException(ProtocolText.Get("StreamDecoderChanged"));
+                    }
                     Require(_api.SetMode(_port, _playback ? 1u : 0u), "PlayM4_SetStreamOpenMode");
                     Require(_api.OpenStream(_port, packet.Bytes, (uint)packet.Bytes.Length, 4 * 1024 * 1024), "PlayM4_OpenStream");
                     _opened = true;
+                    _header = packet.Bytes.ToArray();
                     // PlayM4_SetSecretKey measures key length in bits, not bytes.
                     if (_key.Length > 0)
                         Require(_api.SetKey(_port, 1, _key, checked(_key.Length * 8)), "PlayM4_SetSecretKey");

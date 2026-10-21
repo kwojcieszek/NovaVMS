@@ -51,6 +51,19 @@
     <ProjectReference Include="..\NovaVMS.Core\NovaVMS.Core.csproj" />
     <ProjectReference Include="..\NovaVMS.Protocols\NovaVMS.Protocols.csproj" />
     <ProjectReference Include="..\NovaVMS.Infrastructure\NovaVMS.Infrastructure.csproj" />
+    <ProjectReference Include="..\NovaVMS.Updater\NovaVMS.Updater.csproj" />
   </ItemGroup>
+
+  <Target Name="CopyUpdateHelper" AfterTargets="Build">
+    <ItemGroup>
+      <UpdateHelperFiles Include="../NovaVMS.Updater/bin/$(Configuration)/$(TargetFramework)/$(RuntimeIdentifier)/NovaVMS.Updater.*" Exclude="**/*.pdb" />
+    </ItemGroup>
+    <Copy SourceFiles="@(UpdateHelperFiles)" DestinationFolder="$(OutDir)updater" SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="PublishUpdateHelper" AfterTargets="Publish">
+    <MSBuild Projects="../NovaVMS.Updater/NovaVMS.Updater.csproj" Targets="Publish"
+             Properties="PublishDir=$([System.IO.Path]::GetFullPath('$(PublishDir)updater/'))" />
+  </Target>
 
 </Project>

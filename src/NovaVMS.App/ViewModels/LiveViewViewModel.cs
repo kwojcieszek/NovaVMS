@@ -406,8 +406,19 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         }
     }
 
+    /// <summary>
+    /// A group's tiles follow its configured cameras (edited in the settings); only views and
+    /// free layouts accept cameras dragged from the tree.
+    /// </summary>
+    public bool CanDropCameras => _activeGroup is null;
+
     public void DropCameras(VideoTileViewModel tile, IReadOnlyList<CameraReference> cameras)
     {
+        if (!CanDropCameras)
+        {
+            return;
+        }
+
         if (cameras.Count == 1)
         {
             PlayOnTile(tile, cameras[0]);

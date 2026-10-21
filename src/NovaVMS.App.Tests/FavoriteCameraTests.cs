@@ -17,9 +17,7 @@ public sealed class FavoriteCameraTests
         var favorites = tree.Groups[0];
         Assert.True(favorites.IsFavorites);
         Assert.False(favorites.IsExpanded);
-        Assert.False(favorites.CanEdit);
         Assert.Empty(favorites.Cameras);
-        Assert.Null(tree.GetDropTarget(favorites));
     }
 
     [Fact]
@@ -95,7 +93,7 @@ public sealed class FavoriteCameraTests
         });
         var configuration = new ConfigurationService(store, new JsonConfigurationSerializer());
         var sync = new DeviceSyncService(configuration, new FakeClientFactory());
-        var tree = new ResourceTreeViewModel(configuration, sync, null!, new StatusBarService());
+        var tree = new ResourceTreeViewModel(configuration, sync, null!);
         await configuration.LoadAsync();
         return (configuration, tree, store);
     }

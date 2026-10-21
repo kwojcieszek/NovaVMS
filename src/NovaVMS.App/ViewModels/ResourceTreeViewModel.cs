@@ -19,7 +19,6 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
     private readonly ConfigurationService _configuration;
     private readonly DeviceSyncService _sync;
     private readonly IDialogService _dialogs;
-    private readonly StatusBarService _statusBar;
     private readonly Dictionary<(GroupNodeKind Kind, Guid? Id), bool> _expandedGroups = new();
     private bool _isFiltered;
     // Unfiltered cameras of every group from the last rebuild, to detect changed group content.
@@ -37,13 +36,11 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
     public ResourceTreeViewModel(
         ConfigurationService configuration,
         DeviceSyncService sync,
-        IDialogService dialogs,
-        StatusBarService statusBar)
+        IDialogService dialogs)
     {
         _configuration = configuration;
         _sync = sync;
         _dialogs = dialogs;
-        _statusBar = statusBar;
 
         _configuration.Changed += OnConfigurationChanged;
         _sync.StatusChanged += OnStatusChanged;
@@ -105,47 +102,6 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
         }
     }
 
-    /// <summary>
-    /// Returns the custom group that cameras dropped onto the node should be added to.
-    /// </summary>
-    public ResourceGroupNodeViewModel? GetDropTarget(ResourceNodeViewModel? node)
-    {
-        switch (node)
-        {
-            case ResourceGroupNodeViewModel group when group.IsCustom:
-            {
-                return group;
-            }
-            case CameraNodeViewModel camera:
-            {
-                return Groups.FirstOrDefault(group => group.IsCustom && group.Id == camera.ParentGroupId);
-            }
-            default:
-            {
-                return null;
-            }
-        }
-    }
-
-    public async Task AddCamerasToGroupAsync(Guid groupId, IReadOnlyList<CameraReference> cameras)
-    {
-        var group = _configuration.FindGroup(groupId);
-        if (group is null || !group.IsCustom)
-        {
-            return;
-        }
-
-        var added = _configuration.AddCamerasToGroup(group, cameras);
-        if (added > 0)
-        {
-            await _configuration.SaveAsync();
-        }
-
-        _statusBar.Message = added == 0
-            ? Localizer.Format("Tree_AlreadyInGroup", group.Name)
-            : Localizer.Format("Tree_AddedToGroup", added, group.Name);
-    }
-
     [RelayCommand]
     private void OpenNode(ResourceNodeViewModel? node)
     {
@@ -171,78 +127,47 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
         await _configuration.SaveAsync();
     }
 
+    // Camera groups are edited only in the settings; the tree edits saved views.
     [RelayCommand]
-    private async Task AddCustomGroupAsync()
+    private async Task RenameViewAsync(ResourceGroupNodeViewModel? node)
     {
-        var suggestedName = Localizer.Format("Tree_DefaultGroupName", _configuration.Current.Groups.Count(group => group.IsCustom) + 1);
-        var name = await _dialogs.PromptTextAsync(Localizer.Text("Tree_NewGroupTitle"), Localizer.Text("Tree_GroupNamePrompt"), suggestedName);
+        if (node is not { IsSavedView: true, Id: { } viewId })
+        {
+            return;
+        }
+
+        var view = _configuration.Current.Views.FirstOrDefault(candidate => candidate.Id == viewId);
+        if (view is null)
+        {
+            return;
+        }
+
+        var name = await _dialogs.PromptTextAsync(Localizer.Text("Views_Rename"), Localizer.Text("Views_NamePrompt"), view.Name);
         if (string.IsNullOrWhiteSpace(name))
         {
             return;
         }
 
-        var group = _configuration.CreateCustomGroup(name.Trim());
-        await _configuration.SaveAsync();
-
-        SelectedNode = Groups.FirstOrDefault(node => node.Id == group.Id);
-        _statusBar.Message = Localizer.Format("Tree_GroupCreated", group.Name);
-    }
-
-    [RelayCommand]
-    private async Task RenameGroupAsync(ResourceGroupNodeViewModel? node)
-    {
-        if (node is { IsSavedView: true, Id: { } viewId })
-        {
-            var view = _configuration.Current.Views.FirstOrDefault(candidate => candidate.Id == viewId);
-            if (view is null) return;
-            var viewName = await _dialogs.PromptTextAsync(Localizer.Text("Views_Rename"), Localizer.Text("Views_NamePrompt"), view.Name);
-            if (string.IsNullOrWhiteSpace(viewName)) return;
-            view.Name = viewName.Trim();
-            await _configuration.SaveAsync();
-            return;
-        }
-        var group = node?.Id is Guid id ? _configuration.FindGroup(id) : null;
-        if (group is null)
-        {
-            return;
-        }
-
-        var name = await _dialogs.PromptTextAsync(Localizer.Text("Tree_RenameTitle"), Localizer.Text("Tree_GroupNamePrompt"), group.Name);
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return;
-        }
-
-        group.Name = name.Trim();
+        view.Name = name.Trim();
         await _configuration.SaveAsync();
     }
 
     [RelayCommand]
-    private async Task DeleteGroupAsync(ResourceGroupNodeViewModel? node)
+    private async Task DeleteViewAsync(ResourceGroupNodeViewModel? node)
     {
-        if (node is { IsSavedView: true, Id: { } viewId })
-        {
-            var view = _configuration.Current.Views.FirstOrDefault(candidate => candidate.Id == viewId);
-            if (view is null || !await _dialogs.ConfirmAsync(Localizer.Text("Views_Delete"), Localizer.Format("Views_DeleteConfirm", view.Name))) return;
-            _configuration.Current.Views.Remove(view);
-            await _configuration.SaveAsync();
-            return;
-        }
-        var group = node?.Id is Guid id ? _configuration.FindGroup(id) : null;
-        if (group is null)
+        if (node is not { IsSavedView: true, Id: { } viewId })
         {
             return;
         }
 
-        var confirmed = await _dialogs.ConfirmAsync(Localizer.Text("Tree_DeleteTitle"), Localizer.Format("Tree_DeleteConfirm", group.Name));
-        if (!confirmed)
+        var view = _configuration.Current.Views.FirstOrDefault(candidate => candidate.Id == viewId);
+        if (view is null || !await _dialogs.ConfirmAsync(Localizer.Text("Views_Delete"), Localizer.Format("Views_DeleteConfirm", view.Name)))
         {
             return;
         }
 
-        _configuration.Current.Groups.Remove(group);
+        _configuration.Current.Views.Remove(view);
         await _configuration.SaveAsync();
-        _statusBar.Message = Localizer.Format("Tree_GroupDeleted", group.Name);
     }
 
     [RelayCommand]
@@ -251,19 +176,6 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
         var channel = node is null ? null : _configuration.FindCamera(node.Reference)?.Channel;
         if (channel is null) return;
         channel.IsFavorite = !channel.IsFavorite;
-        await _configuration.SaveAsync();
-    }
-
-    [RelayCommand]
-    private async Task RemoveFromGroupAsync(CameraNodeViewModel? node)
-    {
-        var group = node?.ParentGroupId is Guid id ? _configuration.FindGroup(id) : null;
-        if (node is null || group is null || !group.IsCustom)
-        {
-            return;
-        }
-
-        group.Cameras.Remove(node.Reference);
         await _configuration.SaveAsync();
     }
 
@@ -316,7 +228,7 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
 
         // Bookmarks are a separate view; they do not change a camera's group membership.
         var favorites = _configuration.GetAllCameras().Where(camera => camera.Channel.IsFavorite).ToList();
-        AddGroupNode(null, Localizer.Text("Tree_Favorites"), GroupNodeKind.Favorites, favorites, customGroups, filter);
+        AddGroupNode(null, Localizer.Text("Tree_Favorites"), GroupNodeKind.Favorites, favorites, filter);
         AddGroupContent(contents, null, GroupNodeKind.Favorites, favorites);
 
         var viewsFolder = new ResourceGroupNodeViewModel(this, null, Localizer.Text("Views_Title"), GroupNodeKind.ViewsFolder)
@@ -337,8 +249,7 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
                 if (view.Layout.Cameras[index] is not { } reference) continue;
                 var camera = _configuration.FindCamera(reference);
                 if (camera is null) continue;
-                node.Cameras.Add(new CameraNodeViewModel(this, reference, camera.DisplayName, camera.FullName, view.Id, false,
-                    BuildAddToGroupActions(reference, null, customGroups))
+                node.Cameras.Add(new CameraNodeViewModel(this, reference, camera.DisplayName, camera.FullName, view.Id)
                     { IsOnline = IsOnline(camera), IsFavorite = camera.Channel.IsFavorite,
                         ParentViewId = view.Id, ViewSlotIndex = index });
             }
@@ -360,7 +271,7 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
             }
 
             var kind = group.IsCustom ? GroupNodeKind.Custom : GroupNodeKind.Device;
-            AddGroupNode(group.Id, group.Name, kind, cameras, customGroups, filter);
+            AddGroupNode(group.Id, group.Name, kind, cameras, filter);
             AddGroupContent(contents, group.Id, kind, cameras);
         }
 
@@ -369,7 +280,7 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
             .ToList();
         if (unassigned.Count > 0)
         {
-            AddGroupNode(null, Localizer.Text(UnassignedGroupKey), GroupNodeKind.Unassigned, unassigned, customGroups, filter);
+            AddGroupNode(null, Localizer.Text(UnassignedGroupKey), GroupNodeKind.Unassigned, unassigned, filter);
             AddGroupContent(contents, null, GroupNodeKind.Unassigned, unassigned);
         }
 
@@ -403,7 +314,6 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
         string name,
         GroupNodeKind kind,
         IReadOnlyList<CameraDescriptor> cameras,
-        IReadOnlyList<CameraGroup> customGroups,
         string filter)
     {
         var groupMatches = filter.Length == 0 || name.Contains(filter, StringComparison.CurrentCultureIgnoreCase);
@@ -420,33 +330,20 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
                 continue;
             }
 
-            var actions = BuildAddToGroupActions(camera.Reference, id, customGroups);
-            node.Cameras.Add(new CameraNodeViewModel(this, camera.Reference, camera.DisplayName, camera.FullName, id, kind == GroupNodeKind.Custom, actions)
+            node.Cameras.Add(new CameraNodeViewModel(this, camera.Reference, camera.DisplayName, camera.FullName, id)
             {
                 IsOnline = IsOnline(camera),
                 IsFavorite = camera.Channel.IsFavorite
             });
         }
 
-        // Keep Favorites discoverable when empty, and custom groups available as drop targets.
+        // Keep Favorites discoverable when empty, and empty custom groups visible as configured in the settings.
         if (node.Cameras.Count == 0 && (filter.Length > 0 || kind is not (GroupNodeKind.Custom or GroupNodeKind.Favorites)))
         {
             return;
         }
 
         Groups.Add(node);
-    }
-
-    private IReadOnlyList<MenuActionViewModel> BuildAddToGroupActions(CameraReference camera, Guid? currentGroupId, IReadOnlyList<CameraGroup> customGroups)
-    {
-        return customGroups
-            .Where(group => group.Id != currentGroupId)
-            .Select(group =>
-            {
-                var groupId = group.Id;
-                return new MenuActionViewModel(group.Name, new AsyncRelayCommand(() => AddCamerasToGroupAsync(groupId, new[] { camera })));
-            })
-            .ToList();
     }
 
     private void RememberExpandedGroups()

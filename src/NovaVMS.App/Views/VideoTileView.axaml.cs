@@ -109,7 +109,9 @@ public partial class VideoTileView : UserControl
         owner.LayoutUpdated += OnOwnerLayoutUpdated;
         owner.PositionChanged += OnOwnerPositionChanged;
         owner.PropertyChanged += OnOwnerPropertyChanged;
-        UpdateOverlayWindow();
+        // Descendants attach after this override; cached bounds may already be non-zero
+        // when a tab is reattached. Wait until VideoHost has its own visual root.
+        Dispatcher.UIThread.Post(UpdateOverlayWindow, DispatcherPriority.Loaded);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -147,7 +149,9 @@ public partial class VideoTileView : UserControl
     private void UpdateOverlayWindow()
     {
         if (_overlayWindow is not { } overlay || _ownerWindow is not { } owner) return;
-        if (!this.IsAttachedToVisualTree() || !IsEffectivelyVisible || _tile?.IsVisibleInGrid == false
+        if (!this.IsAttachedToVisualTree() || !VideoHost.IsAttachedToVisualTree()
+            || !ReferenceEquals(TopLevel.GetTopLevel(VideoHost), owner)
+            || !IsEffectivelyVisible || _tile?.IsVisibleInGrid == false
             || !owner.IsVisible || owner.WindowState == WindowState.Minimized
             || VideoHost.Bounds.Width <= 0 || VideoHost.Bounds.Height <= 0)
         {
@@ -157,7 +161,7 @@ public partial class VideoTileView : UserControl
         // Set the full tile bounds before the first Show. Keep this same window mapped across
         // SUB/MAIN handovers instead of letting each VideoView open a SizeToContent window.
         var size = VideoHost.Bounds.Size;
-        _tile?.SetVideoHeight(size.Height * owner.RenderScaling);
+        var position = VideoHost.PointToScreen(default);
         if (size != _overlaySize)
         {
             overlay.Width = size.Width;
@@ -166,7 +170,6 @@ public partial class VideoTileView : UserControl
         }
 
         overlay.Opacity = owner.Opacity;
-        var position = VideoHost.PointToScreen(default);
         if (position != _overlayPosition || !overlay.IsVisible)
         {
             overlay.Position = position;
@@ -174,6 +177,7 @@ public partial class VideoTileView : UserControl
         }
 
         if (!overlay.IsVisible) overlay.Show(owner);
+        _tile?.SetVideoHeight(size.Height * owner.RenderScaling);
     }
 
     private void OnVideoAttached(object? sender, VisualTreeAttachmentEventArgs e)
@@ -234,7 +238,9 @@ public partial class VideoTileView : UserControl
 
     private void OnDragOver(object? sender, DragEventArgs e)
     {
-        e.DragEffects = CameraDragData.Contains(e.DataTransfer) ? DragDropEffects.Copy : DragDropEffects.None;
+        e.DragEffects = DataContext is VideoTileViewModel { CanAcceptDrop: true } && CameraDragData.Contains(e.DataTransfer)
+            ? DragDropEffects.Copy
+            : DragDropEffects.None;
         e.Handled = true;
     }
 

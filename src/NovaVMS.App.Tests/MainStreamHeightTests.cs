@@ -48,7 +48,7 @@ public sealed class MainStreamHeightTests
     {
         var store = new MemoryStore();
         var configuration = new ConfigurationService(store, new JsonConfigurationSerializer());
-        using (var settings = new GeneralSettingsViewModel(configuration, null!))
+        using (var settings = new GeneralSettingsViewModel(configuration, null!, null!))
         {
             Assert.Equal(540m, settings.MainStreamMinimumHeight);
             settings.MainStreamMinimumHeight = 720;
