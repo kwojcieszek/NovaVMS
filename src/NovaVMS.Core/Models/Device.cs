@@ -13,6 +13,26 @@ public sealed class Device
 
     public string Host { get; set; } = string.Empty;
 
+    /// <summary>Optional alternative host. Uses the same protocol, ports and credentials.</summary>
+    public string SecondaryHost { get; set; } = string.Empty;
+
+    /// <summary>Connection snapshot; the configured primary address is never overwritten.</summary>
+    /// <summary>
+    /// Settings used to connect to the device as one comparable value, to detect a changed connection.
+    /// It contains the credentials: compare it, never log or store it.
+    /// </summary>
+    public string GetConnectionSignature()
+    {
+        return string.Join("|", Id, Protocol, Host, SecondaryHost, HttpPort, RtspPort, SdkPort, UseHttps, Username, Password);
+    }
+
+    public Device ForHost(string host)
+    {
+        var copy = (Device)MemberwiseClone();
+        copy.Host = host;
+        return copy;
+    }
+
     public int HttpPort { get; set; } = 80;
 
     public int RtspPort { get; set; } = 554;

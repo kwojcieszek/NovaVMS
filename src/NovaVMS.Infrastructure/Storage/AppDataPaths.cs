@@ -14,6 +14,11 @@ public static class AppDataPaths
 
     public static string ConfigurationFile { get; } = Path.Combine(DataDirectory, "config.json");
 
+    /// <summary>
+    /// Connection to the shared settings database; kept apart from config.json because it is never synchronized.
+    /// </summary>
+    public static string SyncOptionsFile { get; } = Path.Combine(DataDirectory, "sync.json");
+
     public static string LogDirectory { get; } = Path.Combine(DataDirectory, "logs");
 
     private static string ResolveDataDirectory()

@@ -24,20 +24,14 @@
         </DockPanel>
       </Button>
 
-      <!-- Prepare the next stream off-screen. During handover both native surfaces stay mapped briefly,
-           so the old picture remains available while the incoming surface is being shown and painted. -->
+      <!-- On Windows both native surfaces stay mapped at full size. Prepare the next stream behind
+           the live picture and swap native stacking order only after its first frames are rendered. -->
       <Panel x:Name="VideoHost">
         <!-- Both players share one stable tile overlay. Stream handovers never show another window. -->
         <vlc:VideoView x:Name="Video" MediaPlayer="{Binding PrimaryPlayer}" IsVisible="{Binding IsPrimaryViewVisible}" />
         <vlc:VideoView x:Name="SecondaryVideo" MediaPlayer="{Binding SecondaryPlayer}" IsVisible="{Binding IsSecondaryViewVisible}" />
         <!-- Moved into the tile's owned overlay window by the view constructor. -->
         <Panel x:Name="VideoOverlay" Background="#01000000" DragDrop.AllowDrop="True">
-          <Border Background="Black" IsVisible="{Binding HasTransitionFrame}">
-            <Viewbox Stretch="Uniform">
-              <Image Source="{Binding TransitionFrame}" Stretch="Fill"
-                     Width="{Binding TransitionFrameWidth}" Height="{Binding TransitionFrameHeight}" />
-            </Viewbox>
-          </Border>
           <TextBlock Classes="overlayText"
                      Text="{Binding OverlayText}"
                      IsVisible="{Binding IsOverlayTextVisible}" />

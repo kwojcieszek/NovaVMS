@@ -12,7 +12,7 @@ namespace NovaVMS.App.ViewModels;
 /// <summary>
 /// PTZ control of the camera shown in the selected live view tile.
 /// </summary>
-public sealed partial class PtzViewModel : ViewModelBase
+public sealed partial class PtzViewModel : ViewModelBase, IDisposable
 {
     private const string NoTargetKey = "Ptz_NoTarget";
     private const int SpeedScale = 14;
@@ -23,7 +23,14 @@ public sealed partial class PtzViewModel : ViewModelBase
     // Serializes commands so that "stop" never overtakes "move".
     private readonly SemaphoreSlim _commandGate = new(1, 1);
     private CameraReference? _camera;
-    private bool _isMoving;
+    // Camera that received the last move, so "stop" reaches it even if the selected tile changed meanwhile.
+    private CameraReference? _movingCamera;
+    // One client per device: reuses its HTTP connection / SDK session and remembers the active SDK PTZ
+    // command, which the stop command needs. Replaced when commands go to another device.
+    private IDeviceClient? _client;
+    private Device? _clientDevice;
+    private string? _clientSettings;
+    private bool _isDisposed;
 
     [ObservableProperty]
     private string _targetName = Localizer.Text(NoTargetKey);
@@ -71,25 +78,38 @@ public sealed partial class PtzViewModel : ViewModelBase
         var (pan, tilt, zoom) = ToVector(direction);
         var scale = (int)Math.Round(Speed) * SpeedScale;
 
-        _isMoving = true;
-        await ExecuteAsync((client, channel) => client.PtzMoveAsync(channel, pan * scale, tilt * scale, zoom * scale));
+        _movingCamera = _camera;
+        await ExecuteAsync(_movingCamera, (client, channel) => client.PtzMoveAsync(channel, pan * scale, tilt * scale, zoom * scale));
     }
 
     public async Task StopMoveAsync()
     {
-        if (!_isMoving)
+        var camera = _movingCamera;
+        if (camera is null)
         {
             return;
         }
 
-        _isMoving = false;
-        await ExecuteAsync((client, channel) => client.PtzStopAsync(channel));
+        _movingCamera = null;
+        await ExecuteAsync(camera, (client, channel) => client.PtzStopAsync(channel));
+    }
+
+    public void Dispose()
+    {
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        _isDisposed = true;
+        Localizer.Instance.LanguageChanged -= OnLanguageChanged;
+        ReleaseClient();
     }
 
     [RelayCommand(CanExecute = nameof(HasTarget))]
     private async Task LoadPresetsAsync()
     {
-        await ExecuteAsync(async (client, channel) =>
+        await ExecuteAsync(_camera, async (client, channel) =>
         {
             var presets = await client.GetPtzPresetsAsync(channel);
 
@@ -113,7 +133,7 @@ public sealed partial class PtzViewModel : ViewModelBase
             return;
         }
 
-        await ExecuteAsync((client, channel) => client.GotoPtzPresetAsync(channel, preset));
+        await ExecuteAsync(_camera, (client, channel) => client.GotoPtzPresetAsync(channel, preset));
     }
 
     private void OnLanguageChanged(object? sender, EventArgs e)
@@ -129,9 +149,9 @@ public sealed partial class PtzViewModel : ViewModelBase
         return HasTarget && SelectedPreset is not null;
     }
 
-    private async Task ExecuteAsync(Func<IDeviceClient, int, Task> action)
+    private async Task ExecuteAsync(CameraReference? target, Func<IDeviceClient, int, Task> action)
     {
-        var camera = _camera is null ? null : _configuration.FindCamera(_camera);
+        var camera = target is null ? null : _configuration.FindCamera(target);
         if (camera is null)
         {
             return;
@@ -140,7 +160,12 @@ public sealed partial class PtzViewModel : ViewModelBase
         await _commandGate.WaitAsync();
         try
         {
-            using var client = _clientFactory.Create(camera.Device);
+            if (_isDisposed)
+            {
+                return;
+            }
+
+            var client = GetClient(camera.Device);
             if (client is IDeviceConnectionClient connectionClient)
             {
                 var connection = await connectionClient.TryConnectAsync();
@@ -155,6 +180,8 @@ public sealed partial class PtzViewModel : ViewModelBase
         }
         catch (Exception exception) when (DeviceFailure.IsExpected(exception))
         {
+            // Start the next command with a fresh client and connection.
+            ReleaseClient();
             DeviceOperationErrors.Report($"PTZ control: {camera.FullName}", exception);
             _statusBar.Message = Localizer.Format("Ptz_Error", exception.Message);
         }
@@ -162,6 +189,32 @@ public sealed partial class PtzViewModel : ViewModelBase
         {
             _commandGate.Release();
         }
+    }
+
+    private IDeviceClient GetClient(Device device)
+    {
+        // Applying settings replaces the Device object and editing a device changes it in place;
+        // either way a client with outdated connection settings must not be reused.
+        var settings = device.GetConnectionSignature();
+        if (_client is not null && ReferenceEquals(_clientDevice, device) && _clientSettings == settings)
+        {
+            return _client;
+        }
+
+        ReleaseClient();
+        _client = _clientFactory.Create(device);
+        _clientDevice = device;
+        _clientSettings = settings;
+        return _client;
+    }
+
+
+    private void ReleaseClient()
+    {
+        _client?.Dispose();
+        _client = null;
+        _clientDevice = null;
+        _clientSettings = null;
     }
 
     private static (int Pan, int Tilt, int Zoom) ToVector(PtzDirection direction)

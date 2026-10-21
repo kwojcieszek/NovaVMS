@@ -26,7 +26,7 @@
                     MinWidth="110">
             <ComboBox.ItemTemplate>
               <DataTemplate x:DataType="models:GridLayoutOption">
-                <TextBlock Text="{Binding Label}" />
+                <StackPanel Orientation="Horizontal" Spacing="8"><views:GridLayoutPreview Layout="{Binding}" Width="48" Height="30" /><TextBlock Text="{Binding Label}" VerticalAlignment="Center" /></StackPanel>
               </DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
@@ -72,7 +72,7 @@
     <ItemsControl Classes="tileGrid" ItemsSource="{Binding Tiles}" Background="{DynamicResource NovaWindowBackground}">
       <ItemsControl.ItemsPanel>
         <ItemsPanelTemplate>
-          <UniformGrid x:DataType="vm:LiveViewViewModel" Rows="{Binding Rows}" Columns="{Binding Columns}" />
+          <views:VideoLayoutPanel x:DataType="vm:LiveViewViewModel" Layout="{Binding SelectedLayout}" IsMaximized="{Binding IsMaximized}" />
         </ItemsPanelTemplate>
       </ItemsControl.ItemsPanel>
       <ItemsControl.Styles>
@@ -91,3 +91,4 @@
 
   </DockPanel>
 </UserControl>
+

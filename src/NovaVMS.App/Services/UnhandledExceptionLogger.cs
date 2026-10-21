@@ -2,6 +2,7 @@ using Avalonia.Threading;
 using NovaVMS.Infrastructure.Storage;
 using NovaVMS.Core.Exceptions;
 using NovaVMS.Infrastructure.Diagnostics;
+using System.Threading.Channels;
 
 namespace NovaVMS.App.Services;
 
@@ -16,6 +17,13 @@ internal static class UnhandledExceptionLogger
     private static readonly FirstChanceExceptionCapture FirstChance = new(Log);
     private static int _installed;
     private static int _dispatcherAttached;
+    [ThreadStatic] private static bool _writingLog;
+    private sealed record Entry(string Source, Exception? Exception, TaskCompletionSource? Barrier = null);
+    private static readonly Channel<Entry> Entries = Channel.CreateUnbounded<Entry>(new UnboundedChannelOptions
+    {
+        SingleReader = true, AllowSynchronousContinuations = false
+    });
+    private static readonly Task LogWorker = Task.Run(WriteLogsAsync);
 
     /// <summary>
     /// Set while the application is closing; UI-thread exceptions are then logged and suppressed.
@@ -40,12 +48,41 @@ internal static class UnhandledExceptionLogger
 
     public static void Log(string source, Exception? exception)
     {
-        Writer.Write(source, exception);
+        // FirstChanceException runs on the throwing thread, including the UI thread.
+        // Never wait there for disk access or a logger lock held by another thread.
+        if (_writingLog) return;
+        Entries.Writer.TryWrite(new Entry($"{source} [origin thread {Environment.CurrentManagedThreadId}]", exception));
+    }
+
+    internal static Task FlushAsync()
+    {
+        var barrier = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Entries.Writer.TryWrite(new Entry("", null, barrier));
+        return barrier.Task;
+    }
+
+    private static async Task WriteLogsAsync()
+    {
+        await foreach (var entry in Entries.Reader.ReadAllAsync().ConfigureAwait(false))
+        {
+            if (entry.Barrier is not null) { entry.Barrier.TrySetResult(); continue; }
+            WriteLog(entry.Source, entry.Exception);
+        }
+    }
+
+    private static void WriteLog(string source, Exception? exception)
+    {
+        // Ignore first-chance exceptions from a failed log write; otherwise a bad
+        // log directory could feed the queue recursively forever.
+        _writingLog = true;
+        try { Writer.Write(source, exception); }
+        finally { _writingLog = false; }
     }
 
     private static void OnDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
-        Log(e.IsTerminating ? "Fatal unhandled exception" : "Unhandled exception", e.ExceptionObject as Exception);
+        // Fatal process termination cannot wait for the asynchronous log pump.
+        WriteLog(e.IsTerminating ? "Fatal unhandled exception" : "Unhandled exception", e.ExceptionObject as Exception);
     }
 
     private static void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)

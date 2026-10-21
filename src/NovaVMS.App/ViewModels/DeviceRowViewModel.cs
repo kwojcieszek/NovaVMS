@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using NovaVMS.App.Localization;
 using NovaVMS.App.Models;
 using NovaVMS.Core.Models;
+using NovaVMS.Core.Abstractions;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -10,6 +11,7 @@ namespace NovaVMS.App.ViewModels;
 /// </summary>
 public sealed partial class DeviceRowViewModel : ViewModelBase
 {
+    private readonly IDeviceClientFactory? _clientFactory;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsOnline))]
     [NotifyPropertyChangedFor(nameof(IsOffline))]
@@ -17,9 +19,10 @@ public sealed partial class DeviceRowViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(StateText))]
     private DeviceConnectionState _state = DeviceConnectionState.Unknown;
 
-    public DeviceRowViewModel(Device device)
+    public DeviceRowViewModel(Device device, IDeviceClientFactory? clientFactory = null)
     {
         Device = device;
+        _clientFactory = clientFactory;
     }
 
     public Device Device { get; }
@@ -27,6 +30,10 @@ public sealed partial class DeviceRowViewModel : ViewModelBase
     public string Name => Device.DisplayName;
 
     public string Address => Device.Host;
+
+    public string SecondaryAddress => Device.SecondaryHost;
+
+    public string ActiveAddress => _clientFactory?.GetSelectedHost(Device) ?? Localizer.Text("Devices_AddressNotSelected");
 
     public int Port => Device.Protocol == DeviceProtocol.HikvisionSdk ? Device.SdkPort : Device.HttpPort;
 

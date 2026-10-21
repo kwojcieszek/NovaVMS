@@ -15,12 +15,12 @@
         Background="{DynamicResource NovaWindowBackground}">
 
   <DockPanel>
-    <TabControl Margin="8" TabStripPlacement="Left">
+    <TabControl Margin="8" TabStripPlacement="Top">
       <TabItem>
         <TabItem.Header>
-          <mi:MaterialIconText Kind="Server" FontSize="16" Text="{l:Tr Settings_Devices}" />
+          <mi:MaterialIconText Kind="TuneVariant" FontSize="16" Text="{l:Tr Settings_General}" />
         </TabItem.Header>
-        <views:DevicesSettingsView DataContext="{Binding Devices}" />
+        <views:GeneralSettingsView DataContext="{Binding General}" />
       </TabItem>
       <TabItem>
         <TabItem.Header>
@@ -30,9 +30,15 @@
       </TabItem>
       <TabItem>
         <TabItem.Header>
-          <mi:MaterialIconText Kind="TuneVariant" FontSize="16" Text="{l:Tr Settings_General}" />
+          <mi:MaterialIconText Kind="Server" FontSize="16" Text="{l:Tr Settings_Devices}" />
         </TabItem.Header>
-        <views:GeneralSettingsView DataContext="{Binding General}" />
+        <views:DevicesSettingsView DataContext="{Binding Devices}" />
+      </TabItem>
+      <TabItem>
+        <TabItem.Header>
+          <mi:MaterialIconText Kind="DatabaseSyncOutline" FontSize="16" Text="{l:Tr Settings_Sync}" />
+        </TabItem.Header>
+        <views:SyncSettingsView DataContext="{Binding Sync}" />
       </TabItem>
     </TabControl>
   </DockPanel>

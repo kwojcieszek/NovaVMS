@@ -16,7 +16,7 @@ public sealed class FavoriteCameraTests
         var (_, tree, _) = await CreateAsync();
         var favorites = tree.Groups[0];
         Assert.True(favorites.IsFavorites);
-        Assert.True(favorites.IsExpanded);
+        Assert.False(favorites.IsExpanded);
         Assert.False(favorites.CanEdit);
         Assert.Empty(favorites.Cameras);
         Assert.Null(tree.GetDropTarget(favorites));

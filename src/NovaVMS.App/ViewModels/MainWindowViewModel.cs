@@ -16,9 +16,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 {
     private readonly ConfigurationService _configuration;
     private readonly DeviceSyncService _sync;
+    private readonly SettingsSyncService _settingsSync;
     private readonly Func<SettingsWindowViewModel> _settingsFactory;
     // Cancelled when the window closes so background work does not outlive the UI.
     private readonly CancellationTokenSource _lifetime = new();
+    private static readonly TimeSpan SettingsUploadShutdownTimeout = TimeSpan.FromSeconds(5);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsLivePage))]
@@ -28,6 +30,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(
         ConfigurationService configuration,
         DeviceSyncService sync,
+        SettingsSyncService settingsSync,
         Func<SettingsWindowViewModel> settingsFactory,
         ResourceTreeViewModel tree,
         LiveViewViewModel live,
@@ -37,6 +40,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         _configuration = configuration;
         _sync = sync;
+        _settingsSync = settingsSync;
         _settingsFactory = settingsFactory;
         Tree = tree;
         Live = live;
@@ -87,16 +91,23 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     /// Releases media players once the main window is closed and its video views are detached.
     /// Releasing them later, at application exit, crashes the runtime inside LibVLC callbacks.
     /// </summary>
-    public void CompleteShutdown()
+    public async Task CompleteShutdownAsync()
     {
+        PrepareShutdown();
         Live.Dispose();
         Playback.Dispose();
+        await Task.WhenAll(Live.Disposal, Playback.Disposal);
+        await _configuration.FlushAsync();
+        // Send changes still waiting for the automatic upload, without holding the exit on an unreachable database.
+        await Task.WhenAny(_settingsSync.FlushAsync(), Task.Delay(SettingsUploadShutdownTimeout));
     }
 
     [RelayCommand]
     private async Task InitializeAsync()
     {
         await _configuration.LoadAsync();
+        // A newer version from the settings database is applied before devices connect.
+        await _settingsSync.StartAsync();
         Live.ApplyDefaultLayout();
 
         var deviceCount = _configuration.Current.Devices.Count;
@@ -190,7 +201,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                     break;
                 }
 
-                Live.ShowCameras(cameras);
+                Live.ShowGroup(group.Id?.ToString() ?? $"special:{group.Kind}", cameras);
                 StatusBar.Message = Localizer.Format("Main_ShowingGroup", group.Name, cameras.Count);
                 break;
             }
@@ -199,6 +210,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     partial void OnCurrentPageChanged(AppPage value)
     {
+        // Live streams behind the playback page are released after the tiles' grace period.
+        Live.SetPageActive(value == AppPage.Live);
         if (value == AppPage.Playback)
         {
             if (Tree.SelectedNode is CameraNodeViewModel camera)

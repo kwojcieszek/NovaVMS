@@ -50,7 +50,7 @@ public sealed class DeviceSyncService
     {
         try
         {
-            using var client = _clientFactory.Create(device);
+            using var client = await _clientFactory.CreateAsync(device, rememberAddress: false, cancellationToken);
             if (client is IDeviceConnectionClient connectionClient)
             {
                 var connection = await connectionClient.TryConnectAsync(cancellationToken);

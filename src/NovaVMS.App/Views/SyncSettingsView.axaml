@@ -1,0 +1,128 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.App.Localization"
+             xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:vm="using:NovaVMS.App.ViewModels"
+             xmlns:models="using:NovaVMS.App.Models"
+             x:Class="NovaVMS.App.Views.SyncSettingsView"
+             x:DataType="vm:SyncSettingsViewModel">
+
+  <Grid ColumnDefinitions="560,24,*" Margin="8">
+
+    <ScrollViewer Grid.Column="0">
+      <StackPanel Spacing="6">
+
+        <TextBlock Classes="sectionTitle" FontSize="18" Text="{l:Tr Sync_Title}" />
+        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Sync_Hint}" />
+        <CheckBox Content="{l:Tr Sync_Enabled}" IsChecked="{Binding SyncEnabled}" />
+
+        <StackPanel Spacing="6" IsEnabled="{Binding SyncEnabled}">
+          <TextBlock Classes="sectionTitle" FontSize="16" Margin="0,12,0,0" Text="{l:Tr Sync_Connection}" />
+          <TextBlock Classes="muted" Text="{l:Tr Sync_DatabaseType}" />
+          <ComboBox ItemsSource="{Binding DatabaseTypes}"
+                    SelectedItem="{Binding SelectedDatabaseType}"
+                    HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="models:DatabaseTypeOption">
+                <TextBlock Text="{Binding Label}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+
+          <Grid ColumnDefinitions="*,8,120" RowDefinitions="Auto,Auto">
+            <TextBlock Grid.Row="0" Grid.Column="0" Classes="muted" Text="{l:Tr Sync_Host}" />
+            <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding Host}" />
+            <TextBlock Grid.Row="0" Grid.Column="2" Classes="muted" Text="{l:Tr Sync_Port}" />
+            <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding Port}" Minimum="1" Maximum="65535" Increment="1" FormatString="0" />
+          </Grid>
+
+          <TextBlock Classes="muted" Text="{l:Tr Sync_Database}" />
+          <TextBox Text="{Binding Database}" />
+
+          <Grid ColumnDefinitions="*,8,*" RowDefinitions="Auto,Auto">
+            <TextBlock Grid.Row="0" Grid.Column="0" Classes="muted" Text="{l:Tr Sync_UserName}" />
+            <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding UserName}" />
+            <TextBlock Grid.Row="0" Grid.Column="2" Classes="muted" Text="{l:Tr Sync_Password}" />
+            <TextBox Grid.Row="1" Grid.Column="2" PasswordChar="•" Text="{Binding Password}" />
+          </Grid>
+
+          <TextBlock Classes="sectionTitle" FontSize="16" Margin="0,12,0,0" Text="{l:Tr Sync_Encryption}" />
+          <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Sync_EncryptionHint}" />
+          <Grid ColumnDefinitions="*,8,*" RowDefinitions="Auto,Auto">
+            <TextBlock Grid.Row="0" Grid.Column="0" Classes="muted" Text="{l:Tr Sync_EncryptionPassword}" />
+            <TextBox Grid.Row="1" Grid.Column="0" PasswordChar="•" Text="{Binding EncryptionPassword}" />
+            <TextBlock Grid.Row="0" Grid.Column="2" Classes="muted" Text="{l:Tr Sync_EncryptionPasswordConfirm}" />
+            <TextBox Grid.Row="1" Grid.Column="2" PasswordChar="•" Text="{Binding EncryptionPasswordConfirm}" />
+          </Grid>
+
+          <TextBlock Classes="sectionTitle" FontSize="16" Margin="0,12,0,0" Text="{l:Tr Sync_Options}" />
+          <CheckBox Content="{l:Tr Sync_AutoCheck}" IsChecked="{Binding AutoCheck}" />
+          <TextBlock Classes="muted" Text="{l:Tr Sync_CheckInterval}" />
+          <NumericUpDown Value="{Binding CheckIntervalMinutes}"
+                         Minimum="{Binding MinimumCheckInterval}"
+                         Maximum="{Binding MaximumCheckInterval}"
+                         IsEnabled="{Binding AutoCheck}"
+                         Increment="5"
+                         FormatString="0" />
+          <CheckBox Content="{l:Tr Sync_AutoUpload}" IsChecked="{Binding AutoUpload}" />
+          <TextBlock Classes="muted" Text="{l:Tr Sync_RetainedVersions}" />
+          <NumericUpDown Value="{Binding RetainedVersions}"
+                         Minimum="{Binding MinimumRetainedVersions}"
+                         Maximum="{Binding MaximumRetainedVersions}"
+                         Increment="1"
+                         FormatString="0" />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+          <Button Command="{Binding SaveCommand}">
+            <mi:MaterialIconText Kind="DatabaseCheckOutline" Text="{l:Tr Sync_SaveConnect}" />
+          </Button>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding SyncEnabled}">
+          <Button Command="{Binding UploadNowCommand}">
+            <mi:MaterialIconText Kind="DatabaseArrowUpOutline" Text="{l:Tr Sync_UploadNow}" />
+          </Button>
+          <Button Command="{Binding CheckNowCommand}">
+            <mi:MaterialIconText Kind="DatabaseSyncOutline" Text="{l:Tr Sync_CheckNow}" />
+          </Button>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
+          <ProgressBar IsIndeterminate="True" Width="80" IsVisible="{Binding Sync.IsBusy}" VerticalAlignment="Center" />
+          <TextBlock Classes="muted" TextWrapping="Wrap" MaxWidth="540" Text="{Binding StatusText}" />
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+
+    <DockPanel Grid.Column="2">
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,8,Auto" Margin="0,0,0,8">
+        <TextBlock Grid.Column="0" Classes="sectionTitle" FontSize="18" VerticalAlignment="Center" Text="{l:Tr Sync_History}" />
+        <Button Grid.Column="1" Command="{Binding RefreshCommand}">
+          <mi:MaterialIconText Kind="Refresh" Text="{l:Tr Sync_Refresh}" />
+        </Button>
+        <Button Grid.Column="3" Command="{Binding ApplyVersionCommand}">
+          <mi:MaterialIconText Kind="BackupRestore" Text="{l:Tr Sync_ApplyVersion}" />
+        </Button>
+      </Grid>
+      <TextBlock DockPanel.Dock="Bottom" Classes="muted" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap" Text="{l:Tr Sync_HistoryHint}" />
+      <DataGrid ItemsSource="{Binding Versions}"
+                SelectedItem="{Binding SelectedVersion}"
+                SelectionMode="Single"
+                IsReadOnly="True"
+                CanUserResizeColumns="True"
+                CanUserSortColumns="True"
+                GridLinesVisibility="Horizontal"
+                HeadersVisibility="Column">
+        <DataGrid.Columns>
+          <DataGridTextColumn x:DataType="vm:SettingsVersionRowViewModel" Header="{l:Tr Sync_ColumnId}" Binding="{Binding Id}" Width="Auto" FontWeight="SemiBold" />
+          <DataGridTextColumn x:DataType="vm:SettingsVersionRowViewModel" Header="{l:Tr Sync_ColumnDate}" Binding="{Binding CreatedAtText}" Width="Auto" />
+          <DataGridTextColumn x:DataType="vm:SettingsVersionRowViewModel" Header="{l:Tr Sync_ColumnMachine}" Binding="{Binding MachineName}" Width="*" />
+          <DataGridTextColumn x:DataType="vm:SettingsVersionRowViewModel" Header="{l:Tr Sync_ColumnIp}" Binding="{Binding IpAddress}" Width="Auto" />
+          <DataGridTextColumn x:DataType="vm:SettingsVersionRowViewModel" Header="{l:Tr Sync_ColumnUser}" Binding="{Binding UserName}" Width="Auto" />
+          <DataGridTextColumn x:DataType="vm:SettingsVersionRowViewModel" Header="{l:Tr Sync_ColumnAppVersion}" Binding="{Binding AppVersion}" Width="Auto" />
+          <DataGridTextColumn x:DataType="vm:SettingsVersionRowViewModel" Header="{l:Tr Sync_ColumnState}" Binding="{Binding StateText}" Width="*" />
+        </DataGrid.Columns>
+      </DataGrid>
+    </DockPanel>
+  </Grid>
+</UserControl>

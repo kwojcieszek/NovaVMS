@@ -8,7 +8,6 @@ using NovaVMS.App.Services;
 using NovaVMS.Core.Models;
 using NovaVMS.App.Localization;
 using System.Diagnostics;
-using Avalonia.Media.Imaging;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -21,7 +20,12 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
     private static readonly TimeSpan SwitchTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan SurfaceHandoverDelay = TimeSpan.FromMilliseconds(150);
     private static readonly TimeSpan SurfaceHandoverTimeout = TimeSpan.FromSeconds(2);
-
+    private readonly AsyncWorkQueue _operations = new();
+    private readonly List<Task> _openings = new();
+    private int _streamVersion;
+    private int _switchVersion;
+    private Task? _disposal;
+    public Task Disposal => _disposal ?? Task.CompletedTask;
     private readonly LibVLC _libVlc;
     private readonly ITileHost _host;
     private readonly MediaPlayer _primaryPlayer;
@@ -29,6 +33,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
     private readonly DispatcherTimer _reconnectTimer;
     private readonly DispatcherTimer _progressTimer;
     private readonly DispatcherTimer _switchTimer;
+    private readonly DispatcherTimer _hiddenTimer;
     // Player shown in the tile; the other one opens the next stream during a seamless switch.
     private MediaPlayer _player;
     private VideoMedia? _switchMedia;
@@ -37,11 +42,6 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
     private MediaPlayer? _retiringPlayer;
     private VideoMedia? _retiringMedia;
     private TilePlayRequest? _retiringRequest;
-    private bool _transitionCoverReady;
-    private bool _layoutCoverHeld;
-    private int _transitionCoverVersion;
-    private Task<Bitmap?>? _transitionCapture;
-    private readonly List<Task<Bitmap?>> _snapshotTasks = new();
     private long _handoverStartedAt;
     private int _handoverDisplayedFrames;
     private bool _isAspectRatioReported;
@@ -54,15 +54,6 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
     private bool _isDisposed;
     private bool _isViewReady;
     private bool _isStartPending;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasTransitionFrame))]
-    private Bitmap? _transitionFrame;
-
-    public bool HasTransitionFrame => TransitionFrame is not null;
-    public int TransitionCoverVersion => _transitionCoverVersion;
-    public double TransitionFrameWidth { get; private set; } = 1;
-    public double TransitionFrameHeight { get; private set; } = 1;
 
     [ObservableProperty]
     private string _header;
@@ -112,14 +103,26 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         _reconnectTimer.Tick += OnReconnectTick;
         _progressTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _progressTimer.Tick += OnProgressTick;
-        _switchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+        _switchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(25) };
         _switchTimer.Tick += OnSwitchTick;
+        _hiddenTimer = new DispatcherTimer();
+        _hiddenTimer.Tick += OnHiddenTick;
         Localizer.Instance.LanguageChanged += OnLanguageChanged;
 
         _header = Number.ToString();
     }
 
     public int Index { get; }
+
+    /// <summary>
+    /// A hidden tile keeps its stream for this time, so restoring the split or returning to the page is instant;
+    /// after that the connection is released and reopened when the tile is shown again.
+    /// </summary>
+    public TimeSpan HiddenStreamTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    internal int PlayRequestVersion { get; private set; }
+
+    internal int ReservePlayRequest() => ++PlayRequestVersion;
 
     public int Number => Index + 1;
 
@@ -134,10 +137,10 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
     public bool IsPrimaryPlayerActive => ReferenceEquals(_player, _primaryPlayer);
 
     public bool IsPrimaryViewVisible => IsVisibleInGrid
-        && (ReferenceEquals(_player, _primaryPlayer) || ReferenceEquals(_retiringPlayer, _primaryPlayer));
+        && (OperatingSystem.IsWindows() || ReferenceEquals(_player, _primaryPlayer) || ReferenceEquals(_retiringPlayer, _primaryPlayer));
 
     public bool IsSecondaryViewVisible => IsVisibleInGrid
-        && (ReferenceEquals(_player, _secondaryPlayer) || ReferenceEquals(_retiringPlayer, _secondaryPlayer));
+        && (OperatingSystem.IsWindows() || ReferenceEquals(_player, _secondaryPlayer) || ReferenceEquals(_retiringPlayer, _secondaryPlayer));
 
     public CameraReference? Camera { get; private set; }
 
@@ -160,7 +163,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
             {
                 case TileStatus.Connecting:
                 {
-                    return Localizer.Text("Tile_Connecting");
+                    return string.Empty;
                 }
                 case TileStatus.Error:
                 {
@@ -178,23 +181,24 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public bool IsOverlayTextVisible => Status != TileStatus.Playing;
+    public bool IsOverlayTextVisible => Status is TileStatus.Idle or TileStatus.Error;
 
     public void Play(CameraReference camera, string cameraName, TilePlayRequest request)
     {
+        if (_isDisposed) return;
         var isPlayingCamera = Equals(Camera, camera) && Status == TileStatus.Playing && _isViewReady && IsVisibleInGrid
             && _request is not null && !_isStartPending;
         if (isPlayingCamera && _request!.StreamType == request.StreamType)
         {
             // Back to the stream that is still shown (e.g. restored before the switch completed).
-            if (_retiringPlayer is null) CancelSwitch(preserveTransitionFrame: _layoutCoverHeld);
+            if (_retiringPlayer is null) CancelSwitch();
             return;
         }
 
         if (isPlayingCamera && _retiringRequest?.StreamType == request.StreamType)
         {
-            // The previous stream is still alive under the cover; reuse it when
-            // maximizing is reversed before the incoming surface has been revealed.
+            // The previous stream is still alive; reuse it when maximizing is reversed
+            // before the surface handover has finished.
             RestoreRetiringPlayer(reportFailure: false);
             return;
         }
@@ -213,7 +217,6 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
             _softwareFallback = false;
             _displayGeometry.Reset(request.AspectRatio);
         }
-        _player.EnableHardwareDecoding = !_softwareFallback;
         Camera = camera;
         CameraName = cameraName;
         _request = request;
@@ -258,13 +261,42 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(IsPrimaryViewVisible));
         OnPropertyChanged(nameof(IsSecondaryViewVisible));
         if (_isDisposed) return;
-        // A tile hidden behind a maximized one keeps playing, so restoring the split is instant
+        // A hidden tile keeps playing for a grace period, so restoring the split is instant
         // and maximizing does not wait for every other player to stop.
         if (value)
         {
+            _hiddenTimer.Stop();
             _lastFrameAt = Stopwatch.GetTimestamp();
             QueuePendingStart();
         }
+        else if (_request is not null)
+        {
+            _hiddenTimer.Stop();
+            if (HiddenStreamTimeout <= TimeSpan.Zero)
+            {
+                OnHiddenTick(this, EventArgs.Empty);
+                return;
+            }
+
+            _hiddenTimer.Interval = HiddenStreamTimeout;
+            _hiddenTimer.Start();
+        }
+    }
+
+    private void OnHiddenTick(object? sender, EventArgs e)
+    {
+        _hiddenTimer.Stop();
+        if (_isDisposed || IsVisibleInGrid || _request is null || _isStartPending)
+        {
+            return;
+        }
+
+        // Release the connection and decoder of a stream nobody sees; showing the tile reopens it.
+        StopPlayer();
+        _isStartPending = true;
+        Status = TileStatus.Connecting;
+        StatusText = string.Empty;
+        ErrorDetails = null;
     }
 
     /// <summary>
@@ -283,7 +315,10 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
 
     public void Close()
     {
+        if (_isDisposed) return;
+        PlayRequestVersion++;
         _isStartPending = false;
+        _hiddenTimer.Stop();
         StopPlayer();
 
         Camera = null;
@@ -297,9 +332,17 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(HasCamera));
     }
 
-    public bool TakeSnapshot(string filePath)
+    public Task<bool> TakeSnapshotAsync(string filePath)
     {
-        return Status == TileStatus.Playing && _player.TakeSnapshot(0, filePath, 0, 0);
+        if (_isDisposed || Status != TileStatus.Playing) return Task.FromResult(false);
+        var player = _player;
+        var version = _streamVersion;
+        return _operations.RunAsync(() =>
+        {
+            if (_isDisposed || version != _streamVersion) return false;
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+            return player.TakeSnapshot(0, filePath, 0, 0);
+        });
     }
 
     public void AcceptDrop(IReadOnlyList<CameraReference> cameras)
@@ -312,29 +355,45 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
-        if (_isDisposed)
-        {
-            return;
-        }
+        _disposal ??= DisposeCoreAsync();
+    }
 
+    private async Task DisposeCoreAsync()
+    {
+        PlayRequestVersion++;
         _isDisposed = true;
         _reconnectTimer.Tick -= OnReconnectTick;
         _progressTimer.Tick -= OnProgressTick;
         _switchTimer.Tick -= OnSwitchTick;
+        _hiddenTimer.Stop();
+        _hiddenTimer.Tick -= OnHiddenTick;
         Localizer.Instance.LanguageChanged -= OnLanguageChanged;
         StopPlayer();
-
-        // Detach the video views first; disposing a player still attached to a view crashes the runtime.
+        // Finish native stops while the surfaces still exist, then detach on the UI thread.
+        await Task.WhenAll(_openings);
+        await _operations.WhenIdle;
         PrimaryPlayer = null;
         SecondaryPlayer = null;
         OnPropertyChanged(nameof(PrimaryPlayer));
         OnPropertyChanged(nameof(SecondaryPlayer));
-
-        // A snapshot runs off the UI thread, but must finish before its native player is freed.
-        Task.WhenAll(_snapshotTasks).GetAwaiter().GetResult();
-        _primaryPlayer.Dispose();
-        _secondaryPlayer.Dispose();
+        await _operations.RunAsync(() =>
+        {
+            _primaryPlayer.Dispose();
+            _secondaryPlayer.Dispose();
+        });
     }
+
+    private void TrackOpening(Task task)
+    {
+        _openings.RemoveAll(opening => opening.IsCompleted);
+        _openings.Add(task);
+    }
+
+    private void StopMedia(MediaPlayer player, VideoMedia? media) =>
+        _ = _operations.RunAsync(() => VideoMedia.Stop(player, media));
+
+    private void SetMute(MediaPlayer player, bool muted) =>
+        _ = _operations.RunAsync(() => player.Mute = muted);
 
     [RelayCommand]
     private void Select()
@@ -352,7 +411,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
     {
         if (!_isDisposed)
         {
-            _player.Mute = !value;
+            SetMute(_player, !value);
         }
 
         // Audio is left out of the media unless enabled, so the stream is reopened with or without it.
@@ -367,59 +426,64 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         QueuePendingStart();
     }
 
-    private void StartPlayback()
+    private void StartPlayback() => TrackOpening(StartPlaybackAsync());
+
+    private async Task StartPlaybackAsync()
     {
-        if (_request is null || _isDisposed || !_isViewReady)
-        {
-            return;
-        }
-
-        if (!IsVisibleInGrid)
-        {
-            // Started when the tile is shown again.
-            _isStartPending = true;
-            return;
-        }
-
+        if (_request is null || _isDisposed || !_isViewReady) return;
+        if (!IsVisibleInGrid) { _isStartPending = true; return; }
         _reconnectTimer.Stop();
-        _media?.Dispose();
-        try
-        {
-            _media = VideoMedia.Create(_libVlc, _request.Source, _request.Username, _request.Password, _request.NetworkCachingMs, IsAudioEnabled);
-        }
-        catch (Exception exception) when (DeviceFailure.IsExpected(exception))
-        {
-            HandleFailure(exception.Message, exception);
-            return;
-        }
-
+        var request = _request;
+        var player = _player;
+        var version = ++_streamVersion;
+        var withAudio = IsAudioEnabled;
+        var hardware = !_softwareFallback;
         Status = TileStatus.Connecting;
         StatusText = string.Empty;
         ErrorDetails = null;
-
-        _displayGeometry.Learn(_request.AspectRatio);
-        _player.AspectRatio = _displayGeometry.AspectRatio;
-        _isAspectRatioReported = false;
-        _lastDisplayedFrames = 0;
-        _lastFrameAt = Stopwatch.GetTimestamp();
-        _player.Play(_media.Media);
-        _progressTimer.Start();
+        _displayGeometry.Learn(request.AspectRatio);
+        var ratio = _displayGeometry.AspectRatio;
+        try
+        {
+            var media = await _operations.RunAsync(() => VideoMedia.Create(_libVlc, request.Source,
+                request.Username, request.Password, request.NetworkCachingMs, withAudio));
+            if (_isDisposed || version != _streamVersion)
+            {
+                await _operations.RunAsync(media.Dispose);
+                return;
+            }
+            _media = media;
+            _isAspectRatioReported = false;
+            _lastDisplayedFrames = 0;
+            _lastFrameAt = Stopwatch.GetTimestamp();
+            var started = await _operations.RunAsync(() =>
+            {
+                if (_isDisposed || version != _streamVersion) return false;
+                player.EnableHardwareDecoding = hardware;
+                player.AspectRatio = ratio;
+                player.Mute = !withAudio;
+                return player.Play(media.Media);
+            });
+            if (_isDisposed || version != _streamVersion) return;
+            if (!started) { HandleFailure(Localizer.Text("Tile_CannotPlay")); return; }
+            _progressTimer.Start();
+            OnPlayerPlaying(player);
+        }
+        catch (Exception exception)
+        {
+            if (!_isDisposed && version == _streamVersion) HandleFailure(exception.Message, exception);
+        }
     }
 
     private void StopPlayer()
     {
+        _streamVersion++;
         CancelSwitch();
         _reconnectTimer.Stop();
         _progressTimer.Stop();
-        if (_isDisposed && _media is null)
-        {
-            return;
-        }
-
-        _media?.StopTransfer();
-        _player.Stop();
-        _media?.Dispose();
+        var media = _media;
         _media = null;
+        StopMedia(_player, media);
     }
 
     private void HandleFailure(string message, Exception? exception = null)
@@ -458,37 +522,51 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void BeginSwitch(TilePlayRequest request)
     {
-        // Capture the shown picture before opening another resolution or decoder.
-        // In particular, a first SUB -> MAIN switch may have no saved main ratio yet.
+        if (_switchRequest?.StreamType == request.StreamType) return;
+        TrackOpening(BeginSwitchAsync(request));
+    }
+
+    private async Task BeginSwitchAsync(TilePlayRequest request)
+    {
         PreserveDisplayGeometry();
-        CancelSwitch(preserveTransitionFrame: _layoutCoverHeld);
-
+        CancelSwitch();
+        var version = _switchVersion;
         var player = InactivePlayer;
-        if (!HasVideoSurface(player))
-        {
-            // Preserve the working stream if the other native surface is unavailable.
-            ReportSwitchFailure(Localizer.Text("Tile_SwitchFailed"));
-            return;
-        }
-
-        player.EnableHardwareDecoding = !_softwareFallback;
+        if (!HasVideoSurface(player)) { ReportSwitchFailure(Localizer.Text("Tile_SwitchFailed")); return; }
+        _switchRequest = request;
+        var hardware = !_softwareFallback;
+        var withAudio = IsAudioEnabled;
+        _displayGeometry.Learn(request.AspectRatio);
+        var ratio = _displayGeometry.AspectRatio;
         try
         {
-            _switchMedia = VideoMedia.Create(_libVlc, request.Source, request.Username, request.Password, request.NetworkCachingMs, IsAudioEnabled);
+            var media = await _operations.RunAsync(() => VideoMedia.Create(_libVlc, request.Source,
+                request.Username, request.Password, request.NetworkCachingMs, withAudio));
+            if (_isDisposed || version != _switchVersion)
+            {
+                await _operations.RunAsync(media.Dispose);
+                return;
+            }
+            _switchMedia = media;
+            var started = await _operations.RunAsync(() =>
+            {
+                if (_isDisposed || version != _switchVersion) return false;
+                player.EnableHardwareDecoding = hardware;
+                player.Mute = !withAudio;
+                player.AspectRatio = ratio;
+                return player.Play(media.Media);
+            });
+            if (_isDisposed || version != _switchVersion) return;
+            if (!started) { CancelSwitch(); ReportSwitchFailure(Localizer.Text("Tile_SwitchFailed")); return; }
+            _switchStartedAt = Stopwatch.GetTimestamp();
+            _switchTimer.Start();
         }
-        catch (Exception exception) when (DeviceFailure.IsExpected(exception))
+        catch (Exception exception)
         {
+            if (_isDisposed || version != _switchVersion) return;
+            CancelSwitch();
             ReportSwitchFailure(exception.Message, exception);
-            return;
         }
-
-        _switchRequest = request;
-        _switchStartedAt = Stopwatch.GetTimestamp();
-        player.Mute = !IsAudioEnabled;
-        _displayGeometry.Learn(request.AspectRatio);
-        player.AspectRatio = _displayGeometry.AspectRatio;
-        player.Play(_switchMedia.Media);
-        _switchTimer.Start();
     }
 
     /// <summary>
@@ -496,7 +574,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void ReportAspectRatio()
     {
-        if (_isAspectRatioReported || Camera is null || _request?.StreamType != StreamType.Main)
+        if (_media is null || _isAspectRatioReported || Camera is null || _request?.StreamType != StreamType.Main)
         {
             return;
         }
@@ -513,10 +591,15 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
 
     private void PreserveDisplayGeometry()
     {
+        if (_media is null) return;
         if (_displayGeometry.AspectRatio is null)
             _displayGeometry.Learn(ReadNaturalAspectRatio(_player, _media));
         if (_displayGeometry.AspectRatio is not null && _player.AspectRatio != _displayGeometry.AspectRatio)
-            _player.AspectRatio = _displayGeometry.AspectRatio;
+        {
+            var player = _player;
+            var ratio = _displayGeometry.AspectRatio;
+            _ = _operations.RunAsync(() => player.AspectRatio = ratio);
+        }
     }
 
     private static string? ReadNaturalAspectRatio(MediaPlayer player, VideoMedia? media)
@@ -547,11 +630,10 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
             // Visibility changes map native windows asynchronously. Leave the old surface
             // playing underneath until the incoming one has presented another picture.
             var elapsed = Stopwatch.GetElapsedTime(_handoverStartedAt);
-            if (_isDisposed || (_transitionCoverReady && elapsed >= SurfaceHandoverDelay && _media is not null
+            if (_isDisposed || (elapsed >= SurfaceHandoverDelay && _media is not null
                     && _media.Media.Statistics.DisplayedPictures > _handoverDisplayedFrames))
             {
                 ReleaseRetiringPlayer();
-                ClearTransitionFrame();
                 _switchTimer.Stop();
             }
             else if (elapsed >= SurfaceHandoverTimeout)
@@ -579,120 +661,11 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
 
         var stats = _switchMedia.Media.Statistics;
         // Decoding or Playing alone does not mean the renderer has a picture to reveal.
-        var isReady = player.State == VLCState.Playing && stats.DisplayedPictures >= 2;
+        var isReady = player.State == VLCState.Playing && stats.DisplayedPictures >= 1;
         if (isReady && ReadNaturalAspectRatio(player, _switchMedia) is not null)
         {
-            if (TransitionFrame is null) CaptureTransitionFrame();
-            // The view acknowledges the cover only after its overlay has rendered.
-            if (_transitionCoverReady) CompleteSwitch();
+            CompleteSwitch();
         }
-    }
-
-    private void CaptureTransitionFrame()
-    {
-        if (_transitionCapture is null)
-        {
-            var player = _player;
-            _snapshotTasks.RemoveAll(task => task.IsCompleted);
-            _transitionCapture = Task.Run(() => ReadTransitionFrame(player));
-            _snapshotTasks.Add(_transitionCapture);
-            return;
-        }
-        if (!_transitionCapture.IsCompleted) return;
-        var bitmap = _transitionCapture.GetAwaiter().GetResult();
-        _transitionCapture = null;
-        if (bitmap is null) return;
-        var proportions = _displayGeometry.AspectRatio?.Split(':');
-        TransitionFrameWidth = proportions is { Length: 2 } ? double.Parse(proportions[0], System.Globalization.CultureInfo.InvariantCulture) : bitmap.PixelSize.Width;
-        TransitionFrameHeight = proportions is { Length: 2 } ? double.Parse(proportions[1], System.Globalization.CultureInfo.InvariantCulture) : bitmap.PixelSize.Height;
-        OnPropertyChanged(nameof(TransitionFrameWidth));
-        OnPropertyChanged(nameof(TransitionFrameHeight));
-        _transitionCoverReady = false;
-        _transitionCoverVersion++;
-        TransitionFrame = bitmap;
-    }
-
-    public async Task<bool> PrepareLayoutTransitionAsync()
-    {
-        if (_isDisposed || Status != TileStatus.Playing || !_isViewReady || !IsVisibleInGrid) return true;
-        CancelSwitch();
-        PreserveDisplayGeometry();
-        _layoutCoverHeld = true;
-        var started = Stopwatch.GetTimestamp();
-        while (!_isDisposed && Status == TileStatus.Playing && Stopwatch.GetElapsedTime(started) < SurfaceHandoverTimeout)
-        {
-            if (TransitionFrame is null) CaptureTransitionFrame();
-            if (_transitionCoverReady) return true;
-            await Task.Delay(16);
-        }
-        _layoutCoverHeld = false;
-        ClearTransitionFrame();
-        if (!_isDisposed && Status == TileStatus.Playing) ReportSwitchFailure(Localizer.Text("Tile_SwitchFailed"));
-        return _isDisposed || Status != TileStatus.Playing;
-    }
-
-    public async Task FinishLayoutTransitionAsync()
-    {
-        if (!_layoutCoverHeld) return;
-        // The original-size cover was painted before the host changed Rows/Columns.
-        // Require a second paint at the new geometry before it can be removed.
-        _transitionCoverReady = false;
-        _transitionCoverVersion++;
-        OnPropertyChanged(nameof(TransitionFrame));
-        var started = Stopwatch.GetTimestamp();
-        try
-        {
-            while (!_isDisposed && TransitionFrame is not null && !_transitionCoverReady
-                && Stopwatch.GetElapsedTime(started) < SurfaceHandoverTimeout)
-                await Task.Delay(16);
-        }
-        finally
-        {
-            _layoutCoverHeld = false;
-            if (_switchMedia is null && _retiringPlayer is null) ClearTransitionFrame();
-        }
-    }
-
-    private static Bitmap? ReadTransitionFrame(MediaPlayer player)
-    {
-        var path = Path.Combine(Path.GetTempPath(), $"novavms-transition-{Guid.NewGuid():N}.png");
-        try
-        {
-            return player.TakeSnapshot(0, path, 0, 0) ? new Bitmap(path) : null;
-        }
-        catch (Exception exception)
-        {
-            UnhandledExceptionLogger.Log("Capture stream transition frame", exception);
-            return null;
-        }
-        finally
-        {
-            try { File.Delete(path); }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-            { UnhandledExceptionLogger.Log("Remove stream transition frame", exception); }
-        }
-    }
-
-    public void ConfirmTransitionCoverReady(Bitmap frame, int version)
-    {
-        if (!_isDisposed && version == _transitionCoverVersion && ReferenceEquals(TransitionFrame, frame))
-            _transitionCoverReady = true;
-    }
-
-    private void ClearTransitionFrame()
-    {
-        if (_transitionCapture is { } capture)
-        {
-            _transitionCapture = null;
-            // A canceled switch no longer owns this snapshot. Release it when the native call finishes.
-            _ = capture.ContinueWith(task => task.Result?.Dispose(), CancellationToken.None,
-                TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
-        }
-        var frame = TransitionFrame;
-        _transitionCoverVersion++;
-        TransitionFrame = null;
-        _transitionCoverReady = false;
-        frame?.Dispose();
     }
 
     private void ReportSwitchFailure(string message, Exception? exception = null)
@@ -715,17 +688,16 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         _retiringPlayer = oldPlayer;
         _retiringMedia = oldMedia;
         _retiringRequest = oldRequest;
-        _transitionCoverReady = false;
-        _transitionCoverVersion++;
         _handoverStartedAt = Stopwatch.GetTimestamp();
         _handoverDisplayedFrames = _media!.Media.Statistics.DisplayedPictures;
 
-        _player.Mute = !IsAudioEnabled;
+        SetMute(_player, !IsAudioEnabled);
         PreserveDisplayGeometry();
         _isAspectRatioReported = false;
         _lastDisplayedFrames = 0;
         _lastFrameAt = Stopwatch.GetTimestamp();
         ReportAspectRatio();
+        OnPropertyChanged(nameof(IsPrimaryPlayerActive));
         // Always map the incoming surface first. Hiding the outgoing surface is a
         // separate timer step, after layout and native painting have had time to run.
         OnPropertyChanged(ReferenceEquals(_player, _primaryPlayer)
@@ -746,9 +718,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         if (player is null) return;
         OnPropertyChanged(ReferenceEquals(player, _primaryPlayer)
             ? nameof(IsPrimaryViewVisible) : nameof(IsSecondaryViewVisible));
-        media?.StopTransfer();
-        player.Stop();
-        media?.Dispose();
+        StopMedia(player, media);
     }
 
     private void RestoreRetiringPlayer(bool reportFailure = true)
@@ -765,31 +735,27 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         _lastDisplayedFrames = 0;
         _lastFrameAt = Stopwatch.GetTimestamp();
         _isAspectRatioReported = false;
-        _player.Mute = !IsAudioEnabled;
+        SetMute(_player, !IsAudioEnabled);
+        OnPropertyChanged(nameof(IsPrimaryPlayerActive));
         OnPropertyChanged(nameof(IsPrimaryViewVisible));
         OnPropertyChanged(nameof(IsSecondaryViewVisible));
-        failedMedia?.StopTransfer();
-        failedPlayer.Stop();
-        failedMedia?.Dispose();
-        ClearTransitionFrame();
+        StopMedia(failedPlayer, failedMedia);
         if (CameraName is not null) Header = BuildHeader(CameraName);
         if (reportFailure) ReportSwitchFailure(Localizer.Text("Tile_SwitchFailed"));
     }
 
-    private void CancelSwitch(bool preserveTransitionFrame = false)
+    private void CancelSwitch()
     {
+        _switchVersion++;
         _switchTimer.Stop();
         ReleaseRetiringPlayer();
-        if (!preserveTransitionFrame) ClearTransitionFrame();
         if (_switchMedia is null)
         {
             _switchRequest = null;
             return;
         }
 
-        _switchMedia.StopTransfer();
-        InactivePlayer.Stop();
-        _switchMedia.Dispose();
+        StopMedia(InactivePlayer, _switchMedia);
         _switchMedia = null;
         _switchRequest = null;
     }
@@ -813,8 +779,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        _media?.StopTransfer();
-        _player.Stop();
+        StopPlayer();
         StartPlayback();
     }
 
@@ -839,7 +804,6 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         if (!_softwareFallback && stats.DecodedVideo > 0)
         {
             _softwareFallback = true;
-            _player.EnableHardwareDecoding = false;
             _isStartPending = true;
             QueuePendingStart();
         }
@@ -851,13 +815,13 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (!ReferenceEquals(sender, _player) || _request is null || _isDisposed || _isStartPending
+            if (_media is null || !ReferenceEquals(sender, _player) || _request is null || _isDisposed || _isStartPending
                 || !_isViewReady || _player.State != VLCState.Playing)
             {
                 return;
             }
 
-            _player.Mute = !IsAudioEnabled;
+            SetMute(_player, !IsAudioEnabled);
             PreserveDisplayGeometry();
             Status = TileStatus.Playing;
             ReportAspectRatio();

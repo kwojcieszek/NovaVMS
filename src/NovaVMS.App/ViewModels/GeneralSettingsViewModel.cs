@@ -17,11 +17,18 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
 {
     private const int MinNetworkCachingMs = 0;
     private const int MaxNetworkCachingMs = 5000;
+    private const int MinHiddenTileReleaseSeconds = 0;
+    private const int MaxHiddenTileReleaseSeconds = 3600;
 
     private readonly ConfigurationService _configuration;
     private readonly IDialogService _dialogs;
     // Set while values are copied from the configuration, so loading them does not trigger a save.
     private bool _isLoading;
+    private bool _isDisposed;
+    private int _sdkStatusVersion;
+
+    [ObservableProperty]
+    private string _sdkStatusText = string.Empty;
 
     [ObservableProperty]
     private LanguageOption _selectedLanguage;
@@ -42,6 +49,9 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     private decimal? _mainStreamCachingMs;
 
     [ObservableProperty]
+    private decimal? _hiddenTileReleaseSeconds;
+
+    [ObservableProperty]
     private bool _autoCreateDeviceGroups;
 
     [ObservableProperty]
@@ -51,7 +61,6 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     private bool _showCameraSearch;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SdkStatusText))]
     private string _hcNetSdkDirectory;
 
     [ObservableProperty]
@@ -69,9 +78,10 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         _selectedLanguage = LanguageOption.Find(settings.Language);
         _selectedTheme = ThemeOption.Find(settings.Theme);
         _selectedStreamMode = StreamModeOption.Find(settings.GridStreamMode);
-        _defaultLayout = GridLayoutOption.Find(settings.DefaultLayoutCount);
+        _defaultLayout = GridLayoutOption.Find(settings.DefaultLayoutId, settings.DefaultLayoutCount);
         _networkCachingMs = settings.NetworkCachingMs;
         _mainStreamCachingMs = settings.MainStreamCachingMs;
+        _hiddenTileReleaseSeconds = settings.HiddenTileReleaseSeconds;
         _autoCreateDeviceGroups = settings.AutoCreateDeviceGroups;
         _showTileTitles = settings.ShowTileTitles;
         _showCameraSearch = settings.ShowCameraSearch;
@@ -80,6 +90,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         // Settings can also change outside this page (e.g. the theme button in the header).
         _configuration.Changed += OnConfigurationChanged;
         Localizer.Instance.LanguageChanged += OnLanguageChanged;
+        _ = RefreshSdkStatusAsync();
     }
 
     public IReadOnlyList<LanguageOption> Languages => LanguageOption.All;
@@ -94,35 +105,40 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
 
     public decimal MaximumNetworkCaching => MaxNetworkCachingMs;
 
+    public decimal MinimumHiddenTileRelease => MinHiddenTileReleaseSeconds;
+
+    public decimal MaximumHiddenTileRelease => MaxHiddenTileReleaseSeconds;
+
     /// <summary>
     /// State of the Hikvision SDK library in the selected folder.
     /// </summary>
-    public string SdkStatusText
+    private async Task RefreshSdkStatusAsync()
     {
-        get
-        {
-            if (!HcNetSdkRuntime.IsPlatformSupported)
-            {
-                return Localizer.Text("General_SdkUnsupported");
-            }
+        var version = ++_sdkStatusVersion;
+        var directory = HcNetSdkDirectory;
+        // Typing a UNC path must not synchronously probe a network share on every keypress.
+        await Task.Delay(200);
+        if (_isDisposed || version != _sdkStatusVersion) return;
+        var text = await Task.Run(() => ReadSdkStatus(directory));
+        if (!_isDisposed && version == _sdkStatusVersion) SdkStatusText = text;
+    }
 
-            var directory = HcNetSdkRuntime.ResolveDirectory(HcNetSdkDirectory);
-            var loadedVersion = HcNetSdkRuntime.LoadedVersion;
-            if (loadedVersion is not null)
-            {
-                return string.Equals(HcNetSdkRuntime.LoadedDirectory, directory, StringComparison.OrdinalIgnoreCase)
-                    ? Localizer.Format("General_SdkLoaded", loadedVersion)
-                    : Localizer.Text("General_SdkRestart");
-            }
-
-            return HcNetSdkRuntime.FindLibrary(HcNetSdkDirectory) is null
-                ? Localizer.Format("General_SdkMissing", directory)
-                : Localizer.Text("General_SdkFound");
-        }
+    private static string ReadSdkStatus(string configuredDirectory)
+    {
+        if (!HcNetSdkRuntime.IsPlatformSupported) return Localizer.Text("General_SdkUnsupported");
+        var directory = HcNetSdkRuntime.ResolveDirectory(configuredDirectory);
+        var loadedVersion = HcNetSdkRuntime.LoadedVersion;
+        if (loadedVersion is not null)
+            return string.Equals(HcNetSdkRuntime.LoadedDirectory, directory, StringComparison.OrdinalIgnoreCase)
+                ? Localizer.Format("General_SdkLoaded", loadedVersion) : Localizer.Text("General_SdkRestart");
+        return HcNetSdkRuntime.FindLibrary(configuredDirectory) is null
+            ? Localizer.Format("General_SdkMissing", directory) : Localizer.Text("General_SdkFound");
     }
 
     public void Dispose()
     {
+        _isDisposed = true;
+        _sdkStatusVersion++;
         _configuration.Changed -= OnConfigurationChanged;
         Localizer.Instance.LanguageChanged -= OnLanguageChanged;
     }
@@ -157,6 +173,11 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         ApplyChanges();
     }
 
+    partial void OnHiddenTileReleaseSecondsChanged(decimal? value)
+    {
+        ApplyChanges();
+    }
+
     partial void OnAutoCreateDeviceGroupsChanged(bool value)
     {
         ApplyChanges();
@@ -174,6 +195,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
 
     partial void OnHcNetSdkDirectoryChanged(string value)
     {
+        _ = RefreshSdkStatusAsync();
         ApplyChanges();
     }
 
@@ -189,8 +211,10 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         settings.Theme = SelectedTheme.Value;
         settings.GridStreamMode = SelectedStreamMode.Value;
         settings.DefaultLayoutCount = DefaultLayout.Count;
+        settings.DefaultLayoutId = DefaultLayout.Id;
         settings.NetworkCachingMs = (int)Math.Clamp(NetworkCachingMs ?? settings.NetworkCachingMs, MinNetworkCachingMs, MaxNetworkCachingMs);
         settings.MainStreamCachingMs = (int)Math.Clamp(MainStreamCachingMs ?? settings.MainStreamCachingMs, MinNetworkCachingMs, MaxNetworkCachingMs);
+        settings.HiddenTileReleaseSeconds = (int)Math.Clamp(HiddenTileReleaseSeconds ?? settings.HiddenTileReleaseSeconds, MinHiddenTileReleaseSeconds, MaxHiddenTileReleaseSeconds);
         settings.AutoCreateDeviceGroups = AutoCreateDeviceGroups;
         settings.ShowTileTitles = ShowTileTitles;
         settings.ShowCameraSearch = ShowCameraSearch;
@@ -219,11 +243,12 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     private void OnConfigurationChanged(object? sender, EventArgs e)
     {
         LoadFromSettings(_configuration.Current.Settings);
+        _ = RefreshSdkStatusAsync();
     }
 
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
-        OnPropertyChanged(nameof(SdkStatusText));
+        _ = RefreshSdkStatusAsync();
     }
 
     [RelayCommand]
@@ -298,9 +323,10 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
             SelectedLanguage = LanguageOption.Find(settings.Language);
             SelectedTheme = ThemeOption.Find(settings.Theme);
             SelectedStreamMode = StreamModeOption.Find(settings.GridStreamMode);
-            DefaultLayout = GridLayoutOption.Find(settings.DefaultLayoutCount);
+            DefaultLayout = GridLayoutOption.Find(settings.DefaultLayoutId, settings.DefaultLayoutCount);
             NetworkCachingMs = settings.NetworkCachingMs;
             MainStreamCachingMs = settings.MainStreamCachingMs;
+            HiddenTileReleaseSeconds = settings.HiddenTileReleaseSeconds;
             AutoCreateDeviceGroups = settings.AutoCreateDeviceGroups;
             ShowTileTitles = settings.ShowTileTitles;
             ShowCameraSearch = settings.ShowCameraSearch;
@@ -312,3 +338,4 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         }
     }
 }
+

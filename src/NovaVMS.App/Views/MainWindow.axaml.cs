@@ -15,6 +15,8 @@ public partial class MainWindow : Window
 
     private Point? _dragStart;
     private ResourceNodeViewModel? _dragNode;
+    private bool _shutdownStarted;
+    private bool _canClose;
 
     public MainWindow()
     {
@@ -30,25 +32,30 @@ public partial class MainWindow : Window
         ResourceTree.AddHandler(DragDrop.DropEvent, OnTreeDrop);
     }
 
-    protected override void OnClosing(WindowClosingEventArgs e)
+    protected override async void OnClosing(WindowClosingEventArgs e)
     {
-        // Stop video while the native surfaces still exist; LibVLC must not render into destroyed windows.
-        UnhandledExceptionLogger.IsShuttingDown = true;
-        if (DataContext is MainWindowViewModel viewModel)
-        {
-            viewModel.PrepareShutdown();
-        }
-
+        if (_canClose) { base.OnClosing(e); return; }
+        e.Cancel = true;
         base.OnClosing(e);
-    }
-
-    protected override void OnClosed(EventArgs e)
-    {
-        base.OnClosed(e);
-
-        if (DataContext is MainWindowViewModel viewModel)
+        if (_shutdownStarted) return;
+        _shutdownStarted = true;
+        try
         {
-            viewModel.CompleteShutdown();
+            // Await stops while surfaces and the dispatcher are still alive. Closing
+            // the window first would race LibVLC callbacks and native window destruction.
+            UnhandledExceptionLogger.IsShuttingDown = true;
+            if (DataContext is MainWindowViewModel viewModel)
+                await viewModel.CompleteShutdownAsync();
+            if (Application.Current is App app) await app.DisposeServicesAsync();
+        }
+        catch (Exception exception)
+        {
+            UnhandledExceptionLogger.Log("Application shutdown", exception);
+        }
+        finally
+        {
+            _canClose = true;
+            Close();
         }
     }
 

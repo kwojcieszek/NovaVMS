@@ -11,6 +11,7 @@ public sealed class ConfigurationService
 {
     private readonly IConfigurationStore _store;
     private readonly IConfigurationSerializer _serializer;
+    private readonly AsyncWorkQueue _saves = new();
 
     public ConfigurationService(IConfigurationStore store, IConfigurationSerializer serializer)
     {
@@ -20,17 +21,49 @@ public sealed class ConfigurationService
 
     public event EventHandler? Changed;
 
+    /// <summary>
+    /// Raised after a local change has been saved; not raised when a configuration from the settings database is applied.
+    /// </summary>
+    public event EventHandler? Saved;
+
+    /// <summary>
+    /// Raised after the whole configuration was replaced; objects taken from the previous one are no longer part of it.
+    /// </summary>
+    public event EventHandler? Replaced;
+
+    public Task FlushAsync() => _saves.WhenIdle;
+
     public AppConfiguration Current { get; private set; } = new();
 
     public async Task LoadAsync()
     {
-        Current = Normalize(await _store.LoadAsync());
+        Current = Normalize(await Task.Run(() => _store.LoadAsync()));
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
     public async Task SaveAsync()
     {
-        await _store.SaveAsync(Current);
+        // Capture a stable graph on the UI thread; serialization, encryption and disk
+        // access run in FIFO order off-thread even when the backing store completes synchronously.
+        var snapshot = Current.CreateSnapshot();
+        await _saves.RunAsync(() => _store.SaveAsync(snapshot));
+        Changed?.Invoke(this, EventArgs.Empty);
+        Saved?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Replaces the whole configuration with one received from the settings database and saves it locally.
+    /// The SDK folder stays a setting of this computer.
+    /// </summary>
+    public async Task ReplaceAsync(AppConfiguration configuration)
+    {
+        var replacement = Normalize(configuration);
+        replacement.Settings.HcNetSdkDirectory = Current.Settings.HcNetSdkDirectory;
+        Current = replacement;
+
+        var snapshot = Current.CreateSnapshot();
+        await _saves.RunAsync(() => _store.SaveAsync(snapshot));
+        Replaced?.Invoke(this, EventArgs.Empty);
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
@@ -145,7 +178,7 @@ public sealed class ConfigurationService
     /// </summary>
     public async Task ExportAsync(Stream stream, bool includePasswords)
     {
-        var copy = await CloneAsync(Current);
+        var copy = Current.CreateSnapshot();
         if (!includePasswords)
         {
             foreach (var device in copy.Devices)
@@ -155,12 +188,12 @@ public sealed class ConfigurationService
             }
         }
 
-        await _serializer.SerializeAsync(stream, copy);
+        await Task.Run(() => _serializer.SerializeAsync(stream, copy));
     }
 
     public async Task<AppConfiguration> ReadImportAsync(Stream stream)
     {
-        return Normalize(await _serializer.DeserializeAsync(stream));
+        return Normalize(await Task.Run(() => _serializer.DeserializeAsync(stream)));
     }
 
     /// <summary>
@@ -215,23 +248,17 @@ public sealed class ConfigurationService
         return new ImportResult(devicesAdded, devicesUpdated, groupsAdded, groupsUpdated);
     }
 
-    private async Task<AppConfiguration> CloneAsync(AppConfiguration configuration)
-    {
-        using var buffer = new MemoryStream();
-        await _serializer.SerializeAsync(buffer, configuration);
-        buffer.Position = 0;
-        return Normalize(await _serializer.DeserializeAsync(buffer));
-    }
-
     // JSON files edited by hand may contain nulls for collections that the model declares as non-null.
     private static AppConfiguration Normalize(AppConfiguration configuration)
     {
         configuration.Devices ??= new List<Device>();
         configuration.Groups ??= new List<CameraGroup>();
         configuration.Settings ??= new AppSettings();
+        configuration.GroupLiveViews ??= new();
 
         foreach (var device in configuration.Devices)
         {
+            device.SecondaryHost ??= string.Empty;
             device.StreamEncryptionKey ??= string.Empty;
             device.Channels ??= new List<Channel>();
             foreach (var channel in device.Channels)

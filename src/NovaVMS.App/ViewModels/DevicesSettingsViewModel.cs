@@ -29,6 +29,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     private readonly DeviceSyncService _sync;
     private readonly IDeviceDiscovery _discovery;
     private readonly IDeviceReachability _reachability;
+    private readonly IDeviceClientFactory _clientFactory;
     private readonly IDialogService _dialogs;
     private readonly DeviceCsvReader _csvReader;
     private readonly DispatcherTimer _stateTimer;
@@ -52,6 +53,9 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SaveDeviceCommand))]
     private string _editHost = string.Empty;
+
+    [ObservableProperty]
+    private string _editSecondaryHost = string.Empty;
 
     [ObservableProperty]
     private int _editHttpPort = 80;
@@ -91,19 +95,19 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         IDeviceDiscovery discovery,
         IDeviceReachability reachability,
         IDialogService dialogs,
-        DeviceCsvReader csvReader)
+        DeviceCsvReader csvReader,
+        IDeviceClientFactory clientFactory)
     {
         _configuration = configuration;
         _sync = sync;
         _discovery = discovery;
         _reachability = reachability;
+        _clientFactory = clientFactory;
         _dialogs = dialogs;
         _csvReader = csvReader;
 
-        foreach (var device in _configuration.Current.Devices)
-        {
-            Devices.Add(new DeviceRowViewModel(device));
-        }
+        LoadDevices();
+        _configuration.Replaced += OnConfigurationReplaced;
 
         _stateTimer = new DispatcherTimer
         {
@@ -117,6 +121,23 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     }
 
     public ObservableCollection<DeviceRowViewModel> Devices { get; } = new();
+
+    private void LoadDevices()
+    {
+        foreach (var device in _configuration.Current.Devices)
+        {
+            Devices.Add(new DeviceRowViewModel(device, _clientFactory));
+        }
+    }
+
+    // A version applied from the settings database replaces every device object.
+    private void OnConfigurationReplaced(object? sender, EventArgs e)
+    {
+        SelectedDevice = null;
+        Devices.Clear();
+        LoadDevices();
+        _ = CheckStatesAsync();
+    }
 
     public ObservableCollection<DiscoveredDevice> DiscoveredDevices { get; } = new();
 
@@ -137,6 +158,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         }
 
         _isDisposed = true;
+        _configuration.Replaced -= OnConfigurationReplaced;
         _stateTimer.Stop();
         _stateTimer.Tick -= OnStateTimerTick;
         Localizer.Instance.LanguageChanged -= OnLanguageChanged;
@@ -168,6 +190,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
 
         device.Name = EditName.Trim();
         device.Host = EditHost.Trim();
+        device.SecondaryHost = EditSecondaryHost.Trim();
         device.HttpPort = EditHttpPort;
         device.RtspPort = EditRtspPort;
         device.SdkPort = EditSdkPort;
@@ -185,7 +208,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         if (row is null)
         {
             _configuration.Current.Devices.Add(device);
-            row = new DeviceRowViewModel(device);
+            row = new DeviceRowViewModel(device, _clientFactory);
             Devices.Add(row);
         }
 
@@ -339,7 +362,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         foreach (var device in newDevices)
         {
             _configuration.Current.Devices.Add(device);
-            var row = new DeviceRowViewModel(device);
+            var row = new DeviceRowViewModel(device, _clientFactory);
             Devices.Add(row);
             rows.Add(row);
             // Imported channel names remain available even if the recorder is offline.
@@ -445,6 +468,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         FormTitle = device.DisplayName;
         EditName = device.Name;
         EditHost = device.Host;
+        EditSecondaryHost = device.SecondaryHost;
         EditHttpPort = device.HttpPort;
         EditRtspPort = device.RtspPort;
         EditSdkPort = device.SdkPort;
@@ -538,7 +562,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         }
 
         bool reachable;
-        try { reachable = await _reachability.IsReachableAsync(row.Device); }
+        try { reachable = await _reachability.IsReachableAsync(row.Device.ForHost(_clientFactory.GetSelectedHost(row.Device) ?? row.Device.Host)); }
         catch (Exception exception) when (DeviceFailure.IsExpected(exception))
         {
             reachable = false;
@@ -547,6 +571,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         if (!_isDisposed)
         {
             row.State = reachable ? DeviceConnectionState.Online : DeviceConnectionState.Offline;
+            row.Refresh();
         }
     }
 
@@ -568,6 +593,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         FormTitle = Localizer.Text(NewDeviceTitleKey);
         EditName = string.Empty;
         EditHost = string.Empty;
+        EditSecondaryHost = string.Empty;
         EditHttpPort = 80;
         EditRtspPort = 554;
         EditSdkPort = 8000;

@@ -17,7 +17,10 @@ internal sealed class HikvisionRtpVideo(string codec, int payloadType, IReadOnly
     private long _ticks = 90000;
     private bool _started;
 
-    public void Accept(byte[] packet)
+    /// <summary>
+    /// Processes one RTP packet. The span is only read during the call; kept data is copied.
+    /// </summary>
+    public void Accept(ReadOnlySpan<byte> packet)
     {
         if (packet.Length < 12 || (packet[0] >> 6) != 2) throw new IOException("Invalid RTP packet.");
         if ((packet[1] & 0x7f) != payloadType) return;
@@ -25,7 +28,7 @@ internal sealed class HikvisionRtpVideo(string codec, int payloadType, IReadOnly
         if ((packet[0] & 0x10) != 0)
         {
             if (offset + 4 > packet.Length) throw new IOException("Invalid RTP extension.");
-            offset += 4 + BinaryPrimitives.ReadUInt16BigEndian(packet.AsSpan(offset + 2)) * 4;
+            offset += 4 + BinaryPrimitives.ReadUInt16BigEndian(packet[(offset + 2)..]) * 4;
         }
         var end = packet.Length;
         if ((packet[0] & 0x20) != 0)
@@ -35,13 +38,13 @@ internal sealed class HikvisionRtpVideo(string codec, int payloadType, IReadOnly
             end -= padding;
         }
         if (offset >= end) throw new IOException("Empty RTP video packet.");
-        var timestamp = BinaryPrimitives.ReadUInt32BigEndian(packet.AsSpan(4));
-        var sequence = BinaryPrimitives.ReadUInt16BigEndian(packet.AsSpan(2));
+        var timestamp = BinaryPrimitives.ReadUInt32BigEndian(packet[4..]);
+        var sequence = BinaryPrimitives.ReadUInt16BigEndian(packet[2..]);
         if (_initialTimestamp is null) _initialTimestamp = _previousTimestamp = timestamp;
         // Signed deltas preserve B-frame presentation order and handle 32-bit RTP wraparound.
         _ticks += unchecked((int)(timestamp - _previousTimestamp));
         _previousTimestamp = timestamp;
-        var payload = packet.AsSpan(offset, end - offset);
+        var payload = packet.Slice(offset, end - offset);
         if (codec is "MP2P" or "PS") { output(payload.ToArray()); return; }
         if (!_started)
         {

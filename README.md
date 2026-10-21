@@ -9,14 +9,25 @@ and control of IP cameras and network video recorders (NVR/DVR). The user interf
 - **Live view** – grid layouts from 1×1 to 5×5, drag and drop cameras from the resource tree onto tiles,
   stream selection (main / sub / automatic).
 - **Playback** – recording segment search with a timeline.
+  Uses the recorder's selected protocol: native HCNetSDK search and playback, ISAPI search with RTSP,
+  or ONVIF Profile G search and replay. ONVIF playback requires the device to expose Profile G services
+  and identify the recordings belonging to the selected camera.
 - **PTZ** – camera movement control and presets.
 - **Device management** – add, edit, synchronize channels, check reachability.
+- **Secondary device address** – optionally configure another host using the same ports and credentials.
+  The first camera use checks the primary control port and then the secondary if needed. The chosen host
+  is shared by all recorder channels until the application closes or connection settings change.
+  If neither responds, the primary host is selected. Synchronization can try both before the first camera use
+  without fixing the session's choice. The device table shows the selected address.
 - **Device discovery** on the local network (ONVIF WS-Discovery).
 - **Camera groups** – custom organization of cameras in the resource tree.
 - **Favorite cameras** – star cameras for quick access in the Favorites section at the top of the tree.
 - **Device import**:
   - from CSV files (automatic delimiter detection, English and Polish column headers),
   - from iVMS-4200 backups (no vendor libraries required).
+- **Settings in a database** – share devices, groups and settings between computers through PostgreSQL
+  or MySQL/MariaDB, with automatic checking, automatic or manual sending and a version history
+  (see [Settings database](#settings-database)).
 - **Localization** – English and Polish.
 - **Themes** – light, dark or follow the system.
 
@@ -113,6 +124,26 @@ are written to `logs/errors-YYYYMMDD.log` with timestamps, process/thread IDs an
 If the application data directory cannot be written, logging falls back to `NovaVMS/logs` in the system
 temporary directory, then to standard error. Fatal native crashes, forced process termination and
 stack overflows may bypass managed exception handlers.
+
+## Settings database
+
+Settings → Synchronization stores the configuration in a shared PostgreSQL or MySQL/MariaDB database.
+After "Save and connect" the application creates its tables (`novavms_settings_meta`,
+`novavms_settings_versions`) if they do not exist; the database user needs `CREATE TABLE`, `SELECT`,
+`INSERT` and `DELETE` rights.
+
+- Every version is compressed and encrypted with AES-256-GCM using a key derived from the encryption
+  password (PBKDF2-SHA256, 600 000 iterations, random salt stored in the database). Device passwords are
+  included, so all computers using the database must enter the same encryption password; a wrong password
+  is detected on connection. The database only sees ciphertext, the date, computer name, IP address,
+  system user and application version of each version.
+- Automatic checking (default every 30 minutes, also at startup) applies a newer version sent from another
+  computer. Automatic sending uploads the configuration a few seconds after each local change; unchanged
+  settings do not create a new version. Settings can also be sent and checked manually.
+- The newest *N* versions are kept (default 20). Any listed version can be applied; with automatic sending
+  enabled an archived version is also sent again as the newest one.
+- The connection (`sync.json`, encrypted like `config.json`) and the Hikvision SDK folder remain local to
+  each computer.
 
 ## Technologies
 

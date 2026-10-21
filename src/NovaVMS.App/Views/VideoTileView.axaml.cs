@@ -25,6 +25,10 @@ public partial class VideoTileView : UserControl
     private VideoTileViewModel? _tile;
     private Window? _overlayWindow;
     private Window? _ownerWindow;
+    // Last geometry given to the overlay window. The owner's layout pass runs often (status text, timers),
+    // and setting a window position always moves the native window, even to the same place.
+    private PixelPoint? _overlayPosition;
+    private Size _overlaySize;
 
     public VideoTileView()
     {
@@ -70,40 +74,16 @@ public partial class VideoTileView : UserControl
     private void OnTilePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(VideoTileViewModel.IsVisibleInGrid)) UpdateOverlayWindow();
-        if (e.PropertyName is not (nameof(VideoTileViewModel.TransitionFrame)
-            or nameof(VideoTileViewModel.IsPrimaryViewVisible) or nameof(VideoTileViewModel.IsSecondaryViewVisible))) return;
-        var tile = _tile;
-        var frame = tile?.TransitionFrame;
-        if (tile is null || frame is null) return;
-        UpdateOverlayWindow();
-        var version = tile.TransitionCoverVersion;
-        // Wait until visibility bindings and native window layout have been applied.
-        Dispatcher.UIThread.Post(() =>
-        {
-            if (!ReferenceEquals(_tile, tile) || tile.TransitionCoverVersion != version || !ReferenceEquals(tile.TransitionFrame, frame)
-                || !this.IsAttachedToVisualTree()) return;
-            if (_overlayWindow is not { IsVisible: true } topLevel) return;
-            // Acknowledge both the outgoing cover and, after mapping, the incoming cover.
-            void ConfirmCover(TimeSpan timestamp)
-            {
-                if (!ReferenceEquals(_tile, tile) || !this.IsAttachedToVisualTree()
-                    || tile.TransitionCoverVersion != version || !ReferenceEquals(tile.TransitionFrame, frame)
-                    || !topLevel.IsVisible) return;
-                // A painted window at the old tile size/position is not a ready cover.
-                var tolerance = 1 / topLevel.RenderScaling;
-                bool SameSize(Size size) => Math.Abs(size.Width - VideoHost.Bounds.Width) <= tolerance
-                    && Math.Abs(size.Height - VideoHost.Bounds.Height) <= tolerance;
-                if (SameSize(VideoOverlay.Bounds.Size) && SameSize(topLevel.Bounds.Size)
-                    && topLevel.Position == VideoHost.PointToScreen(default))
-                    tile.ConfirmTransitionCoverReady(frame, version);
-                else
-                {
-                    UpdateOverlayWindow();
-                    topLevel.RequestAnimationFrame(ConfirmCover);
-                }
-            }
-            topLevel.RequestAnimationFrame(_ => topLevel.RequestAnimationFrame(ConfirmCover));
-        }, DispatcherPriority.Background);
+        if (e.PropertyName == nameof(VideoTileViewModel.IsPrimaryPlayerActive)) UpdateSurfaceOrder();
+    }
+
+    private void UpdateSurfaceOrder()
+    {
+        if (!OperatingSystem.IsWindows() || _tile is not { PrimaryPlayer: { } primary, SecondaryPlayer: { } secondary } tile)
+            return;
+        NativeVideoSurfaceOrder.ShowInFront(
+            tile.IsPrimaryPlayerActive ? primary.Hwnd : secondary.Hwnd,
+            tile.IsPrimaryPlayerActive ? secondary.Hwnd : primary.Hwnd);
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -111,6 +91,8 @@ public partial class VideoTileView : UserControl
         base.OnAttachedToVisualTree(e);
         if (TopLevel.GetTopLevel(this) is not Window owner) return;
         _ownerWindow = owner;
+        _overlayPosition = null;
+        _overlaySize = default;
         _overlayWindow = new Window
         {
             SystemDecorations = SystemDecorations.None,
@@ -145,10 +127,16 @@ public partial class VideoTileView : UserControl
         }
         _overlayWindow = null;
         _ownerWindow = null;
+        _overlayPosition = null;
+        _overlaySize = default;
         base.OnDetachedFromVisualTree(e);
     }
 
-    private void OnOwnerLayoutUpdated(object? sender, EventArgs e) => UpdateOverlayWindow();
+    private void OnOwnerLayoutUpdated(object? sender, EventArgs e)
+    {
+        UpdateSurfaceOrder();
+        UpdateOverlayWindow();
+    }
     private void OnOwnerPositionChanged(object? sender, PixelPointEventArgs e) => UpdateOverlayWindow();
     private void OnOwnerPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
@@ -168,10 +156,22 @@ public partial class VideoTileView : UserControl
         }
         // Set the full tile bounds before the first Show. Keep this same window mapped across
         // SUB/MAIN handovers instead of letting each VideoView open a SizeToContent window.
-        overlay.Width = VideoHost.Bounds.Width;
-        overlay.Height = VideoHost.Bounds.Height;
+        var size = VideoHost.Bounds.Size;
+        if (size != _overlaySize)
+        {
+            overlay.Width = size.Width;
+            overlay.Height = size.Height;
+            _overlaySize = size;
+        }
+
         overlay.Opacity = owner.Opacity;
-        overlay.Position = VideoHost.PointToScreen(default);
+        var position = VideoHost.PointToScreen(default);
+        if (position != _overlayPosition || !overlay.IsVisible)
+        {
+            overlay.Position = position;
+            _overlayPosition = position;
+        }
+
         if (!overlay.IsVisible) overlay.Show(owner);
     }
 
@@ -196,6 +196,7 @@ public partial class VideoTileView : UserControl
         {
             if (AreVideosAttached() && DataContext is VideoTileViewModel tile)
             {
+                UpdateSurfaceOrder();
                 tile.SetViewReady(true);
             }
         }, DispatcherPriority.Background);

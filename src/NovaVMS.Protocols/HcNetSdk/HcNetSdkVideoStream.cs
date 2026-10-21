@@ -191,8 +191,10 @@ internal sealed class HcNetSdkVideoStream : BlockingPipeStream, IVideoStreamStat
         if (!HcNetSdkNative.SetPlayDataCallback(handle, DataCallback, new IntPtr(_id))
             || !HcNetSdkNative.PlayBackControl(handle, HcNetSdkConstants.PlaybackStart, IntPtr.Zero, 0, IntPtr.Zero, ref outLength))
         {
+            // StopPlayBack may overwrite the thread-local SDK error.
+            var failure = HcNetSdkErrors.LastError(session.Host, session.Port);
             HcNetSdkNative.StopPlayBack(handle);
-            return -1;
+            throw failure;
         }
 
         return handle;

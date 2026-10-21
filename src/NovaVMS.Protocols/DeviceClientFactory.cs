@@ -12,10 +12,32 @@ namespace NovaVMS.Protocols;
 /// </summary>
 public sealed class DeviceClientFactory : IDeviceClientFactory, IDisposable
 {
+    private readonly DeviceAddressSelector _addresses;
+
+    public DeviceClientFactory() : this(new DeviceReachability()) { }
+
+    public DeviceClientFactory(IDeviceReachability reachability)
+    {
+        _addresses = new DeviceAddressSelector(reachability);
+    }
+
+    public string? GetSelectedHost(Device device) => _addresses.GetSelectedHost(device);
+
+    public async Task<IDeviceClient> CreateAsync(Device device, bool rememberAddress = true, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(device);
+        var host = await _addresses.ResolveAsync(device, rememberAddress, cancellationToken).ConfigureAwait(false);
+        return CreateAt(device.ForHost(host));
+    }
+
     public IDeviceClient Create(Device device)
     {
         ArgumentNullException.ThrowIfNull(device);
+        return CreateAt(device.ForHost(GetSelectedHost(device) ?? device.Host));
+    }
 
+    private static IDeviceClient CreateAt(Device device)
+    {
         switch (device.Protocol)
         {
             case DeviceProtocol.Isapi:
@@ -35,6 +57,13 @@ public sealed class DeviceClientFactory : IDeviceClientFactory, IDisposable
                 throw new NotSupportedException(ProtocolText.Format("ProtocolNotSupported", device.Protocol));
             }
         }
+    }
+
+    public void ReleaseUnusedConnections(IReadOnlyCollection<Device> devices)
+    {
+        ArgumentNullException.ThrowIfNull(devices);
+        HcNetSdkSessionPool.RetainOnly(devices);
+        _addresses.RetainOnly(devices);
     }
 
     /// <summary>

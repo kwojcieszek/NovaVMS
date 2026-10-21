@@ -18,6 +18,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="NovaVMS.App.Tests" />
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 

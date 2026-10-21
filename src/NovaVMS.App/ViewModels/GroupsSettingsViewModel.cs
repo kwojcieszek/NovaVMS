@@ -37,12 +37,18 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _editGroupName = string.Empty;
 
-    public GroupsSettingsViewModel(ConfigurationService configuration)
+    public GroupsSettingsViewModel(ConfigurationService configuration, GroupCameraPreviewViewModel preview)
     {
         _configuration = configuration;
+        Preview = preview;
         _configuration.Changed += OnConfigurationChanged;
         Refresh();
     }
+
+    public GroupCameraPreviewViewModel Preview { get; }
+
+    partial void OnSelectedAvailableCameraChanged(CameraDescriptor? value) { if (!_isRefreshing && value is not null) Preview.Select(value); }
+    partial void OnSelectedGroupCameraChanged(CameraDescriptor? value) { if (!_isRefreshing && value is not null) Preview.Select(value); }
 
     public ObservableCollection<CameraGroup> Groups { get; } = new();
 
@@ -55,6 +61,7 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         _configuration.Changed -= OnConfigurationChanged;
+        Preview.Dispose();
     }
 
     [RelayCommand]
@@ -150,6 +157,7 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        Preview.Select(null);
         EditGroupName = value?.Name ?? string.Empty;
         RefreshGroupCameras();
     }
@@ -260,3 +268,4 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
         }
     }
 }
+

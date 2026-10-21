@@ -297,7 +297,7 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
         var node = new ResourceGroupNodeViewModel(this, id, name, kind)
         {
             IsExpanded = filter.Length > 0 || (_expandedGroups.TryGetValue((kind, id), out var expanded)
-                ? expanded : kind == GroupNodeKind.Favorites)
+                && expanded)
         };
 
         foreach (var camera in cameras)

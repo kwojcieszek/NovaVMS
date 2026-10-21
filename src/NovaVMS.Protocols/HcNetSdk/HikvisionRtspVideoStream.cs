@@ -18,6 +18,12 @@ namespace NovaVMS.Protocols.HcNetSdk;
 internal sealed class HikvisionRtspVideoStream : BlockingPipeStream, IVideoStreamStatus
 {
     private static readonly ConcurrentDictionary<HikvisionRtspVideoStream, byte> Active = new();
+    private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(15);
+    // Interleaved frames carry a 16-bit length, so one buffer holds any packet.
+    private readonly byte[] _packet = new byte[ushort.MaxValue];
+    private readonly byte[] _oneByte = new byte[1];
+    private readonly byte[] _framePrefix = new byte[3];
+    private CancellationTokenSource? _idle;
     private readonly Uri _uri;
     private readonly string _username, _password, _key;
     private readonly bool _playback;
@@ -85,6 +91,7 @@ internal sealed class HikvisionRtspVideoStream : BlockingPipeStream, IVideoStrea
             }
             _network = _socket.GetStream();
             _reader = new BufferedStream(_network, 65536);
+            _idle = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
             var describe = await RequestAsync("DESCRIBE", _uri, "Accept: application/sdp\r\n");
             var baseUri = _uri;
             if (describe.Headers.TryGetValue("Content-Base", out var contentBase))
@@ -118,7 +125,7 @@ internal sealed class HikvisionRtspVideoStream : BlockingPipeStream, IVideoStrea
             keepAlive = KeepAliveAsync();
             while (true)
             {
-                var response = await ReadResponseAsync(_stop.Token);
+                var response = await ReadResponseAsync();
                 if (response.Status != 200) throw new IOException("RTSP: session keep-alive failed.");
             }
         }
@@ -141,6 +148,7 @@ internal sealed class HikvisionRtspVideoStream : BlockingPipeStream, IVideoStrea
                 try { await WriteRequestAsync("TEARDOWN", _uri, "", timeout.Token); } catch (Exception) { }
             }
             _socket.Dispose();
+            _idle?.Dispose();
             _decoder?.Dispose();
             Active.TryRemove(this, out _);
         }
@@ -170,7 +178,7 @@ internal sealed class HikvisionRtspVideoStream : BlockingPipeStream, IVideoStrea
         for (var attempt = 0; attempt < 2; attempt++)
         {
             var cseq = await WriteRequestAsync(method, uri, extra, _stop.Token);
-            var response = await ReadResponseAsync(_stop.Token);
+            var response = await ReadResponseAsync();
             if (response.Headers.GetValueOrDefault("CSeq") != cseq.ToString(CultureInfo.InvariantCulture))
                 throw new IOException("RTSP: response sequence mismatch.");
             if (response.Status == 401 && attempt == 0 && response.Headers.TryGetValue("WWW-Authenticate", out var challenge))
@@ -200,20 +208,20 @@ internal sealed class HikvisionRtspVideoStream : BlockingPipeStream, IVideoStrea
         finally { _writeLock.Release(); }
     }
 
-    private async Task<RtspResponse> ReadResponseAsync(CancellationToken cancellationToken)
+    private async Task<RtspResponse> ReadResponseAsync()
     {
-        var one = new byte[1];
+        var one = _oneByte;
         while (true)
         {
-            await ReadWireExactlyAsync(one, cancellationToken);
+            await ReadWireExactlyAsync(one);
             if (one[0] == '$')
             {
-                var prefix = new byte[3];
-                await ReadWireExactlyAsync(prefix, cancellationToken);
+                var prefix = _framePrefix;
+                await ReadWireExactlyAsync(prefix);
                 var length = (prefix[1] << 8) | prefix[2];
-                var packet = new byte[length];
-                await ReadWireExactlyAsync(packet, cancellationToken);
-                if (prefix[0] == _videoChannel) _video?.Accept(packet);
+                // The depacketizer copies what it keeps, so the packet buffer is reused.
+                await ReadWireExactlyAsync(_packet.AsMemory(0, length));
+                if (prefix[0] == _videoChannel) _video?.Accept(_packet.AsSpan(0, length));
                 continue;
             }
             using var header = new MemoryStream();
@@ -222,7 +230,7 @@ internal sealed class HikvisionRtspVideoStream : BlockingPipeStream, IVideoStrea
             while (matched != 4)
             {
                 if (header.Length > 32768) throw new IOException("RTSP headers too large.");
-                await ReadWireExactlyAsync(one, cancellationToken);
+                await ReadWireExactlyAsync(one);
                 header.WriteByte(one[0]);
                 matched = one[0] == "\r\n\r\n"[matched] ? matched + 1 : (one[0] == '\r' ? 1 : 0);
             }
@@ -245,15 +253,17 @@ internal sealed class HikvisionRtspVideoStream : BlockingPipeStream, IVideoStrea
                 && (!int.TryParse(contentLength, out bodyLength) || bodyLength is < 0 or > 65536))
                 throw new IOException("Invalid RTSP response length.");
             var body = new byte[bodyLength];
-            await ReadWireExactlyAsync(body, cancellationToken);
+            await ReadWireExactlyAsync(body);
             return new(code, headers, body);
         }
     }
 
-    private async Task ReadWireExactlyAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+    private async Task ReadWireExactlyAsync(Memory<byte> buffer)
     {
-        using var idle = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        idle.CancelAfter(TimeSpan.FromSeconds(15));
+        // One timer re-armed before every read: the stream ends when the device stops sending,
+        // without allocating a token source per RTP packet.
+        var idle = _idle!;
+        idle.CancelAfter(IdleTimeout);
         await _reader!.ReadExactlyAsync(buffer, idle.Token);
     }
 

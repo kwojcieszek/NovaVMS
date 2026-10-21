@@ -14,4 +14,7 @@ public interface IDeviceClient : IPtzClient, IPlaybackClient, IDisposable
     Task<byte[]> GetSnapshotAsync(int channelNumber, CancellationToken cancellationToken = default);
 
     VideoSource GetLiveSource(int channelNumber, StreamType streamType);
+
+    Task<VideoSource> GetLiveSourceAsync(int channelNumber, StreamType streamType, CancellationToken cancellationToken = default)
+        => Task.Run(() => GetLiveSource(channelNumber, streamType), cancellationToken);
 }

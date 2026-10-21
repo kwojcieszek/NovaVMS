@@ -24,6 +24,11 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     private static readonly TimeSpan DefaultFromTime = TimeSpan.Zero;
     private static readonly TimeSpan DefaultToTime = new(23, 59, 0);
 
+    private readonly AsyncWorkQueue _operations = new();
+    private readonly List<Task> _openings = new();
+    private readonly CancellationTokenSource _lifetime = new();
+    private Task? _disposal;
+    public Task Disposal => _disposal ?? Task.CompletedTask;
     private readonly LibVLC _libVlc;
     private readonly ConfigurationService _configuration;
     private readonly IDeviceClientFactory _clientFactory;
@@ -33,7 +38,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     private CameraReference? _camera;
     private DateTime _playbackStart;
     private bool _isShutDown;
-    private bool _isDisposed;
+    private int _playbackVersion;
 
     [ObservableProperty]
     private string _cameraName = Localizer.Text(NoCameraKey);
@@ -153,34 +158,42 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         }
 
         _isShutDown = true;
+        _lifetime.Cancel();
         StopPlayer();
+        SearchCommand.NotifyCanExecuteChanged();
     }
 
-    public void Dispose()
+    public void Dispose() => _disposal ??= DisposeCoreAsync();
+
+    private async Task DisposeCoreAsync()
     {
-        if (_isDisposed)
-        {
-            return;
-        }
-
-        _isDisposed = true;
         Shutdown();
-
-        // Detach the video view first; disposing a player still attached to a view crashes the runtime.
+        try { await Task.WhenAll(_openings); }
+        catch (Exception exception) { UnhandledExceptionLogger.Log("Finishing recording operations", exception); }
+        await _operations.WhenIdle;
         VideoPlayer = null;
         OnPropertyChanged(nameof(VideoPlayer));
-
         _positionTimer.Tick -= OnPositionTimerTick;
         _player.EncounteredError -= OnPlayerError;
         _player.EndReached -= OnPlayerEndReached;
-        _player.Dispose();
+        Localizer.Instance.LanguageChanged -= OnLanguageChanged;
+        await _operations.RunAsync(_player.Dispose);
+        _lifetime.Dispose();
     }
 
     [RelayCommand(CanExecute = nameof(CanSearch))]
-    private async Task SearchAsync()
+    private Task SearchAsync()
+    {
+        _openings.RemoveAll(task => task.IsCompleted);
+        var search = SearchCoreAsync();
+        _openings.Add(search);
+        return search;
+    }
+
+    private async Task SearchCoreAsync()
     {
         var camera = ResolveCamera();
-        if (camera is null)
+        if (camera is null || _isShutDown)
         {
             return;
         }
@@ -191,17 +204,18 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
         try
         {
-            using var client = _clientFactory.Create(camera.Device);
+            using var client = await _clientFactory.CreateAsync(camera.Device, cancellationToken: _lifetime.Token);
             if (client is IDeviceConnectionClient connectionClient)
             {
-                var connection = await connectionClient.TryConnectAsync();
+                var connection = await connectionClient.TryConnectAsync(_lifetime.Token);
                 if (!connection.Success)
                 {
                     StatusText = DeviceOperationErrors.Report("Searching recordings", connection.Error!);
                     return;
                 }
             }
-            var found = await client.SearchRecordingsAsync(camera.Channel.Number, from, to);
+            var found = await client.SearchRecordingsAsync(camera.Channel.Number, from, to, _lifetime.Token);
+            if (_isShutDown || !Equals(_camera, new CameraReference { DeviceId = camera.Device.Id, ChannelNumber = camera.Channel.Number })) return;
 
             foreach (var segment in found)
             {
@@ -212,6 +226,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
                 ? Localizer.Format("Playback_NoRecordings", from.ToString("HH:mm"), to.ToString("HH:mm"))
                 : Localizer.Format("Playback_Found", found.Count);
         }
+        catch (OperationCanceledException) when (_isShutDown) { }
         catch (Exception exception) when (DeviceFailure.IsExpected(exception))
         {
             StatusText = DeviceOperationErrors.Report("Searching recordings", exception);
@@ -226,22 +241,26 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand(CanExecute = nameof(HasCamera))]
-    private void Seek(double seconds)
+    private async Task SeekAsync(double seconds)
     {
-        PlayFrom(Day.AddSeconds(Math.Clamp(seconds, 0, LastSecondOfDay)));
+        await PlayFromAsync(Day.AddSeconds(Math.Clamp(seconds, 0, LastSecondOfDay)));
     }
 
     [RelayCommand(CanExecute = nameof(IsPlaying))]
     private void TogglePause()
     {
+        if (_isShutDown) return;
         IsPaused = !IsPaused;
-        _player.SetPause(IsPaused);
+        var paused = IsPaused;
+        var version = _playbackVersion;
+        _ = _operations.RunAsync(() => { if (!_isShutDown && version == _playbackVersion) _player.SetPause(paused); });
         StatusText = Localizer.Text(IsPaused ? "Playback_Paused" : "Playback_Playing");
     }
 
     [RelayCommand(CanExecute = nameof(IsPlaying))]
     private void Stop()
     {
+        if (_isShutDown) return;
         StopPlayer();
         StatusText = Localizer.Text("Playback_Stopped");
     }
@@ -256,7 +275,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     private bool CanSearch()
     {
-        return HasCamera && SelectedDate is not null && FromTime is not null && ToTime is not null && FromTime < ToTime;
+        return !_isShutDown && HasCamera && SelectedDate is not null && FromTime is not null && ToTime is not null && FromTime < ToTime;
     }
 
     private (DateTime From, DateTime To) GetSearchRange()
@@ -276,6 +295,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedDateChanged(DateTime? value)
     {
+        if (_isShutDown) return;
         StopPlayer();
         Segments.Clear();
         TimelinePosition = RangeStartSeconds;
@@ -304,7 +324,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         }
 
         var (from, _) = GetSearchRange();
-        PlayFrom(value.Start < from ? from : value.Start);
+        _ = PlayFromAsync(value.Start < from ? from : value.Start);
     }
 
     private void ValidateRange()
@@ -315,7 +335,15 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void PlayFrom(DateTime start)
+    private Task PlayFromAsync(DateTime start)
+    {
+        _openings.RemoveAll(task => task.IsCompleted);
+        var opening = PlayFromCoreAsync(start);
+        _openings.Add(opening);
+        return opening;
+    }
+
+    private async Task PlayFromCoreAsync(DateTime start)
     {
         var camera = ResolveCamera();
         if (camera is null || _isShutDown)
@@ -324,16 +352,27 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         }
 
         StopPlayer();
+        var version = _playbackVersion;
 
         try
         {
-            using var client = _clientFactory.Create(camera.Device);
+            using var client = await _clientFactory.CreateAsync(camera.Device, cancellationToken: _lifetime.Token);
             var end = start.Date.AddSeconds(LastSecondOfDay);
-            var source = client.GetPlaybackSource(camera.Channel.Number, start, end);
-            _media = VideoMedia.Create(_libVlc, source, camera.Device.Username, camera.Device.Password, _configuration.Current.Settings.GetNetworkCachingMs(StreamType.Main));
+            var source = await client.GetPlaybackSourceAsync(camera.Channel.Number, start, end, _lifetime.Token);
+            if (_isShutDown || version != _playbackVersion) return;
+            var caching = _configuration.Current.Settings.GetNetworkCachingMs(StreamType.Main);
+            var media = await _operations.RunAsync(() => VideoMedia.Create(_libVlc, source, camera.Device.Username, camera.Device.Password, caching));
+            if (_isShutDown || version != _playbackVersion)
+            {
+                await _operations.RunAsync(media.Dispose);
+                return;
+            }
+            _media = media;
 
             _playbackStart = start;
-            _player.Play(_media.Media);
+            var started = await _operations.RunAsync(() => !_isShutDown && version == _playbackVersion && _player.Play(media.Media));
+            if (_isShutDown || version != _playbackVersion) return;
+            if (!started) { StopPlayer(); StatusText = Localizer.Text("Playback_Failed"); return; }
 
             IsPlaying = true;
             IsPaused = false;
@@ -342,19 +381,21 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
             StatusText = Localizer.Format("Playback_PlayingFrom", start.ToString("HH:mm:ss"));
             _positionTimer.Start();
         }
-        catch (Exception exception) when (DeviceFailure.IsExpected(exception))
+        catch (OperationCanceledException) when (_isShutDown) { }
+        catch (Exception exception)
         {
+            if (_isShutDown || version != _playbackVersion) return;
             StatusText = DeviceOperationErrors.Report("Opening recording playback", exception);
         }
     }
 
     private void StopPlayer()
     {
+        _playbackVersion++;
         _positionTimer.Stop();
-        _media?.StopTransfer();
-        _player.Stop();
-        _media?.Dispose();
+        var media = _media;
         _media = null;
+        _ = _operations.RunAsync(() => VideoMedia.Stop(_player, media));
 
         IsPlaying = false;
         IsPaused = false;
@@ -388,7 +429,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (_isShutDown)
+            if (_isShutDown || _media is null)
             {
                 return;
             }
@@ -404,7 +445,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (_isShutDown)
+            if (_isShutDown || _media is null)
             {
                 return;
             }

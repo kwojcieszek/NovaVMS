@@ -4,11 +4,13 @@
              xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:vm="using:NovaVMS.App.ViewModels"
              xmlns:models="using:NovaVMS.App.Models"
+             xmlns:views="using:NovaVMS.App.Views"
              xmlns:core="using:NovaVMS.Core.Models"
              x:Class="NovaVMS.App.Views.GroupsSettingsView"
              x:DataType="vm:GroupsSettingsViewModel">
 
-  <Grid ColumnDefinitions="*,16,*,16,*" Margin="8">
+  <Grid RowDefinitions="*,12,260" Margin="8">
+  <Grid ColumnDefinitions="*,16,*,16,*">
 
     <!-- Groups -->
     <DockPanel Grid.Column="0">
@@ -98,4 +100,15 @@
     </DockPanel>
 
   </Grid>
+    <Grid Grid.Row="2" ColumnDefinitions="*,12,*">
+      <views:VideoTileView DataContext="{Binding Preview.Tile}" />
+      <StackPanel Grid.Column="2" Spacing="8" VerticalAlignment="Center">
+        <TextBlock Classes="sectionTitle" Text="{l:Tr Groups_Preview}" />
+        <TextBlock Text="{l:Tr Groups_PreviewHint}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding Preview.Message}" TextWrapping="Wrap" />
+      </StackPanel>
+    </Grid>
+  </Grid>
 </UserControl>
+
+

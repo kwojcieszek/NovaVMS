@@ -70,6 +70,13 @@
                      Increment="100"
                      FormatString="0" />
 
+      <TextBlock Classes="muted" TextWrapping="Wrap" Text="{l:Tr General_HiddenTileRelease}" />
+      <NumericUpDown Value="{Binding HiddenTileReleaseSeconds}"
+                     Minimum="{Binding MinimumHiddenTileRelease}"
+                     Maximum="{Binding MaximumHiddenTileRelease}"
+                     Increment="10"
+                     FormatString="0" />
+
       <CheckBox Content="{l:Tr General_ShowTitles}" IsChecked="{Binding ShowTileTitles}" />
       <CheckBox Content="{l:Tr General_ShowSearch}" IsChecked="{Binding ShowCameraSearch}" />
 

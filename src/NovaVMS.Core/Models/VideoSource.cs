@@ -7,6 +7,7 @@ namespace NovaVMS.Core.Models;
 public sealed class VideoSource
 {
     private readonly Func<bool, Stream>? _openStream;
+    private Func<(Uri Uri, IDisposable Lifetime)>? _openUri;
 
     private VideoSource(Uri? uri, Func<bool, Stream>? openStream)
     {
@@ -25,6 +26,25 @@ public sealed class VideoSource
     {
         ArgumentNullException.ThrowIfNull(uri);
         return new VideoSource(uri, null);
+    }
+
+    /// <summary>Opens an owned network session for each playback attempt.</summary>
+    public static VideoSource FromUri(Func<(Uri Uri, IDisposable Lifetime)> openUri)
+    {
+        ArgumentNullException.ThrowIfNull(openUri);
+        return new VideoSource(null, null) { _openUri = openUri };
+    }
+
+    public Uri OpenUri(out IDisposable? lifetime)
+    {
+        if (_openUri is not null)
+        {
+            var session = _openUri();
+            lifetime = session.Lifetime;
+            return session.Uri;
+        }
+        lifetime = null;
+        return Uri ?? throw new InvalidOperationException("The video source has no network address.");
     }
 
     /// <summary>

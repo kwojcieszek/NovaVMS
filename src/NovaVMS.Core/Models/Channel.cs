@@ -8,6 +8,7 @@ namespace NovaVMS.Core.Models;
 /// </summary>
 public sealed class Channel
 {
+    internal Channel Copy() => (Channel)MemberwiseClone();
     public int Number { get; set; }
 
     public string Name { get; set; } = string.Empty;

@@ -13,7 +13,7 @@ namespace NovaVMS.Protocols.Onvif;
 /// media profiles, RTSP stream addresses and PTZ). Each video source is one channel; its highest
 /// resolution profile is the main stream and the next one the sub stream. Stream addresses are stored
 /// on the channel during synchronization, so starting live view needs no request to the device.
-/// Recording playback (Profile G) is not supported.
+/// Recording search and replay use Profile G when advertised by the device.
 /// </summary>
 public sealed class OnvifDeviceClient : IDeviceClient
 {
@@ -21,6 +21,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
 
     private readonly Device _device;
     private readonly OnvifSoapClient _soap;
+    private readonly OnvifRecordingService _recordings;
     private Uri? _mediaServiceUri;
     private Uri? _ptzServiceUri;
     private bool _servicesLoaded;
@@ -31,6 +32,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
 
         _device = device;
         _soap = new OnvifSoapClient(device);
+        _recordings = new OnvifRecordingService(device, _soap.CallAsync);
     }
 
     public async Task<DeviceInfo> GetDeviceInfoAsync(CancellationToken cancellationToken = default)
@@ -112,18 +114,36 @@ public sealed class OnvifDeviceClient : IDeviceClient
             throw new NotSupportedException(ProtocolText.Format("OnvifNoStream", channelNumber));
         }
 
+        // Cached ONVIF addresses can have been discovered using the other network address.
+        uri = new UriBuilder(uri) { Host = _device.Host }.Uri;
         return string.IsNullOrEmpty(_device.StreamEncryptionKey) ? VideoSource.FromUri(uri)
             : NovaVMS.Protocols.HcNetSdk.HikvisionRtspVideoStream.CreateSource(uri, _device, playback: false);
     }
 
-    public Task<IReadOnlyList<RecordingSegment>> SearchRecordingsAsync(int channelNumber, DateTime from, DateTime to, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<RecordingSegment>> SearchRecordingsAsync(int channelNumber, DateTime from, DateTime to, CancellationToken cancellationToken = default)
     {
-        throw new NotSupportedException(ProtocolText.Get("OnvifNoPlayback"));
+        var (source, profiles) = await GetRecordingProfilesAsync(channelNumber, cancellationToken).ConfigureAwait(false);
+        return await _recordings.SearchAsync(channelNumber, source, profiles, from, to, cancellationToken).ConfigureAwait(false);
     }
 
     public VideoSource GetPlaybackSource(int channelNumber, DateTime start, DateTime end)
     {
-        throw new NotSupportedException(ProtocolText.Get("OnvifNoPlayback"));
+        return GetPlaybackSourceAsync(channelNumber, start, end).GetAwaiter().GetResult();
+    }
+
+    public async Task<VideoSource> GetPlaybackSourceAsync(int channelNumber, DateTime start, DateTime end, CancellationToken cancellationToken = default)
+    {
+        var (source, profiles) = await GetRecordingProfilesAsync(channelNumber, cancellationToken).ConfigureAwait(false);
+        return await _recordings.GetSourceAsync(source, profiles, start, end, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<(string Source, IReadOnlyList<string> Profiles)> GetRecordingProfilesAsync(int channelNumber, CancellationToken cancellationToken)
+    {
+        var configured = GetProfileToken(channelNumber);
+        var profiles = await GetProfilesAsync(cancellationToken).ConfigureAwait(false);
+        var source = profiles.FirstOrDefault(profile => profile.Token == configured)?.SourceToken
+            ?? throw new NotSupportedException(ProtocolText.Format("OnvifNoStream", channelNumber));
+        return (source, profiles.Where(profile => profile.SourceToken == source).Select(profile => profile.Token).ToList());
     }
 
     public async Task PtzMoveAsync(int channelNumber, int pan, int tilt, int zoom, CancellationToken cancellationToken = default)

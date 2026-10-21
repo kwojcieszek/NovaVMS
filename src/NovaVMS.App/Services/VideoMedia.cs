@@ -11,11 +11,12 @@ public sealed class VideoMedia : IDisposable
 {
     private readonly Stream? _stream;
     private readonly StreamMediaInput? _input;
+    private IDisposable? _networkSession;
 
     private VideoMedia(Media media, Stream? stream, StreamMediaInput? input)
     {
-        // Apply to the input as well as LibVLC defaults. Internal handover snapshots must
-        // never insert VLC's picture-in-picture preview or filename into the live output.
+        // Apply to the input as well as LibVLC defaults. User snapshots must never
+        // insert VLC's picture-in-picture preview or filename into the live output.
         media.AddOption(":no-snapshot-preview");
         media.AddOption(":no-osd");
         media.AddOption(":no-video-title-show");
@@ -26,7 +27,8 @@ public sealed class VideoMedia : IDisposable
 
     public Media Media { get; }
 
-    public string? ErrorMessage => (_stream as IVideoStreamStatus)?.ErrorMessage;
+    public string? ErrorMessage => (_stream as IVideoStreamStatus)?.ErrorMessage
+        ?? (_networkSession as IVideoStreamStatus)?.ErrorMessage;
 
     public static VideoMedia Create(LibVLC libVlc, VideoSource source, string username, string password, int networkCachingMs, bool withAudio = true)
     {
@@ -34,24 +36,48 @@ public sealed class VideoMedia : IDisposable
 
         if (source.IsStream)
         {
+            // The device transfer starts when the stream opens; it must end if the media cannot be created.
             var stream = source.OpenStream(withAudio);
-            var input = new StreamMediaInput(stream);
-            var streamMedia = new Media(libVlc, input);
-            streamMedia.AddOption($":network-caching={networkCachingMs}");
-            AddAudioOption(streamMedia, withAudio);
-            return new VideoMedia(streamMedia, stream, input);
+            StreamMediaInput? input = null;
+            Media? streamMedia = null;
+            try
+            {
+                input = new StreamMediaInput(stream);
+                streamMedia = new Media(libVlc, input);
+                streamMedia.AddOption($":network-caching={networkCachingMs}");
+                AddAudioOption(streamMedia, withAudio);
+                return new VideoMedia(streamMedia, stream, input);
+            }
+            catch
+            {
+                stream.Dispose();
+                streamMedia?.Dispose();
+                input?.Dispose();
+                throw;
+            }
         }
 
         // Credentials are passed as options so they never appear in the URL or in logs.
-        var media = new Media(libVlc, source.Uri!);
-        media.AddOption($":rtsp-user={username}");
-        media.AddOption($":rtsp-pwd={password}");
-        media.AddOption(":rtsp-tcp");
-        // High-resolution I-frames can exceed Live555's 250 KB default and get truncated.
-        media.AddOption(":rtsp-frame-buffer-size=4194304");
-        media.AddOption($":network-caching={networkCachingMs}");
-        AddAudioOption(media, withAudio);
-        return new VideoMedia(media, null, null);
+        var uri = source.OpenUri(out var networkSession);
+        Media? media = null;
+        try
+        {
+            media = new Media(libVlc, uri);
+            media.AddOption($":rtsp-user={username}");
+            media.AddOption($":rtsp-pwd={password}");
+            media.AddOption(":rtsp-tcp");
+            // High-resolution I-frames can exceed Live555's 250 KB default and get truncated.
+            media.AddOption(":rtsp-frame-buffer-size=4194304");
+            media.AddOption($":network-caching={networkCachingMs}");
+            AddAudioOption(media, withAudio);
+            return new VideoMedia(media, null, null) { _networkSession = networkSession };
+        }
+        catch
+        {
+            networkSession?.Dispose();
+            media?.Dispose();
+            throw;
+        }
     }
 
     /// <summary>
@@ -73,11 +99,35 @@ public sealed class VideoMedia : IDisposable
     public void StopTransfer()
     {
         _stream?.Dispose();
+        _networkSession?.Dispose();
+    }
+
+    /// <summary>
+    /// Ends the transfer, stops the player and releases the media, in this order, even if a step fails.
+    /// Blocking: run it off the UI thread.
+    /// </summary>
+    public static void Stop(MediaPlayer player, VideoMedia? media)
+    {
+        try
+        {
+            media?.StopTransfer();
+        }
+        finally
+        {
+            try
+            {
+                player.Stop();
+            }
+            finally
+            {
+                media?.Dispose();
+            }
+        }
     }
 
     public void Dispose()
     {
-        _stream?.Dispose();
+        StopTransfer();
         Media.Dispose();
         _input?.Dispose();
     }

@@ -4,7 +4,7 @@
              xmlns:controls="using:NovaVMS.App.Controls"
              x:Class="NovaVMS.App.App"
              Name="NovaVMS"
-             RequestedThemeVariant="Default">
+             RequestedThemeVariant="Dark">
 
   <Application.Resources>
     <ResourceDictionary>

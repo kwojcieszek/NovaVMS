@@ -109,6 +109,8 @@
           </DataGridTemplateColumn>
           <DataGridTextColumn Header="{l:Tr Devices_ColumnName}" Binding="{Binding Name}" Width="2*" FontWeight="SemiBold" />
           <DataGridTextColumn Header="{l:Tr Devices_ColumnAddress}" Binding="{Binding Address}" Width="1.4*" />
+          <DataGridTextColumn Header="{l:Tr Devices_SecondaryHost}" Binding="{Binding SecondaryAddress}" Width="1.4*" />
+          <DataGridTextColumn Header="{l:Tr Devices_ActiveAddress}" Binding="{Binding ActiveAddress}" Width="1.4*" />
           <DataGridTextColumn Header="{l:Tr Devices_ColumnPort}" Binding="{Binding Port}" Width="Auto" />
           <DataGridTextColumn Header="{l:Tr Devices_ColumnProtocol}" Binding="{Binding Protocol}" Width="1.4*" />
           <DataGridTextColumn Header="{l:Tr Devices_ColumnType}" Binding="{Binding Type}" Width="Auto" />
@@ -142,6 +144,10 @@
 
         <TextBlock Classes="muted" Text="{l:Tr Devices_Host}" />
         <TextBox Watermark="192.168.1.64" Text="{Binding EditHost}" />
+
+        <TextBlock Classes="muted" Text="{l:Tr Devices_SecondaryHost}" />
+        <TextBox Text="{Binding EditSecondaryHost}" Watermark="{l:Tr Devices_SecondaryHostWatermark}" />
+        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Devices_SecondaryHostHint}" />
 
         <Grid ColumnDefinitions="*,12,*" IsVisible="{Binding IsNetworkProtocol}">
           <StackPanel Grid.Column="0" Spacing="6">

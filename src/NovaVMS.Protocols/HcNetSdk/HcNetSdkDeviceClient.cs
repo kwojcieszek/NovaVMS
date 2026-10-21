@@ -8,7 +8,7 @@ namespace NovaVMS.Protocols.HcNetSdk;
 
 /// <summary>
 /// Client for Hikvision devices over the device network protocol (port 8000) using the vendor's HCNetSDK library.
-/// Video comes from the SDK stream callbacks; configuration, recording search and PTZ use ISAPI requests
+/// Video and recording search use native SDK calls; configuration and PTZ use ISAPI requests
 /// tunnelled through the same connection. Devices without ISAPI fall back to the data reported at login.
 /// </summary>
 public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClient
@@ -20,7 +20,7 @@ public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClien
     private readonly HcNetSdkIsapiTransport _transport;
     private readonly IsapiDeviceService _deviceService;
     private readonly IsapiPtzService _ptz;
-    private readonly IsapiRecordingService _recordings;
+    private readonly HcNetSdkRecordingService _recordings = new(new HcNetSdkRecordingApi());
     private readonly Dictionary<int, uint> _activePtzCommands = new();
 
     public HcNetSdkDeviceClient(Device device)
@@ -31,7 +31,6 @@ public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClien
         _transport = new HcNetSdkIsapiTransport(device);
         _deviceService = new IsapiDeviceService(_transport);
         _ptz = new IsapiPtzService(_transport, device);
-        _recordings = new IsapiRecordingService(_transport);
     }
 
     public async Task<DeviceConnectionResult> TryConnectAsync(CancellationToken cancellationToken = default)
@@ -103,9 +102,10 @@ public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClien
             decodeVideo: streamType == StreamType.Main && !withAudio));
     }
 
-    public Task<IReadOnlyList<RecordingSegment>> SearchRecordingsAsync(int channelNumber, DateTime from, DateTime to, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<RecordingSegment>> SearchRecordingsAsync(int channelNumber, DateTime from, DateTime to, CancellationToken cancellationToken = default)
     {
-        return _recordings.SearchAsync(channelNumber, from, to, cancellationToken);
+        var session = await HcNetSdkSessionPool.AcquireAsync(_device, cancellationToken).ConfigureAwait(false);
+        return await _recordings.SearchAsync(session, channelNumber, from, to, cancellationToken).ConfigureAwait(false);
     }
 
     public VideoSource GetPlaybackSource(int channelNumber, DateTime start, DateTime end)

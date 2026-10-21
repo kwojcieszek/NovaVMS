@@ -32,7 +32,7 @@
         </StackPanel>
         <StackPanel Orientation="Horizontal">
           <StackPanel Orientation="Horizontal" Spacing="8" Margin="14,0,18,0" VerticalAlignment="Center">
-            <mi:MaterialIcon Kind="Cctv" Width="20" Height="20" Foreground="{DynamicResource NovaAccent}" />
+            <Image Source="/Assets/novavms.png" Width="28" Height="28" Stretch="Uniform" />
             <TextBlock Text="NovaVMS" FontSize="15" FontWeight="Bold" VerticalAlignment="Center" />
           </StackPanel>
           <Button Classes="tab"
@@ -214,3 +214,4 @@
     </Grid>
   </DockPanel>
 </Window>
+

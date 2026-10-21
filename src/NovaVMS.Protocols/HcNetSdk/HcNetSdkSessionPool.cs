@@ -24,7 +24,7 @@ internal static class HcNetSdkSessionPool
 
     public static async Task<HcNetSdkLoginResult> TryAcquireAsync(Device device, CancellationToken cancellationToken)
     {
-        HcNetSdkRuntime.EnsureInitialized();
+        await Task.Run(HcNetSdkRuntime.EnsureInitialized, cancellationToken).ConfigureAwait(false);
 
         var key = BuildKey(device);
         SemaphoreSlim loginLock;
@@ -89,6 +89,46 @@ internal static class HcNetSdkSessionPool
         }
 
         HcNetSdkNative.Logout(session.UserId);
+    }
+
+    /// <summary>
+    /// Logs out of sessions whose device was removed, no longer uses the SDK protocol or has other
+    /// connection settings (address, port or credentials). Streams of such a session end and reconnect.
+    /// </summary>
+    public static void RetainOnly(IEnumerable<Device> devices)
+    {
+        var current = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var device in devices.Where(device => device.Protocol == DeviceProtocol.HikvisionSdk))
+        {
+            // A session can be open on either configured address.
+            current.Add(BuildKey(device));
+            if (!string.IsNullOrWhiteSpace(device.SecondaryHost))
+            {
+                current.Add(BuildKey(device.ForHost(device.SecondaryHost)));
+            }
+        }
+
+        List<HcNetSdkSession> stale;
+        lock (SyncRoot)
+        {
+            stale = new List<HcNetSdkSession>();
+            foreach (var pair in Sessions.Where(pair => !current.Contains(pair.Key)).ToList())
+            {
+                Sessions.Remove(pair.Key);
+                stale.Add(pair.Value);
+            }
+
+            // A login in progress keeps its own reference to the lock; only the dictionary entry is dropped.
+            foreach (var key in LoginLocks.Keys.Where(key => !current.Contains(key)).ToList())
+            {
+                LoginLocks.Remove(key);
+            }
+        }
+
+        foreach (var session in stale)
+        {
+            HcNetSdkNative.Logout(session.UserId);
+        }
     }
 
     public static void LogoutAll()

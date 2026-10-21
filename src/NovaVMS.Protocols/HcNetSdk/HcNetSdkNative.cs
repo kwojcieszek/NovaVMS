@@ -60,6 +60,15 @@ internal static class HcNetSdkNative
     [DllImport(HcNetSdkConstants.LibraryName, EntryPoint = "NET_DVR_StopPlayBack")]
     public static extern bool StopPlayBack(int playHandle);
 
+    [DllImport(HcNetSdkConstants.LibraryName, EntryPoint = "NET_DVR_FindFile_V30")]
+    public static extern int FindFile(int userId, ref NetDvrFileCondition condition);
+
+    [DllImport(HcNetSdkConstants.LibraryName, EntryPoint = "NET_DVR_FindNextFile_V30")]
+    public static extern int FindNextFile(int findHandle, out NetDvrFindData data);
+
+    [DllImport(HcNetSdkConstants.LibraryName, EntryPoint = "NET_DVR_FindClose_V30")]
+    public static extern bool FindClose(int findHandle);
+
     [DllImport(HcNetSdkConstants.LibraryName, EntryPoint = "NET_DVR_STDXMLConfig")]
     public static extern bool StdXmlConfig(int userId, ref NetDvrXmlConfigInput input, ref NetDvrXmlConfigOutput output);
 

@@ -6,12 +6,34 @@ using Microsoft.Extensions.DependencyInjection;
 using NovaVMS.App.Services;
 using NovaVMS.App.ViewModels;
 using NovaVMS.App.Views;
+using NovaVMS.Core.Abstractions;
 
 namespace NovaVMS.App;
 
 public partial class App : Application
 {
     private ServiceProvider? _services;
+    private Task? _serviceDisposal;
+
+    internal Task DisposeServicesAsync() => _serviceDisposal ??= DisposeServicesCoreAsync();
+
+    private async Task DisposeServicesCoreAsync()
+    {
+        var services = _services;
+        _services = null;
+        if (services is null) return;
+        var factory = services.GetService<IDeviceClientFactory>();
+        var libVlc = services.GetService<LibVLCSharp.Shared.LibVLC>();
+        // Native resources are idempotently released in the background. Dispose the
+        // provider on the UI thread afterwards: transient settings pages own UI timers.
+        await Task.Run(() =>
+        {
+            (factory as IDisposable)?.Dispose();
+            libVlc?.Dispose();
+        });
+        services.Dispose();
+        await UnhandledExceptionLogger.FlushAsync();
+    }
 
     public override void Initialize()
     {
@@ -31,6 +53,7 @@ public partial class App : Application
             _services.GetRequiredService<ThemeService>();
             _services.GetRequiredService<LanguageService>();
             _services.GetRequiredService<SdkLibraryService>();
+            _services.GetRequiredService<DeviceConnectionCleanupService>();
 
             var viewModel = _services.GetRequiredService<MainWindowViewModel>();
 

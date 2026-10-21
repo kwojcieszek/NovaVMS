@@ -4,6 +4,7 @@ using NovaVMS.App.ViewModels;
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Infrastructure.Import;
 using NovaVMS.Infrastructure.Storage;
+using NovaVMS.Infrastructure.Sync;
 using NovaVMS.Protocols;
 using NovaVMS.Protocols.Onvif;
 
@@ -20,6 +21,8 @@ internal static class ServiceConfiguration
 
         services.AddSingleton<IConfigurationSerializer, JsonConfigurationSerializer>();
         services.AddSingleton<IConfigurationStore>(provider => new JsonConfigurationStore(provider.GetRequiredService<IConfigurationSerializer>()));
+        services.AddSingleton<ISettingsSyncOptionsStore, SettingsSyncOptionsStore>();
+        services.AddSingleton<IRemoteSettingsStoreFactory, RemoteSettingsStoreFactory>();
         services.AddSingleton<IDeviceDiscovery, OnvifDiscovery>();
         services.AddSingleton<IDeviceClientFactory, DeviceClientFactory>();
         services.AddSingleton<IDeviceReachability, DeviceReachability>();
@@ -29,6 +32,8 @@ internal static class ServiceConfiguration
 
         services.AddSingleton<ConfigurationService>();
         services.AddSingleton<DeviceSyncService>();
+        services.AddSingleton<SettingsSyncService>();
+        services.AddSingleton<DeviceConnectionCleanupService>();
         services.AddSingleton<StatusBarService>();
         services.AddSingleton<ThemeService>();
         services.AddSingleton<LanguageService>();
@@ -41,12 +46,31 @@ internal static class ServiceConfiguration
         services.AddSingleton<PtzViewModel>();
         services.AddSingleton<MainWindowViewModel>();
 
-        services.AddTransient<DevicesSettingsViewModel>();
-        services.AddTransient<GroupsSettingsViewModel>();
-        services.AddTransient<GeneralSettingsViewModel>();
-        services.AddTransient<SettingsWindowViewModel>();
-        services.AddSingleton<Func<SettingsWindowViewModel>>(provider => () => provider.GetRequiredService<SettingsWindowViewModel>());
+        // Settings pages live in a scope per settings window. Resolved from the root provider, disposable
+        // transients would be kept by it until the application closes, including the preview's video players.
+        services.AddScoped<DevicesSettingsViewModel>();
+        services.AddScoped<GroupCameraPreviewViewModel>();
+        services.AddScoped<GroupsSettingsViewModel>();
+        services.AddScoped<GeneralSettingsViewModel>();
+        services.AddScoped<SyncSettingsViewModel>();
+        services.AddScoped<SettingsWindowViewModel>();
+        services.AddSingleton<Func<SettingsWindowViewModel>>(provider => () =>
+        {
+            var scope = provider.CreateScope();
+            try
+            {
+                var viewModel = scope.ServiceProvider.GetRequiredService<SettingsWindowViewModel>();
+                viewModel.OwnScope(scope);
+                return viewModel;
+            }
+            catch
+            {
+                scope.Dispose();
+                throw;
+            }
+        });
 
         return services.BuildServiceProvider();
     }
 }
+

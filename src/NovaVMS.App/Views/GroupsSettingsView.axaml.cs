@@ -1,11 +1,20 @@
+using Avalonia;
 using Avalonia.Controls;
+using NovaVMS.App.ViewModels;
 
 namespace NovaVMS.App.Views;
 
 public partial class GroupsSettingsView : UserControl
 {
-    public GroupsSettingsView()
+    public GroupsSettingsView() => InitializeComponent();
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        InitializeComponent();
+        base.OnAttachedToVisualTree(e);
+        if (DataContext is GroupsSettingsViewModel vm) vm.Preview.SetActive(true);
+    }
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        if (DataContext is GroupsSettingsViewModel vm) vm.Preview.SetActive(false);
+        base.OnDetachedFromVisualTree(e);
     }
 }
