@@ -24,4 +24,9 @@ public interface ITileHost
     void ReportMainAspectRatio(CameraReference camera, string aspectRatio);
 
     void ReportVideoHeight(VideoTileViewModel tile) { }
+
+    /// <summary>
+    /// Whether pictures are stretched to fill their tiles instead of keeping the camera's proportions.
+    /// </summary>
+    bool StretchVideo => false;
 }

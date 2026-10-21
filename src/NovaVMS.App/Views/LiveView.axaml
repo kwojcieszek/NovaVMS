@@ -11,7 +11,8 @@
   <DockPanel>
 
     <!-- Toolbar below the grid -->
-    <Border DockPanel.Dock="Bottom" Padding="8,4" Background="{DynamicResource NovaPanelBackground}">
+    <Border DockPanel.Dock="Bottom" Padding="8,4" Background="{DynamicResource NovaPanelBackground}"
+            IsVisible="{Binding !IsVideoOnly}">
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
           <Button Classes="toolbar"
@@ -31,14 +32,20 @@
             </ComboBox.ItemTemplate>
           </ComboBox>
           <Button Classes="toolbar"
+                  Command="{Binding ShowVideoOnlyCommand}"
+                  ToolTip.Tip="{l:Tr Live_VideoOnlyTip}">
+            <mi:MaterialIconText Kind="MonitorScreenshot" Text="{l:Tr Live_VideoOnly}" />
+          </Button>
+          <Button Classes="toolbar"
                   Click="OnFullScreenClick"
                   ToolTip.Tip="{l:Tr Live_FullScreenTip}">
             <mi:MaterialIconText Kind="Fullscreen" Text="{l:Tr Live_FullScreen}" />
           </Button>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="2">
-          <Button Classes="toolbar" Command="{Binding SaveNewViewCommand}" ToolTip.Tip="{l:Tr Views_SaveNew}">
-            <mi:MaterialIconText Kind="ContentSavePlusOutline" Text="{l:Tr Views_SaveNew}" />
+          <Button Classes="toolbar" Command="{Binding AddNewViewCommand}" ToolTip.Tip="{l:Tr Views_AddNew}"
+                  IsVisible="{Binding Session.CanEditViews}">
+            <mi:MaterialIconText Kind="ViewGridPlusOutline" Text="{l:Tr Views_AddNew}" />
           </Button>
           <TextBlock Text="{Binding ActiveSavedViewName}" MaxWidth="110" TextTrimming="CharacterEllipsis"
                      VerticalAlignment="Center" ToolTip.Tip="{l:Tr Views_AutoSave}" />

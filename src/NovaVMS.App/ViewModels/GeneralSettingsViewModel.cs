@@ -19,8 +19,11 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     private const int MaxNetworkCachingMs = 5000;
     private const int MinHiddenTileReleaseSeconds = 0;
     private const int MaxHiddenTileReleaseSeconds = 3600;
+    private const int MinFrameRate = 0;
+    private const int MaxFrameRate = 60;
 
     private readonly ConfigurationService _configuration;
+    private readonly LocalSettingsService _localSettings;
     private readonly IDialogService _dialogs;
     // Set while values are copied from the configuration, so loading them does not trigger a save.
     private bool _isLoading;
@@ -40,6 +43,9 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     private StreamModeOption _selectedStreamMode;
 
     [ObservableProperty]
+    private VideoAspectModeOption _selectedAspectMode;
+
+    [ObservableProperty]
     private GridLayoutOption _defaultLayout;
 
     [ObservableProperty]
@@ -53,6 +59,12 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
 
     [ObservableProperty]
     private decimal? _hiddenTileReleaseSeconds;
+
+    [ObservableProperty]
+    private decimal? _subStreamMaxFrameRate;
+
+    [ObservableProperty]
+    private decimal? _mainStreamMaxFrameRate;
 
     [ObservableProperty]
     private bool _autoCreateDeviceGroups;
@@ -78,23 +90,34 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     [ObservableProperty]
     private string _updateServerUrl = string.Empty;
 
+    /// <summary>
+    /// Setting of this computer only; saved locally and never synchronized.
+    /// </summary>
+    [ObservableProperty]
+    private bool _startFullScreen;
+
     public ApplicationUpdateService Updates { get; }
 
-    public GeneralSettingsViewModel(ConfigurationService configuration, IDialogService dialogs, ApplicationUpdateService updates)
+    public GeneralSettingsViewModel(ConfigurationService configuration, LocalSettingsService localSettings, IDialogService dialogs, ApplicationUpdateService updates)
     {
         _configuration = configuration;
+        _localSettings = localSettings;
         _dialogs = dialogs;
         Updates = updates;
+        _startFullScreen = localSettings.Current.StartFullScreen;
 
         var settings = configuration.Current.Settings;
         _selectedLanguage = LanguageOption.Find(settings.Language);
         _selectedTheme = ThemeOption.Find(settings.Theme);
         _selectedStreamMode = StreamModeOption.Find(settings.GridStreamMode);
+        _selectedAspectMode = VideoAspectModeOption.Find(settings.VideoAspectMode);
         _defaultLayout = GridLayoutOption.Find(settings.DefaultLayoutId, settings.DefaultLayoutCount);
         _networkCachingMs = settings.NetworkCachingMs;
         _mainStreamCachingMs = settings.MainStreamCachingMs;
         _mainStreamMinimumHeight = settings.MainStreamMinimumHeight;
         _hiddenTileReleaseSeconds = settings.HiddenTileReleaseSeconds;
+        _subStreamMaxFrameRate = settings.SubStreamMaxFrameRate;
+        _mainStreamMaxFrameRate = settings.MainStreamMaxFrameRate;
         _autoCreateDeviceGroups = settings.AutoCreateDeviceGroups;
         _showTileTitles = settings.ShowTileTitles;
         _showCameraSearch = settings.ShowCameraSearch;
@@ -114,6 +137,8 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
 
     public IReadOnlyList<StreamModeOption> StreamModes => StreamModeOption.All;
 
+    public IReadOnlyList<VideoAspectModeOption> AspectModes => VideoAspectModeOption.All;
+
     public IReadOnlyList<GridLayoutOption> Layouts => GridLayoutOption.All;
 
     public decimal MinimumNetworkCaching => MinNetworkCachingMs;
@@ -123,6 +148,10 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     public decimal MinimumHiddenTileRelease => MinHiddenTileReleaseSeconds;
 
     public decimal MaximumHiddenTileRelease => MaxHiddenTileReleaseSeconds;
+
+    public decimal MinimumFrameRate => MinFrameRate;
+
+    public decimal MaximumFrameRate => MaxFrameRate;
 
     /// <summary>
     /// State of the Hikvision SDK library in the selected folder.
@@ -173,6 +202,11 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         ApplyChanges();
     }
 
+    partial void OnSelectedAspectModeChanged(VideoAspectModeOption value)
+    {
+        ApplyChanges();
+    }
+
     partial void OnDefaultLayoutChanged(GridLayoutOption value)
     {
         ApplyChanges();
@@ -194,6 +228,10 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     {
         ApplyChanges();
     }
+
+    partial void OnSubStreamMaxFrameRateChanged(decimal? value) => ApplyChanges();
+
+    partial void OnMainStreamMaxFrameRateChanged(decimal? value) => ApplyChanges();
 
     partial void OnAutoCreateDeviceGroupsChanged(bool value)
     {
@@ -219,6 +257,25 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     partial void OnAutoCheckForUpdatesChanged(bool value) => ApplyChanges();
     partial void OnUpdateServerUrlChanged(string value) => ApplyChanges();
 
+    partial void OnStartFullScreenChanged(bool value)
+    {
+        _localSettings.Current.StartFullScreen = value;
+        _ = SaveLocalAsync();
+    }
+
+    private async Task SaveLocalAsync()
+    {
+        try
+        {
+            await _localSettings.SaveAsync();
+            StatusText = string.Empty;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            StatusText = Localizer.Format("General_SaveFailed", exception.Message);
+        }
+    }
+
     private void ApplyChanges()
     {
         if (_isLoading)
@@ -230,12 +287,15 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         settings.Language = SelectedLanguage.Code;
         settings.Theme = SelectedTheme.Value;
         settings.GridStreamMode = SelectedStreamMode.Value;
+        settings.VideoAspectMode = SelectedAspectMode.Value;
         settings.DefaultLayoutCount = DefaultLayout.Count;
         settings.DefaultLayoutId = DefaultLayout.Id;
         settings.NetworkCachingMs = (int)Math.Clamp(NetworkCachingMs ?? settings.NetworkCachingMs, MinNetworkCachingMs, MaxNetworkCachingMs);
         settings.MainStreamCachingMs = (int)Math.Clamp(MainStreamCachingMs ?? settings.MainStreamCachingMs, MinNetworkCachingMs, MaxNetworkCachingMs);
         settings.MainStreamMinimumHeight = (int)Math.Clamp(MainStreamMinimumHeight ?? settings.MainStreamMinimumHeight, 1, 16384);
         settings.HiddenTileReleaseSeconds = (int)Math.Clamp(HiddenTileReleaseSeconds ?? settings.HiddenTileReleaseSeconds, MinHiddenTileReleaseSeconds, MaxHiddenTileReleaseSeconds);
+        settings.SubStreamMaxFrameRate = (int)Math.Clamp(SubStreamMaxFrameRate ?? settings.SubStreamMaxFrameRate, MinFrameRate, MaxFrameRate);
+        settings.MainStreamMaxFrameRate = (int)Math.Clamp(MainStreamMaxFrameRate ?? settings.MainStreamMaxFrameRate, MinFrameRate, MaxFrameRate);
         settings.AutoCreateDeviceGroups = AutoCreateDeviceGroups;
         settings.ShowTileTitles = ShowTileTitles;
         settings.ShowCameraSearch = ShowCameraSearch;
@@ -346,11 +406,14 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
             SelectedLanguage = LanguageOption.Find(settings.Language);
             SelectedTheme = ThemeOption.Find(settings.Theme);
             SelectedStreamMode = StreamModeOption.Find(settings.GridStreamMode);
+            SelectedAspectMode = VideoAspectModeOption.Find(settings.VideoAspectMode);
             DefaultLayout = GridLayoutOption.Find(settings.DefaultLayoutId, settings.DefaultLayoutCount);
             NetworkCachingMs = settings.NetworkCachingMs;
             MainStreamCachingMs = settings.MainStreamCachingMs;
             MainStreamMinimumHeight = settings.MainStreamMinimumHeight;
             HiddenTileReleaseSeconds = settings.HiddenTileReleaseSeconds;
+            SubStreamMaxFrameRate = settings.SubStreamMaxFrameRate;
+            MainStreamMaxFrameRate = settings.MainStreamMaxFrameRate;
             AutoCreateDeviceGroups = settings.AutoCreateDeviceGroups;
             ShowTileTitles = settings.ShowTileTitles;
             ShowCameraSearch = settings.ShowCameraSearch;

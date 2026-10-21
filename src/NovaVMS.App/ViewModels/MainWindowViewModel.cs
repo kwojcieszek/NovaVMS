@@ -18,6 +18,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly DeviceSyncService _sync;
     private readonly SettingsSyncService _settingsSync;
     private readonly Func<SettingsWindowViewModel> _settingsFactory;
+    private readonly IDialogService _dialogs;
     // Cancelled when the window closes so background work does not outlive the UI.
     private readonly CancellationTokenSource _lifetime = new();
     private static readonly TimeSpan SettingsUploadShutdownTimeout = TimeSpan.FromSeconds(5);
@@ -37,12 +38,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         PlaybackViewModel playback,
         PtzViewModel ptz,
         StatusBarService statusBar,
-        ApplicationUpdateService updates)
+        ApplicationUpdateService updates,
+        UserSessionService session,
+        IDialogService dialogs)
     {
         _configuration = configuration;
         _sync = sync;
         _settingsSync = settingsSync;
         _settingsFactory = settingsFactory;
+        _dialogs = dialogs;
+        Session = session;
+        Session.Changed += OnSessionChanged;
         Tree = tree;
         Live = live;
         Playback = playback;
@@ -52,7 +58,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         Tree.PropertyChanged += OnTreePropertyChanged;
         Tree.OpenRequested += OnTreeOpenRequested;
-        Tree.SaveViewRequested += OnTreeSaveViewRequested;
+        Tree.NewViewRequested += OnTreeNewViewRequested;
         Tree.ViewCameraRemoved += (_, camera) => Live.RemoveViewCamera(camera.ParentViewId, camera.ViewSlotIndex);
         Tree.ResetViewRequested += OnTreeResetViewRequested;
         Tree.GroupContentChanged += OnTreeGroupContentChanged;
@@ -69,14 +75,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public StatusBarService StatusBar { get; }
     public ApplicationUpdateService Updates { get; }
+    public UserSessionService Session { get; }
+
+    /// <summary>
+    /// Raised when nobody logs in, so the application closes.
+    /// </summary>
+    public event EventHandler? ExitRequested;
 
     public bool IsLivePage => CurrentPage == AppPage.Live;
 
     public bool IsPlaybackPage => CurrentPage == AppPage.Playback;
 
-    public SettingsWindowViewModel CreateSettings()
+    public SettingsWindowViewModel? CreateSettings()
     {
-        return _settingsFactory();
+        return Session.CanOpenSettings ? _settingsFactory() : null;
     }
 
     /// <summary>
@@ -115,6 +127,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         await _configuration.LoadAsync();
         // A newer version from the settings database is applied before devices connect.
         await _settingsSync.StartAsync();
+        // Users come from the configuration, so the login follows the newest synchronized version.
+        if (!Session.TryAutoLogin() && !await _dialogs.LoginAsync(Session, string.Empty))
+        {
+            ExitRequested?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
         Updates.Start();
         Live.ApplyDefaultLayout();
         if (_configuration.Current.Views.FirstOrDefault() is { } firstView)
@@ -152,12 +171,67 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private void ShowPlayback()
     {
-        CurrentPage = AppPage.Playback;
+        if (Session.CanPlayback)
+        {
+            CurrentPage = AppPage.Playback;
+        }
+    }
+
+    /// <summary>
+    /// Ends the session and asks for a login again. Live streams are released while nobody is logged in;
+    /// views and groups stay as they are.
+    /// </summary>
+    [RelayCommand]
+    private async Task LogoutAsync()
+    {
+        var userName = Session.UserName;
+        Live.IsVideoOnly = false;
+        Live.SetPageActive(false);
+        Session.Logout();
+        if (!await _dialogs.LoginAsync(Session, userName))
+        {
+            ExitRequested?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
+        Live.SetPageActive(IsLivePage);
+        StatusBar.Message = Localizer.Format("Login_LoggedIn", Session.UserName);
+    }
+
+    [RelayCommand]
+    private async Task ToggleAutoLoginAsync()
+    {
+        try
+        {
+            await Session.SetAutoLoginAsync(!Session.IsAutoLogin);
+            StatusBar.Message = Localizer.Text(Session.IsAutoLogin ? "Login_AutoLoginOn" : "Login_AutoLoginOff");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            StatusBar.Message = Localizer.Format("General_SaveFailed", exception.Message);
+        }
+    }
+
+    private void OnSessionChanged(object? sender, EventArgs e)
+    {
+        // Permissions may be withdrawn while a page that needs them is open.
+        if (IsPlaybackPage && !Session.CanPlayback)
+        {
+            CurrentPage = AppPage.Live;
+        }
+
+        Ptz.SetTarget(Session.CanControlPtz ? Live.SelectedCamera : null);
     }
 
     [RelayCommand]
     private async Task CycleThemeAsync()
     {
+        // The theme is a general setting shared through the configuration.
+        if (!Session.CanEditGeneralSettings)
+        {
+            return;
+        }
+
         var settings = _configuration.Current.Settings;
         settings.Theme = settings.Theme switch
         {
@@ -252,10 +326,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Open(node);
     }
 
-    private void OnTreeSaveViewRequested(object? sender, EventArgs e)
+    private void OnTreeNewViewRequested(object? sender, EventArgs e)
     {
+        if (!Session.CanEditViews)
+        {
+            return;
+        }
+
         CurrentPage = AppPage.Live;
-        Live.SaveNewViewCommand.Execute(null);
+        Live.AddNewViewCommand.Execute(null);
     }
 
     private void OnTreeResetViewRequested(object? sender, ResourceGroupNodeViewModel group)
@@ -287,7 +366,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         if (e.PropertyName == nameof(LiveViewViewModel.SelectedCamera))
         {
-            Ptz.SetTarget(Live.SelectedCamera);
+            Ptz.SetTarget(Session.CanControlPtz ? Live.SelectedCamera : null);
         }
     }
 }

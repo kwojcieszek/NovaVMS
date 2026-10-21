@@ -108,8 +108,10 @@ public sealed class SavedCameraViewTests
             MaximizedTileIndex = 1, Layout = new GroupLiveView { LayoutId = "standard-6", LayoutCount = 6,
                 Cameras = [null, reference], EmptySlots = [0] } }] };
         var configuration = new ConfigurationService(new Store(config), new JsonConfigurationSerializer());
-        var tree = new ResourceTreeViewModel(configuration, new DeviceSyncService(configuration, null!), new Dialogs());
+        var session = TestSessions.Create(configuration);
+        var tree = new ResourceTreeViewModel(configuration, new DeviceSyncService(configuration, null!), new Dialogs(), session);
         await configuration.LoadAsync();
+        TestSessions.LogInAsDefaultAdmin(session);
         return (configuration, tree);
     }
     private sealed class Store(AppConfiguration initial) : IConfigurationStore
@@ -121,6 +123,7 @@ public sealed class SavedCameraViewTests
     {
         public Task<string?> PromptTextAsync(string title, string message, string initialValue) => Task.FromResult<string?>("Renamed view");
         public Task<bool> ConfirmAsync(string title, string message) => Task.FromResult(true);
+        public Task<bool> LoginAsync(UserSessionService session, string userName) => throw new NotSupportedException();
         public Task<Stream?> OpenJsonFileAsync(string title) => throw new NotSupportedException();
         public Task<Stream?> SaveJsonFileAsync(string title, string suggestedFileName) => throw new NotSupportedException();
         public Task<Stream?> OpenCsvFileAsync(string title) => throw new NotSupportedException();

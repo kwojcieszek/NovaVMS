@@ -117,11 +117,41 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
 
     public double VideoHeight { get; private set; }
 
-    public void SetVideoHeight(double height)
+    public double VideoWidth { get; private set; }
+
+    /// <summary>
+    /// Size of the video area in physical pixels, reported by the view after layout.
+    /// </summary>
+    public void SetVideoSize(double width, double height)
     {
-        if (_isDisposed || !double.IsFinite(height) || height <= 0 || Math.Abs(VideoHeight - height) < 0.5) return;
+        if (_isDisposed || !double.IsFinite(width) || !double.IsFinite(height) || width <= 0 || height <= 0) return;
+        var heightChanged = Math.Abs(VideoHeight - height) >= 0.5;
+        if (!heightChanged && Math.Abs(VideoWidth - width) < 0.5) return;
+        VideoWidth = width;
         VideoHeight = height;
-        _host.ReportVideoHeight(this);
+        if (heightChanged) _host.ReportVideoHeight(this);
+        // A stretched picture follows the tile's shape.
+        if (_host.StretchVideo) ApplyDisplayAspectRatio();
+    }
+
+    /// <summary>
+    /// Proportions given to the player: the tile's own shape when pictures are stretched,
+    /// otherwise the camera's proportions kept across stream switches.
+    /// </summary>
+    private string? DisplayAspectRatio => _host.StretchVideo && VideoWidth >= 1 && VideoHeight >= 1
+        ? VideoDisplayGeometry.FromDimensions((uint)Math.Round(VideoWidth), (uint)Math.Round(VideoHeight))
+        : _displayGeometry.AspectRatio;
+
+    /// <summary>
+    /// Applies the current proportions mode to the shown picture, e.g. after the setting changed.
+    /// </summary>
+    public void ApplyDisplayAspectRatio()
+    {
+        if (_isDisposed || _media is null) return;
+        var ratio = DisplayAspectRatio;
+        if (_player.AspectRatio == ratio) return;
+        var player = _player;
+        _ = _operations.RunAsync(() => player.AspectRatio = ratio);
     }
 
     /// <summary>
@@ -457,11 +487,11 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         StatusText = string.Empty;
         ErrorDetails = null;
         _displayGeometry.Learn(request.AspectRatio);
-        var ratio = _displayGeometry.AspectRatio;
+        var ratio = DisplayAspectRatio;
         try
         {
             var media = await _operations.RunAsync(() => VideoMedia.Create(_libVlc, request.Source,
-                request.Username, request.Password, request.NetworkCachingMs, withAudio));
+                request.Username, request.Password, request.NetworkCachingMs, withAudio, request.MaxFrameRate));
             if (_isDisposed || version != _streamVersion)
             {
                 await _operations.RunAsync(media.Dispose);
@@ -552,11 +582,11 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         var hardware = !_softwareFallback;
         var withAudio = IsAudioEnabled;
         _displayGeometry.Learn(request.AspectRatio);
-        var ratio = _displayGeometry.AspectRatio;
+        var ratio = DisplayAspectRatio;
         try
         {
             var media = await _operations.RunAsync(() => VideoMedia.Create(_libVlc, request.Source,
-                request.Username, request.Password, request.NetworkCachingMs, withAudio));
+                request.Username, request.Password, request.NetworkCachingMs, withAudio, request.MaxFrameRate));
             if (_isDisposed || version != _switchVersion)
             {
                 await _operations.RunAsync(media.Dispose);
@@ -609,12 +639,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         if (_media is null) return;
         if (_displayGeometry.AspectRatio is null)
             _displayGeometry.Learn(ReadNaturalAspectRatio(_player, _media));
-        if (_displayGeometry.AspectRatio is not null && _player.AspectRatio != _displayGeometry.AspectRatio)
-        {
-            var player = _player;
-            var ratio = _displayGeometry.AspectRatio;
-            _ = _operations.RunAsync(() => player.AspectRatio = ratio);
-        }
+        if (DisplayAspectRatio is not null) ApplyDisplayAspectRatio();
     }
 
     private static string? ReadNaturalAspectRatio(MediaPlayer player, VideoMedia? media)

@@ -19,6 +19,11 @@ public static class AppDataPaths
     /// </summary>
     public static string SyncOptionsFile { get; } = Path.Combine(DataDirectory, "sync.json");
 
+    /// <summary>
+    /// Settings of this computer only (e.g. full screen at start); never synchronized or exported.
+    /// </summary>
+    public static string LocalSettingsFile { get; } = Path.Combine(DataDirectory, "local.json");
+
     public static string LogDirectory { get; } = Path.Combine(DataDirectory, "logs");
 
     private static string ResolveDataDirectory()

@@ -9,6 +9,17 @@ public partial class SettingsWindow : Window
     private bool _closing;
     private bool _canClose;
     public SettingsWindow() => InitializeComponent();
+
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        // Pages the user may not open are hidden; start on the first one that is shown.
+        var first = Pages.Items.OfType<TabItem>().FirstOrDefault(page => page.IsVisible);
+        if (first is not null)
+        {
+            Pages.SelectedItem = first;
+        }
+    }
     protected override async void OnClosing(WindowClosingEventArgs e)
     {
         if (_canClose) { base.OnClosing(e); return; }

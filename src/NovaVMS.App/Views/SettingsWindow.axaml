@@ -15,26 +15,32 @@
         Background="{DynamicResource NovaWindowBackground}">
 
   <DockPanel>
-    <TabControl Margin="8" TabStripPlacement="Top">
-      <TabItem>
+    <TabControl x:Name="Pages" Margin="8" TabStripPlacement="Top">
+      <TabItem IsVisible="{Binding Session.CanEditGeneralSettings}">
         <TabItem.Header>
           <mi:MaterialIconText Kind="TuneVariant" FontSize="16" Text="{l:Tr Settings_General}" />
         </TabItem.Header>
         <views:GeneralSettingsView DataContext="{Binding General}" />
       </TabItem>
-      <TabItem>
+      <TabItem IsVisible="{Binding Session.CanEditGroups}">
         <TabItem.Header>
           <mi:MaterialIconText Kind="FolderStarMultipleOutline" FontSize="16" Text="{l:Tr Settings_Groups}" />
         </TabItem.Header>
         <views:GroupsSettingsView DataContext="{Binding Groups}" />
       </TabItem>
-      <TabItem>
+      <TabItem IsVisible="{Binding Session.CanEditDevices}">
         <TabItem.Header>
           <mi:MaterialIconText Kind="Server" FontSize="16" Text="{l:Tr Settings_Devices}" />
         </TabItem.Header>
         <views:DevicesSettingsView DataContext="{Binding Devices}" />
       </TabItem>
-      <TabItem>
+      <TabItem IsVisible="{Binding Session.CanEditUsers}">
+        <TabItem.Header>
+          <mi:MaterialIconText Kind="AccountMultipleOutline" FontSize="16" Text="{l:Tr Settings_Users}" />
+        </TabItem.Header>
+        <views:UsersSettingsView DataContext="{Binding Users}" />
+      </TabItem>
+      <TabItem IsVisible="{Binding Session.CanEditSettingsSync}">
         <TabItem.Header>
           <mi:MaterialIconText Kind="DatabaseSyncOutline" FontSize="16" Text="{l:Tr Settings_Sync}" />
         </TabItem.Header>

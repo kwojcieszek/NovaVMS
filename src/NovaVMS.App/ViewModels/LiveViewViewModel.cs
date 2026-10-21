@@ -71,13 +71,15 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         ConfigurationService configuration,
         IDeviceClientFactory clientFactory,
         StatusBarService statusBar,
-        IDialogService dialogs)
+        IDialogService dialogs,
+        UserSessionService session)
     {
         _libVlc = libVlc;
         _configuration = configuration;
         _clientFactory = clientFactory;
         _statusBar = statusBar;
         _dialogs = dialogs;
+        Session = session;
         _resizeStreamTimer.Tick += OnResizeStreamTick;
 
         _configuration.Changed += OnConfigurationChanged;
@@ -92,7 +94,20 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     public CameraReference? SelectedCamera => SelectedTile?.Camera;
 
     public bool IsMaximized => MaximizedTile is not null;
+
+    public UserSessionService Session { get; }
+
+    /// <summary>
+    /// Only the camera grid fills the window; the header, tree and toolbars are hidden until Esc.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isVideoOnly;
+
+    [RelayCommand]
+    private void ShowVideoOnly() => IsVideoOnly = true;
     public string ActiveSavedViewName => _configuration.Current.Views.FirstOrDefault(view => view.Id == ActiveSavedViewId)?.Name ?? string.Empty;
+
+    public bool StretchVideo => _configuration.Current.Settings.VideoAspectMode == VideoAspectMode.Fit;
 
     public void ReportVideoHeight(VideoTileViewModel tile)
     {
@@ -206,29 +221,39 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
 
     private void RememberSavedView()
     {
-        if (_isShutDown || _restoringGroup || _assigningTiles) return;
+        // Without the permission an open view can still be rearranged, but the change is not kept.
+        if (_isShutDown || _restoringGroup || _assigningTiles || !Session.CanEditViews) return;
         var view = _configuration.Current.Views.FirstOrDefault(candidate => candidate.Id == ActiveSavedViewId);
         if (view is null) return;
         var maximized = MaximizedTile is { } tile && tile.Index < SelectedLayout.Count ? (int?)tile.Index : null;
         if (SavedViewChanges.Apply(view, CaptureView(), maximized)) _ = SaveGroupViewsAsync();
     }
 
+    /// <summary>
+    /// Creates an empty view in the current grid layout and opens it, ready for cameras dragged from the tree.
+    /// </summary>
     [RelayCommand]
-    private async Task SaveNewViewAsync()
+    private async Task AddNewViewAsync()
     {
-        if (_isShutDown || _restoringGroup) return;
-        var name = await _dialogs.PromptTextAsync(Localizer.Text("Views_SaveNew"), Localizer.Text("Views_NamePrompt"),
+        if (_isShutDown || _restoringGroup || !Session.CanEditViews) return;
+        var name = await _dialogs.PromptTextAsync(Localizer.Text("Views_AddNew"), Localizer.Text("Views_NamePrompt"),
             Localizer.Format("Views_DefaultName", _configuration.Current.Views.Count + 1));
         if (string.IsNullOrWhiteSpace(name) || _isShutDown) return;
-        RememberSavedView();
-        RememberGroup();
-        var view = new SavedCameraView { Name = name.Trim(), Layout = CaptureView(), MaximizedTileIndex = MaximizedTile?.Index };
+        var count = SelectedLayout.Count;
+        var view = new SavedCameraView
+        {
+            Name = name.Trim(),
+            Layout = new GroupLiveView
+            {
+                LayoutId = SelectedLayout.Id,
+                LayoutCount = count,
+                Cameras = Enumerable.Repeat<CameraReference?>(null, count).ToList(),
+                EmptySlots = Enumerable.Range(0, count).ToHashSet()
+            }
+        };
         _configuration.Current.Views.Add(view);
-        _activeGroup = null;
-        _groupCameras = Array.Empty<CameraReference>();
-        ActiveSavedViewId = view.Id;
         await _configuration.SaveAsync();
-        _statusBar.Message = Localizer.Format("Views_Saved", view.Name);
+        await ShowSavedViewAsync(view.Id);
     }
 
     public async Task ShowSavedViewAsync(Guid id)
@@ -408,9 +433,9 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
 
     /// <summary>
     /// A group's tiles follow its configured cameras (edited in the settings); only views and
-    /// free layouts accept cameras dragged from the tree.
+    /// free layouts accept cameras dragged from the tree. A saved view also needs the permission to change views.
     /// </summary>
-    public bool CanDropCameras => _activeGroup is null;
+    public bool CanDropCameras => _activeGroup is null && (ActiveSavedViewId is null || Session.CanEditViews);
 
     public void DropCameras(VideoTileViewModel tile, IReadOnlyList<CameraReference> cameras)
     {
@@ -517,7 +542,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
 
     public void RemoveViewCamera(Guid? viewId, int index)
     {
-        if (ActiveSavedViewId != viewId || index < 0 || index >= Tiles.Count) return;
+        if (!Session.CanEditViews || ActiveSavedViewId != viewId || index < 0 || index >= Tiles.Count) return;
         var tile = Tiles[index];
         _assignments.Remove(tile);
         _emptySlots.Add(index);
@@ -775,7 +800,8 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
                 camera.Device.Username,
                 camera.Device.Password,
                 _configuration.Current.Settings.GetNetworkCachingMs(streamType),
-                camera.Channel.MainAspectRatio);
+                camera.Channel.MainAspectRatio,
+                _configuration.Current.Settings.GetMaxFrameRate(streamType));
 
             tile.Play(reference, camera.FullName, request);
         }
@@ -812,6 +838,10 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
             if (tile.Camera is not null && _configuration.FindCamera(tile.Camera) is null)
             {
                 tile.Close();
+            }
+            else
+            {
+                tile.ApplyDisplayAspectRatio();
             }
         }
 

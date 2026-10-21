@@ -43,6 +43,18 @@ public sealed class DialogService : IDialogService
         return await dialog.ShowDialog<bool>(owner);
     }
 
+    public async Task<bool> LoginAsync(UserSessionService session, string userName)
+    {
+        var owner = GetOwner();
+        if (owner is null)
+        {
+            return false;
+        }
+
+        var dialog = new LoginWindow(session, userName);
+        return await dialog.ShowDialog<bool>(owner);
+    }
+
     private static FilePickerFileType CsvFileType => new(Localizer.Text("FileType_Csv"))
     {
         Patterns = new[] { "*.csv", "*.txt" },

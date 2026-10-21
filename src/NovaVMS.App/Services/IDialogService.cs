@@ -13,6 +13,11 @@ public interface IDialogService
     Task<bool> ConfirmAsync(string title, string message);
 
     /// <summary>
+    /// Shows the login window. Returns true once a user is logged in, false when the user chooses to exit.
+    /// </summary>
+    Task<bool> LoginAsync(UserSessionService session, string userName);
+
+    /// <summary>
     /// Lets the user pick a JSON file to read. Returns null when the user cancels; the caller disposes the stream.
     /// </summary>
     Task<Stream?> OpenJsonFileAsync(string title);

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -15,6 +16,8 @@ public partial class MainWindow : Window
 
     private Point? _dragStart;
     private ResourceNodeViewModel? _dragNode;
+    private GridLength _resourceColumnWidth = new(290);
+    private bool _initialized;
     private bool _shutdownStarted;
     private bool _canClose;
 
@@ -57,9 +60,56 @@ public partial class MainWindow : Window
         }
     }
 
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        if (!_initialized && DataContext is MainWindowViewModel viewModel)
+        {
+            _initialized = true;
+            viewModel.InitializeCommand.Execute(null);
+        }
+    }
+
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            viewModel.ExitRequested += (_, _) => Close();
+            viewModel.Live.PropertyChanged += OnLivePropertyChanged;
+        }
+    }
+
+    private void OnLivePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(LiveViewViewModel.IsVideoOnly) || sender is not LiveViewViewModel live)
+        {
+            return;
+        }
+
+        // The resource column has a fixed (user-resizable) width; collapse it and restore the width afterwards.
+        var column = MainGrid.ColumnDefinitions[0];
+        if (live.IsVideoOnly)
+        {
+            _resourceColumnWidth = column.Width;
+            column.Width = new GridLength(0);
+            MainGrid.ColumnDefinitions[1].Width = new GridLength(0);
+        }
+        else
+        {
+            column.Width = _resourceColumnWidth;
+            MainGrid.ColumnDefinitions[1].Width = new GridLength(4);
+        }
+    }
+
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        if (e.Key == Key.Escape && WindowState == WindowState.FullScreen)
+        if (e.Key == Key.Escape && DataContext is MainWindowViewModel { Live.IsVideoOnly: true } videoOnly)
+        {
+            videoOnly.Live.IsVideoOnly = false;
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape && WindowState == WindowState.FullScreen)
         {
             WindowState = WindowState.Normal;
             e.Handled = true;
@@ -86,6 +136,11 @@ public partial class MainWindow : Window
         }
 
         var settingsViewModel = viewModel.CreateSettings();
+        if (settingsViewModel is null)
+        {
+            return;
+        }
+
         var settingsWindow = new SettingsWindow
         {
             DataContext = settingsViewModel

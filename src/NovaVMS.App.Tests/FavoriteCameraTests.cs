@@ -93,8 +93,10 @@ public sealed class FavoriteCameraTests
         });
         var configuration = new ConfigurationService(store, new JsonConfigurationSerializer());
         var sync = new DeviceSyncService(configuration, new FakeClientFactory());
-        var tree = new ResourceTreeViewModel(configuration, sync, null!);
+        var session = TestSessions.Create(configuration);
+        var tree = new ResourceTreeViewModel(configuration, sync, null!, session);
         await configuration.LoadAsync();
+        TestSessions.LogInAsDefaultAdmin(session);
         return (configuration, tree, store);
     }
 

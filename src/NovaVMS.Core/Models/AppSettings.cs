@@ -11,6 +11,9 @@ public sealed class AppSettings
     internal AppSettings Copy() => (AppSettings)MemberwiseClone();
     public GridStreamMode GridStreamMode { get; set; } = GridStreamMode.Auto;
 
+    /// <summary>Proportions of the picture in live view tiles.</summary>
+    public VideoAspectMode VideoAspectMode { get; set; } = VideoAspectMode.Original;
+
     /// <summary>Minimum video area height in physical display pixels for MAIN in automatic mode.</summary>
     public int MainStreamMinimumHeight { get; set; } = 540;
 
@@ -39,6 +42,17 @@ public sealed class AppSettings
     public int GetNetworkCachingMs(StreamType streamType)
     {
         return streamType == StreamType.Main ? MainStreamCachingMs : NetworkCachingMs;
+    }
+
+    /// <summary>Maximum displayed frames per second of the sub stream; 0 means no limit.</summary>
+    public int SubStreamMaxFrameRate { get; set; }
+
+    /// <summary>Maximum displayed frames per second of the main stream; 0 means no limit.</summary>
+    public int MainStreamMaxFrameRate { get; set; }
+
+    public int GetMaxFrameRate(StreamType streamType)
+    {
+        return streamType == StreamType.Main ? MainStreamMaxFrameRate : SubStreamMaxFrameRate;
     }
 
     public bool AutoCreateDeviceGroups { get; set; } = true;

@@ -177,7 +177,7 @@ public partial class VideoTileView : UserControl
         }
 
         if (!overlay.IsVisible) overlay.Show(owner);
-        _tile?.SetVideoHeight(size.Height * owner.RenderScaling);
+        _tile?.SetVideoSize(size.Width * owner.RenderScaling, size.Height * owner.RenderScaling);
     }
 
     private void OnVideoAttached(object? sender, VisualTreeAttachmentEventArgs e)

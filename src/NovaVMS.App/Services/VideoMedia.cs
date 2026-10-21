@@ -30,7 +30,8 @@ public sealed class VideoMedia : IDisposable
     public string? ErrorMessage => (_stream as IVideoStreamStatus)?.ErrorMessage
         ?? (_networkSession as IVideoStreamStatus)?.ErrorMessage;
 
-    public static VideoMedia Create(LibVLC libVlc, VideoSource source, string username, string password, int networkCachingMs, bool withAudio = true)
+    public static VideoMedia Create(LibVLC libVlc, VideoSource source, string username, string password, int networkCachingMs,
+        bool withAudio = true, int maxFrameRate = 0)
     {
         ArgumentNullException.ThrowIfNull(source);
 
@@ -46,6 +47,7 @@ public sealed class VideoMedia : IDisposable
                 streamMedia = new Media(libVlc, input);
                 streamMedia.AddOption($":network-caching={networkCachingMs}");
                 AddAudioOption(streamMedia, withAudio);
+                AddFrameRateOption(streamMedia, maxFrameRate);
                 return new VideoMedia(streamMedia, stream, input);
             }
             catch
@@ -70,6 +72,7 @@ public sealed class VideoMedia : IDisposable
             media.AddOption(":rtsp-frame-buffer-size=4194304");
             media.AddOption($":network-caching={networkCachingMs}");
             AddAudioOption(media, withAudio);
+            AddFrameRateOption(media, maxFrameRate);
             return new VideoMedia(media, null, null) { _networkSession = networkSession };
         }
         catch
@@ -89,6 +92,19 @@ public sealed class VideoMedia : IDisposable
         if (!withAudio)
         {
             media.AddOption(":no-audio");
+        }
+    }
+
+    /// <summary>
+    /// Drops decoded frames above the limit with LibVLC's "fps" video filter, which keeps the stream's
+    /// timing intact. Applies to network and SDK streams alike; 0 leaves the frame rate unchanged.
+    /// </summary>
+    private static void AddFrameRateOption(Media media, int maxFrameRate)
+    {
+        if (maxFrameRate > 0)
+        {
+            media.AddOption(":video-filter=fps");
+            media.AddOption($":fps-fps={maxFrameRate}");
         }
     }
 

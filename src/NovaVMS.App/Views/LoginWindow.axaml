@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="using:NovaVMS.App.Localization"
+        xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        x:Class="NovaVMS.App.Views.LoginWindow"
+        Title="{l:Tr Login_Title}"
+        Width="380"
+        SizeToContent="Height"
+        CanResize="False"
+        Icon="/Assets/novavms.ico"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource NovaWindowBackground}">
+
+  <StackPanel Margin="20" Spacing="8">
+    <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
+      <Image Source="/Assets/novavms.png" Width="36" Height="36" />
+      <TextBlock Text="NovaVMS" FontSize="20" FontWeight="Bold" VerticalAlignment="Center" />
+    </StackPanel>
+    <TextBlock Classes="muted" Text="{l:Tr Login_UserName}" />
+    <TextBox x:Name="UserNameBox" />
+    <TextBlock Classes="muted" Text="{l:Tr Login_Password}" />
+    <TextBox x:Name="PasswordBox" PasswordChar="●" />
+    <CheckBox x:Name="AutoLoginBox" Content="{l:Tr Login_AutoLogin}" />
+    <TextBlock x:Name="ErrorText" Foreground="{DynamicResource NovaError}" TextWrapping="Wrap" IsVisible="False" />
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,8,0,0">
+      <Button Classes="accent" IsDefault="True" MinWidth="100" Click="OnLoginClick">
+        <mi:MaterialIconText Kind="Login" Text="{l:Tr Login_Login}" />
+      </Button>
+      <Button IsCancel="True" MinWidth="100" Click="OnCancelClick" Content="{l:Tr Login_Exit}" />
+    </StackPanel>
+  </StackPanel>
+</Window>

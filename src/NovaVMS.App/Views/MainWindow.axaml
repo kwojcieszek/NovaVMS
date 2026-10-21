@@ -15,18 +15,38 @@
 		WindowState="Maximized"
         Background="{DynamicResource NovaWindowBackground}">
 
-  <DockPanel>
+  <!-- Nothing is shown until a user is logged in. -->
+  <DockPanel IsVisible="{Binding Session.IsLoggedIn}">
 
-    <!-- Header: view tabs, theme and settings -->
-    <Border DockPanel.Dock="Top" Height="40" Background="{DynamicResource NovaHeaderBackground}">
+    <!-- Header: view tabs, theme, user and settings -->
+    <Border DockPanel.Dock="Top" Height="40" Background="{DynamicResource NovaHeaderBackground}"
+            IsVisible="{Binding !Live.IsVideoOnly}">
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2" Margin="0,0,8,0">
           <Button Classes="icon"
                   Command="{Binding CycleThemeCommand}"
+                  IsVisible="{Binding Session.CanEditGeneralSettings}"
                   ToolTip.Tip="{l:Tr App_ThemeToggleTip}"
                   Content="{mi:MaterialIconExt Kind=ThemeLightDark}" />
+          <Button Classes="toolbar" VerticalAlignment="Center">
+            <mi:MaterialIconText Kind="AccountCircleOutline" Text="{Binding Session.UserName}" />
+            <Button.Flyout>
+              <MenuFlyout>
+                <MenuItem Header="{l:Tr Login_AutoLoginMenu}" Command="{Binding ToggleAutoLoginCommand}">
+                  <MenuItem.Icon>
+                    <Panel>
+                      <mi:MaterialIcon Kind="CheckboxMarkedOutline" IsVisible="{Binding Session.IsAutoLogin}" />
+                      <mi:MaterialIcon Kind="CheckboxBlankOutline" IsVisible="{Binding !Session.IsAutoLogin}" />
+                    </Panel>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{l:Tr Login_Logout}" Icon="{mi:MaterialIconExt Kind=Logout}" Command="{Binding LogoutCommand}" />
+              </MenuFlyout>
+            </Button.Flyout>
+          </Button>
           <Button Classes="toolbar"
                   VerticalAlignment="Center"
+                  IsVisible="{Binding Session.CanOpenSettings}"
                   Click="OnSettingsClick">
             <mi:MaterialIconText Kind="CogOutline" Text="{l:Tr App_Settings}" />
           </Button>
@@ -44,6 +64,7 @@
           </Button>
           <Button Classes="tab"
                   Classes.active="{Binding IsPlaybackPage}"
+                  IsVisible="{Binding Session.CanPlayback}"
                   Command="{Binding ShowPlaybackCommand}">
             <mi:MaterialIconText Kind="History" Text="{l:Tr App_Playback}" />
           </Button>
@@ -52,8 +73,13 @@
     </Border>
 
     <!-- Status bar -->
-    <Border DockPanel.Dock="Top" Padding="12,6" Background="{DynamicResource NovaPanelBackground}"
-            IsVisible="{Binding Updates.HasUpdate}">
+    <Border DockPanel.Dock="Top" Padding="12,6" Background="{DynamicResource NovaPanelBackground}">
+      <Border.IsVisible>
+        <MultiBinding Converter="{x:Static BoolConverters.And}">
+          <Binding Path="Updates.HasUpdate" />
+          <Binding Path="!Live.IsVideoOnly" />
+        </MultiBinding>
+      </Border.IsVisible>
       <DockPanel>
         <Button DockPanel.Dock="Right" Classes="accent" Command="{Binding Updates.InstallCommand}" Content="{l:Tr Updates_Install}" />
         <StackPanel Spacing="2" VerticalAlignment="Center">
@@ -63,18 +89,26 @@
       </DockPanel>
     </Border>
 
-    <Border DockPanel.Dock="Bottom" Padding="12,4" Background="{DynamicResource NovaHeaderBackground}">
+    <Border DockPanel.Dock="Bottom" Padding="12,4" Background="{DynamicResource NovaHeaderBackground}"
+            IsVisible="{Binding !Live.IsVideoOnly}">
       <TextBlock Classes="muted" FontSize="12" Text="{Binding StatusBar.Message}" />
     </Border>
 
-    <Grid ColumnDefinitions="290,4,*">
+    <!-- In the camera-only mode the code-behind collapses the resource panel column. -->
+    <Grid x:Name="MainGrid" ColumnDefinitions="290,4,*">
 
       <!-- Resource panel -->
-      <DockPanel Grid.Column="0" Background="{DynamicResource NovaPanelBackground}">
+      <DockPanel Grid.Column="0" Background="{DynamicResource NovaPanelBackground}"
+                 IsVisible="{Binding !Live.IsVideoOnly}">
         <Expander DockPanel.Dock="Bottom"
                   HorizontalAlignment="Stretch"
-                  CornerRadius="0"
-                  IsVisible="{Binding IsLivePage}">
+                  CornerRadius="0">
+          <Expander.IsVisible>
+            <MultiBinding Converter="{x:Static BoolConverters.And}">
+              <Binding Path="IsLivePage" />
+              <Binding Path="Session.CanControlPtz" />
+            </MultiBinding>
+          </Expander.IsVisible>
           <Expander.Header>
             <mi:MaterialIconText Kind="CameraControl" Text="{l:Tr App_PtzControl}" />
           </Expander.Header>
@@ -130,15 +164,35 @@
                               CommandParameter="{Binding}" />
                     <MenuItem Header="{l:Tr Tree_Rename}"
                               Icon="{mi:MaterialIconExt Kind=PencilOutline}"
-                              IsVisible="{Binding IsSavedView}"
                               Command="{Binding Owner.RenameViewCommand}"
-                              CommandParameter="{Binding}" />
-                    <MenuItem Header="{l:Tr Views_SaveNew}" IsVisible="{Binding IsViewsFolder}"
-                              Icon="{mi:MaterialIconExt Kind=ContentSavePlusOutline}"
-                              Command="{Binding Owner.RequestSaveViewCommand}" />
-                    <MenuItem Header="{l:Tr Views_Delete}" IsVisible="{Binding IsSavedView}"
+                              CommandParameter="{Binding}">
+                      <MenuItem.IsVisible>
+                        <MultiBinding Converter="{x:Static BoolConverters.And}">
+                          <Binding Path="IsSavedView" />
+                          <Binding Path="Owner.Session.CanEditViews" />
+                        </MultiBinding>
+                      </MenuItem.IsVisible>
+                    </MenuItem>
+                    <MenuItem Header="{l:Tr Views_AddNew}"
+                              Icon="{mi:MaterialIconExt Kind=ViewGridPlusOutline}"
+                              Command="{Binding Owner.RequestNewViewCommand}">
+                      <MenuItem.IsVisible>
+                        <MultiBinding Converter="{x:Static BoolConverters.And}">
+                          <Binding Path="IsViewsFolder" />
+                          <Binding Path="Owner.Session.CanEditViews" />
+                        </MultiBinding>
+                      </MenuItem.IsVisible>
+                    </MenuItem>
+                    <MenuItem Header="{l:Tr Views_Delete}"
                               Icon="{mi:MaterialIconExt Kind=DeleteOutline}"
-                              Command="{Binding Owner.DeleteViewCommand}" CommandParameter="{Binding}" />
+                              Command="{Binding Owner.DeleteViewCommand}" CommandParameter="{Binding}">
+                      <MenuItem.IsVisible>
+                        <MultiBinding Converter="{x:Static BoolConverters.And}">
+                          <Binding Path="IsSavedView" />
+                          <Binding Path="Owner.Session.CanEditViews" />
+                        </MultiBinding>
+                      </MenuItem.IsVisible>
+                    </MenuItem>
                   </ContextMenu>
                 </StackPanel.ContextMenu>
                 <mi:MaterialIcon Kind="ViewDashboard" Foreground="{DynamicResource NovaViewIcon}" IsVisible="{Binding IsViewsFolder}" />
@@ -164,19 +218,27 @@
                               CommandParameter="{Binding}" />
                     <MenuItem Header="{Binding FavoriteActionText}"
                               Icon="{mi:MaterialIconExt Kind=StarOutline}"
+                              IsVisible="{Binding Owner.Session.CanEditFavorites}"
                               Command="{Binding Owner.ToggleFavoriteCommand}"
                               CommandParameter="{Binding}" />
                     <MenuItem Header="{l:Tr Views_RemoveCamera}"
                               Icon="{mi:MaterialIconExt Kind=Close}"
-                              IsVisible="{Binding CanRemoveFromView}"
                               Command="{Binding Owner.RemoveFromViewCommand}"
-                              CommandParameter="{Binding}" />
+                              CommandParameter="{Binding}">
+                      <MenuItem.IsVisible>
+                        <MultiBinding Converter="{x:Static BoolConverters.And}">
+                          <Binding Path="CanRemoveFromView" />
+                          <Binding Path="Owner.Session.CanEditViews" />
+                        </MultiBinding>
+                      </MenuItem.IsVisible>
+                    </MenuItem>
                   </ContextMenu>
                 </StackPanel.ContextMenu>
                 <Button Classes="icon"
                         Padding="2"
                         Width="22" Height="22"
                         Focusable="False"
+                        IsEnabled="{Binding Owner.Session.CanEditFavorites}"
                         Command="{Binding Owner.ToggleFavoriteCommand}"
                         CommandParameter="{Binding}"
                         ToolTip.Tip="{Binding FavoriteActionText}">
@@ -195,6 +257,7 @@
 
       <GridSplitter Grid.Column="1"
                     ResizeDirection="Columns"
+                    IsVisible="{Binding !Live.IsVideoOnly}"
                     Background="{DynamicResource NovaHeaderBackground}" />
 
       <!-- Main views -->

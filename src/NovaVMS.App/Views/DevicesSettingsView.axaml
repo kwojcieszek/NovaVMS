@@ -41,12 +41,14 @@
                       CanUserSortColumns="True"
                       GridLinesVisibility="Horizontal"
                       HeadersVisibility="Column"
-                      MaxHeight="220">
+                      MaxHeight="220"
+                      HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto">
               <DataGrid.Columns>
                 <DataGridTextColumn x:DataType="core:DiscoveredDevice" Header="{l:Tr Devices_ColumnAddress}" Binding="{Binding Address}" Width="Auto" FontWeight="SemiBold" />
-                <DataGridTextColumn x:DataType="core:DiscoveredDevice" Header="{l:Tr Devices_ColumnName}" Binding="{Binding Name}" Width="*" />
-                <DataGridTextColumn x:DataType="core:DiscoveredDevice" Header="{l:Tr Devices_ColumnModel}" Binding="{Binding Hardware}" Width="*" />
-                <DataGridTextColumn x:DataType="core:DiscoveredDevice" Header="{l:Tr Devices_ColumnService}" Binding="{Binding ServiceAddress}" Width="*" />
+                <DataGridTextColumn x:DataType="core:DiscoveredDevice" Header="{l:Tr Devices_ColumnName}" Binding="{Binding Name}" Width="Auto" />
+                <DataGridTextColumn x:DataType="core:DiscoveredDevice" Header="{l:Tr Devices_ColumnModel}" Binding="{Binding Hardware}" Width="Auto" />
+                <DataGridTextColumn x:DataType="core:DiscoveredDevice" Header="{l:Tr Devices_ColumnService}" Binding="{Binding ServiceAddress}" Width="Auto" />
               </DataGrid.Columns>
             </DataGrid>
           </StackPanel>
@@ -85,7 +87,9 @@
                 CanUserResizeColumns="True"
                 CanUserSortColumns="True"
                 GridLinesVisibility="Horizontal"
-                HeadersVisibility="Column">
+                HeadersVisibility="Column"
+                HorizontalScrollBarVisibility="Auto"
+                VerticalScrollBarVisibility="Auto">
         <DataGrid.Columns>
           <DataGridTemplateColumn Header="{l:Tr Devices_ColumnState}" Width="Auto" SortMemberPath="State">
             <DataGridTemplateColumn.CellTemplate>
@@ -107,18 +111,18 @@
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
-          <DataGridTextColumn Header="{l:Tr Devices_ColumnName}" Binding="{Binding Name}" Width="3*" MinWidth="220" FontWeight="SemiBold" />
-          <DataGridTextColumn Header="{l:Tr Devices_ColumnAddress}" Binding="{Binding Address}" Width="2.3*" MinWidth="195" />
-          <DataGridTextColumn Header="{l:Tr Devices_ColumnPort}" Binding="{Binding Port}" Width="64" MinWidth="58" />
-          <DataGridTextColumn Header="{l:Tr Devices_SecondaryHost}" Binding="{Binding SecondaryAddress}" Width="2.3*" MinWidth="195" />
-          <DataGridTextColumn Header="{l:Tr Devices_ColumnSecondaryPort}" Binding="{Binding SecondaryPort}" Width="70" MinWidth="58" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnName}" Binding="{Binding Name}" Width="Auto" FontWeight="SemiBold" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnAddress}" Binding="{Binding Address}" Width="Auto" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnPort}" Binding="{Binding Port}" Width="Auto" />
+          <DataGridTextColumn Header="{l:Tr Devices_SecondaryHost}" Binding="{Binding SecondaryAddress}" Width="Auto" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnSecondaryPort}" Binding="{Binding SecondaryPort}" Width="Auto" />
           <DataGridTextColumn Header="{l:Tr Devices_SecondaryRtspPort}" Binding="{Binding SecondaryRtspPort}" Width="Auto" />
-          <DataGridTextColumn Header="{l:Tr Devices_ActiveAddress}" Binding="{Binding ActiveAddress}" Width="1.4*" />
-          <DataGridTextColumn Header="{l:Tr Devices_ColumnProtocol}" Binding="{Binding Protocol}" Width="1.4*" />
+          <DataGridTextColumn Header="{l:Tr Devices_ActiveAddress}" Binding="{Binding ActiveAddress}" Width="Auto" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnProtocol}" Binding="{Binding Protocol}" Width="Auto" />
           <DataGridTextColumn Header="{l:Tr Devices_ColumnType}" Binding="{Binding Type}" Width="Auto" />
-          <DataGridTextColumn Header="{l:Tr Devices_ColumnModel}" Binding="{Binding Model}" Width="1.4*" />
-          <DataGridTextColumn Header="{l:Tr Devices_ColumnSerial}" Binding="{Binding SerialNumber}" Width="1.6*" />
-          <DataGridTextColumn Header="{l:Tr Devices_ColumnFirmware}" Binding="{Binding FirmwareVersion}" Width="1.2*" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnModel}" Binding="{Binding Model}" Width="Auto" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnSerial}" Binding="{Binding SerialNumber}" Width="Auto" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnFirmware}" Binding="{Binding FirmwareVersion}" Width="Auto" />
           <DataGridTextColumn Header="{l:Tr Devices_ColumnChannels}" Binding="{Binding ChannelCount}" Width="Auto" />
         </DataGrid.Columns>
       </DataGrid>

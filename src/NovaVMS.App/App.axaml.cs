@@ -63,9 +63,12 @@ public partial class App : Application
             {
                 DataContext = viewModel
             };
+            if (_services.GetRequiredService<LocalSettingsService>().Current.StartFullScreen)
+            {
+                desktop.MainWindow.WindowState = WindowState.FullScreen;
+            }
             desktop.Exit += OnDesktopExit;
-
-            viewModel.InitializeCommand.Execute(null);
+            // The main window starts the initialization once it is shown: the login window needs it as its owner.
         }
 
         base.OnFrameworkInitializationCompleted();

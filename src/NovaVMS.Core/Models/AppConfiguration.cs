@@ -21,8 +21,14 @@ public sealed class AppConfiguration
         {
             Id = group.Id, Name = group.Name, SourceDeviceId = group.SourceDeviceId,
             Cameras = group.Cameras.ToList() // CameraReference is immutable.
-        }).ToList()
+        }).ToList(),
+        Users = Users.Select(user => user.Copy()).ToList()
     };
+
+    /// <summary>
+    /// Application users; synchronized with the rest of the configuration.
+    /// </summary>
+    public List<UserAccount> Users { get; set; } = new();
     public List<Device> Devices { get; set; } = new();
 
     public List<CameraGroup> Groups { get; set; } = new();

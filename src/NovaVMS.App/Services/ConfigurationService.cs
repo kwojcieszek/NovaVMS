@@ -1,6 +1,7 @@
 using NovaVMS.App.Models;
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
+using NovaVMS.Core.Security;
 
 namespace NovaVMS.App.Services;
 
@@ -38,7 +39,45 @@ public sealed class ConfigurationService
     public async Task LoadAsync()
     {
         Current = Normalize(await Task.Run(() => _store.LoadAsync()));
+        if (EnsureDefaultUser(Current))
+        {
+            // The default account is saved at once, so it keeps its identity and salt between starts.
+            await SaveAsync();
+            return;
+        }
+
         Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Name and password of the account created when the configuration has no users.
+    /// </summary>
+    public const string DefaultUserName = "admin";
+
+    /// <summary>
+    /// Adds the default administrator when no user exists, so the application can always be logged into.
+    /// </summary>
+    public static bool EnsureDefaultUser(AppConfiguration configuration)
+    {
+        if (configuration.Users.Count > 0)
+        {
+            return false;
+        }
+
+        var admin = new UserAccount { UserName = DefaultUserName, Permissions = UserPermissions.All };
+        PasswordHasher.SetPassword(admin, DefaultUserName);
+        configuration.Users.Add(admin);
+        return true;
+    }
+
+    public UserAccount? FindUser(Guid userId)
+    {
+        return Current.Users.FirstOrDefault(user => user.Id == userId);
+    }
+
+    public UserAccount? FindUser(string userName)
+    {
+        return Current.Users.FirstOrDefault(user => string.Equals(user.UserName, userName.Trim(), StringComparison.OrdinalIgnoreCase));
     }
 
     public async Task SaveAsync()
@@ -59,6 +98,13 @@ public sealed class ConfigurationService
     {
         var replacement = Normalize(configuration);
         replacement.Settings.HcNetSdkDirectory = Current.Settings.HcNetSdkDirectory;
+        // A version sent before users existed must not lock everyone out.
+        if (replacement.Users.Count == 0)
+        {
+            replacement.Users = Current.Users.Select(user => user.Copy()).ToList();
+            EnsureDefaultUser(replacement);
+        }
+
         Current = replacement;
 
         var snapshot = Current.CreateSnapshot();
@@ -74,7 +120,8 @@ public sealed class ConfigurationService
         {
             Settings = Current.CreateSnapshot().Settings,
             Devices = devices.ToList(),
-            Groups = groups.ToList()
+            Groups = groups.ToList(),
+            Users = Current.Users.Select(user => user.Copy()).ToList()
         }.CreateSnapshot();
         // A failed write must leave the current devices and groups available.
         await _saves.RunAsync(() => _store.SaveAsync(replacement.CreateSnapshot()));
@@ -203,6 +250,13 @@ public sealed class ConfigurationService
                 device.Password = string.Empty;
                 device.StreamEncryptionKey = string.Empty;
             }
+
+            foreach (var user in copy.Users)
+            {
+                user.PasswordHash = string.Empty;
+                user.PasswordSalt = string.Empty;
+                user.PasswordIterations = 0;
+            }
         }
 
         await Task.Run(() => _serializer.SerializeAsync(stream, copy));
@@ -266,9 +320,48 @@ public sealed class ConfigurationService
             if (index < 0) Current.Views.Add(view.Copy());
             else Current.Views[index] = view.Copy();
         }
+
+        ImportUsers(imported.Users);
         await SaveAsync();
 
         return new ImportResult(devicesAdded, devicesUpdated, groupsAdded, groupsUpdated);
+    }
+
+    /// <summary>
+    /// Users with the same ID are replaced; an export without passwords keeps the current password.
+    /// New users without a password, or with a name already taken, are skipped so nobody gets an account without a password.
+    /// </summary>
+    private void ImportUsers(IEnumerable<UserAccount> users)
+    {
+        foreach (var user in users)
+        {
+            var index = Current.Users.FindIndex(existing => existing.Id == user.Id);
+            var sameName = FindUser(user.UserName);
+            if (index < 0)
+            {
+                if (user.HasPassword && sameName is null && !string.IsNullOrWhiteSpace(user.UserName))
+                {
+                    Current.Users.Add(user.Copy());
+                }
+
+                continue;
+            }
+
+            if (sameName is not null && sameName.Id != user.Id)
+            {
+                continue;
+            }
+
+            var updated = user.Copy();
+            if (!updated.HasPassword)
+            {
+                updated.PasswordHash = Current.Users[index].PasswordHash;
+                updated.PasswordSalt = Current.Users[index].PasswordSalt;
+                updated.PasswordIterations = Current.Users[index].PasswordIterations;
+            }
+
+            Current.Users[index] = updated;
+        }
     }
 
     // JSON files edited by hand may contain nulls for collections that the model declares as non-null.
@@ -279,6 +372,15 @@ public sealed class ConfigurationService
         configuration.Settings ??= new AppSettings();
         configuration.GroupLiveViews ??= new();
         configuration.Views ??= new();
+        configuration.Users ??= new();
+        configuration.Users.RemoveAll(user => user is null);
+        foreach (var user in configuration.Users)
+        {
+            user.UserName ??= string.Empty;
+            user.PasswordHash ??= string.Empty;
+            user.PasswordSalt ??= string.Empty;
+        }
+
         foreach (var view in configuration.Views)
         {
             view.Layout ??= new();

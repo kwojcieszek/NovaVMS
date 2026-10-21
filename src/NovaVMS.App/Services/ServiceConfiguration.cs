@@ -22,6 +22,7 @@ internal static class ServiceConfiguration
         services.AddSingleton<IConfigurationSerializer, JsonConfigurationSerializer>();
         services.AddSingleton<IConfigurationStore>(provider => new JsonConfigurationStore(provider.GetRequiredService<IConfigurationSerializer>()));
         services.AddSingleton<ISettingsSyncOptionsStore, SettingsSyncOptionsStore>();
+        services.AddSingleton<ILocalSettingsStore, LocalSettingsStore>();
         services.AddSingleton<IRemoteSettingsStoreFactory, RemoteSettingsStoreFactory>();
         services.AddSingleton<IDeviceDiscovery, OnvifDiscovery>();
         services.AddSingleton<IDeviceClientFactory, DeviceClientFactory>();
@@ -31,6 +32,8 @@ internal static class ServiceConfiguration
         services.AddSingleton(_ => new LibVLC("--no-osd", "--no-snapshot-preview", "--no-video-title-show"));
 
         services.AddSingleton<ConfigurationService>();
+        services.AddSingleton<LocalSettingsService>();
+        services.AddSingleton<UserSessionService>();
         services.AddSingleton<ApplicationUpdateService>();
         services.AddSingleton<DeviceSyncService>();
         services.AddSingleton<SettingsSyncService>();
@@ -55,6 +58,7 @@ internal static class ServiceConfiguration
         services.AddScoped<GroupsSettingsViewModel>();
         services.AddScoped<GeneralSettingsViewModel>();
         services.AddScoped<SyncSettingsViewModel>();
+        services.AddScoped<UsersSettingsViewModel>();
         services.AddScoped<SettingsWindowViewModel>();
         services.AddSingleton<Func<SettingsWindowViewModel>>(provider => () =>
         {

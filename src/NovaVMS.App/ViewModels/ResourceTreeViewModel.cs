@@ -36,11 +36,13 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
     public ResourceTreeViewModel(
         ConfigurationService configuration,
         DeviceSyncService sync,
-        IDialogService dialogs)
+        IDialogService dialogs,
+        UserSessionService session)
     {
         _configuration = configuration;
         _sync = sync;
         _dialogs = dialogs;
+        Session = session;
 
         _configuration.Changed += OnConfigurationChanged;
         _sync.StatusChanged += OnStatusChanged;
@@ -51,13 +53,18 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
     /// Raised when the user asks to open a camera or a whole group in the live view.
     /// </summary>
     public event EventHandler<ResourceNodeViewModel>? OpenRequested;
-    public event EventHandler? SaveViewRequested;
+    public event EventHandler? NewViewRequested;
+
+    /// <summary>
+    /// Permissions of the logged-in user; the tree's menus bind to them.
+    /// </summary>
+    public UserSessionService Session { get; }
     public event EventHandler<CameraNodeViewModel>? ViewCameraRemoved;
 
     [RelayCommand]
     private async Task RemoveFromViewAsync(CameraNodeViewModel? node)
     {
-        if (node?.ParentViewId is not { } id) return;
+        if (!Session.CanEditViews || node?.ParentViewId is not { } id) return;
         var view = _configuration.Current.Views.FirstOrDefault(view => view.Id == id);
         var index = node.ViewSlotIndex;
         if (view is null || index < 0 || index >= view.Layout.Cameras.Count
@@ -69,7 +76,13 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void RequestSaveView() => SaveViewRequested?.Invoke(this, EventArgs.Empty);
+    private void RequestNewView()
+    {
+        if (Session.CanEditViews)
+        {
+            NewViewRequested?.Invoke(this, EventArgs.Empty);
+        }
+    }
 
     /// <summary>
     /// Raised when the user asks to forget the remembered live view of a group.
@@ -131,7 +144,7 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
     [RelayCommand]
     private async Task RenameViewAsync(ResourceGroupNodeViewModel? node)
     {
-        if (node is not { IsSavedView: true, Id: { } viewId })
+        if (!Session.CanEditViews || node is not { IsSavedView: true, Id: { } viewId })
         {
             return;
         }
@@ -155,7 +168,7 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
     [RelayCommand]
     private async Task DeleteViewAsync(ResourceGroupNodeViewModel? node)
     {
-        if (node is not { IsSavedView: true, Id: { } viewId })
+        if (!Session.CanEditViews || node is not { IsSavedView: true, Id: { } viewId })
         {
             return;
         }
@@ -173,6 +186,7 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
     [RelayCommand]
     private async Task ToggleFavoriteAsync(CameraNodeViewModel? node)
     {
+        if (!Session.CanEditFavorites) return;
         var channel = node is null ? null : _configuration.FindCamera(node.Reference)?.Channel;
         if (channel is null) return;
         channel.IsFavorite = !channel.IsFavorite;

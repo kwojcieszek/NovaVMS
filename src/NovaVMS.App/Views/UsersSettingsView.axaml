@@ -1,0 +1,67 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.App.Localization"
+             xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:vm="using:NovaVMS.App.ViewModels"
+             xmlns:core="using:NovaVMS.Core.Models"
+             x:Class="NovaVMS.App.Views.UsersSettingsView"
+             x:DataType="vm:UsersSettingsViewModel">
+
+  <Grid ColumnDefinitions="280,16,*" Margin="8">
+
+    <!-- User list -->
+    <DockPanel Grid.Column="0">
+      <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+        <Button Command="{Binding AddUserCommand}">
+          <mi:MaterialIconText Kind="AccountPlusOutline" Text="{l:Tr Users_Add}" />
+        </Button>
+        <Button Command="{Binding DeleteUserCommand}">
+          <mi:MaterialIconText Kind="AccountRemoveOutline" Text="{l:Tr Users_Delete}" />
+        </Button>
+      </StackPanel>
+      <ListBox ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="core:UserAccount">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <mi:MaterialIcon Kind="AccountOutline" />
+              <TextBlock Text="{Binding UserName}" VerticalAlignment="Center" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </DockPanel>
+
+    <!-- Editor -->
+    <ScrollViewer Grid.Column="2">
+      <StackPanel Spacing="6" MaxWidth="460" HorizontalAlignment="Left">
+        <TextBlock Classes="sectionTitle" FontSize="18" Text="{l:Tr Users_Title}" />
+        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Users_Hint}" />
+
+        <StackPanel Spacing="6" IsVisible="{Binding IsEditing}" Margin="0,8,0,0">
+          <TextBlock Classes="muted" Text="{l:Tr Login_UserName}" />
+          <TextBox Text="{Binding UserName}" />
+          <TextBlock Classes="muted" Text="{l:Tr Users_NewPassword}" />
+          <TextBox Text="{Binding Password}" PasswordChar="●" />
+          <TextBlock Classes="muted" Text="{l:Tr Users_ConfirmPassword}" />
+          <TextBox Text="{Binding ConfirmPassword}" PasswordChar="●" />
+          <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Users_PasswordHint}" />
+
+          <TextBlock Classes="sectionTitle" FontSize="15" Margin="0,10,0,2" Text="{l:Tr Users_Permissions}" />
+          <ItemsControl ItemsSource="{Binding Permissions}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:PermissionOptionViewModel">
+                <CheckBox Content="{Binding Label}" IsChecked="{Binding IsChecked}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <Button Classes="accent" HorizontalAlignment="Left" Margin="0,8,0,0" Command="{Binding SaveUserCommand}">
+            <mi:MaterialIconText Kind="ContentSaveOutline" Text="{l:Tr Users_Save}" />
+          </Button>
+        </StackPanel>
+
+        <TextBlock Classes="muted" Margin="0,8,0,0" TextWrapping="Wrap" Text="{Binding StatusText}" />
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>
