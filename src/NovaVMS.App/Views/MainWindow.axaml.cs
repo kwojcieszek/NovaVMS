@@ -41,7 +41,10 @@ public partial class MainWindow : Window
         if (_shutdownStarted) return;
         _shutdownStarted = true;
         // Releasing streams and devices can take several seconds; tell the user the application is closing.
-        var progress = new ShutdownWindow();
+        var progress = new BusyWindow("Shutdown_Title", "Shutdown_Message")
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
         progress.Show(this);
         try
         {
@@ -58,8 +61,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            progress.CanClose = true;
-            progress.Close();
+            progress.Finish();
             _canClose = true;
             Close();
         }

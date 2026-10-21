@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:l="using:NovaVMS.App.Localization"
-        x:Class="NovaVMS.App.Views.ShutdownWindow"
+        xmlns:models="using:NovaVMS.App.Models"
+        x:Class="NovaVMS.App.Views.BusyWindow"
         Title="NovaVMS"
         Width="380"
         SizeToContent="Height"
@@ -10,15 +10,18 @@
         ShowInTaskbar="False"
         Topmost="True"
         Icon="/Assets/novavms.ico"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         Background="{DynamicResource NovaPanelBackground}">
 
   <StackPanel Margin="24,20" Spacing="12">
     <StackPanel Orientation="Horizontal" Spacing="10">
-      <Image Source="/Assets/novavms.png" Width="28" Height="28" />
-      <TextBlock Text="{l:Tr Shutdown_Title}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+      <Image Source="/Assets/novavms.png" Width="32" Height="32" />
+      <StackPanel VerticalAlignment="Center">
+        <TextBlock x:Name="TitleText" FontSize="15" FontWeight="SemiBold" />
+        <TextBlock Classes="muted" FontSize="11" Text="{x:Static models:ApplicationVersion.DisplayName}" />
+      </StackPanel>
     </StackPanel>
-    <TextBlock Classes="muted" TextWrapping="Wrap" Text="{l:Tr Shutdown_Message}" />
+    <TextBlock x:Name="MessageText" Classes="muted" TextWrapping="Wrap" />
     <ProgressBar IsIndeterminate="True" Height="6" />
   </StackPanel>
 </Window>

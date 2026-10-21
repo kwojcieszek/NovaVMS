@@ -453,5 +453,7 @@
   "Aspect_Original": "Oryginalne (proporcje kamery)",
   "Aspect_Fit": "Dopasuj (wypełnij kafelek)",
   "Shutdown_Title": "Zamykanie programu",
-  "Shutdown_Message": "Proszę czekać, trwa zatrzymywanie podglądu i zwalnianie zasobów…"
+  "Shutdown_Message": "Proszę czekać, trwa zatrzymywanie podglądu i zwalnianie zasobów…",
+  "Startup_Title": "Uruchamianie programu",
+  "Startup_Message": "Proszę czekać, trwa wczytywanie konfiguracji i przygotowanie podglądu…"
 }

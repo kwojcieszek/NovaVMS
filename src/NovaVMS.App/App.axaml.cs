@@ -46,6 +46,20 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            // The start window is drawn before LibVLC and the services load, and stays until the configuration
+            // and settings database are ready (or the login window opens).
+            var splash = new BusyWindow("Startup_Title", "Startup_Message");
+            splash.Show();
+            Dispatcher.UIThread.Post(() => Start(desktop, splash), DispatcherPriority.Background);
+        }
+
+        base.OnFrameworkInitializationCompleted();
+    }
+
+    private void Start(IClassicDesktopStyleApplicationLifetime desktop, BusyWindow splash)
+    {
+        try
+        {
             global::LibVLCSharp.Shared.Core.Initialize();
 
             _services = ServiceConfiguration.Build();
@@ -57,17 +71,19 @@ public partial class App : Application
             _services.GetRequiredService<DeviceConnectionCleanupService>();
 
             var viewModel = _services.GetRequiredService<MainWindowViewModel>();
+            viewModel.StartupFinished += (_, _) => splash.Finish();
 
             // Video overlays are separate windows; the application must end with the main window.
-            desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
-            desktop.MainWindow = new MainWindow
+            var mainWindow = new MainWindow
             {
                 DataContext = viewModel
             };
             if (_services.GetRequiredService<LocalSettingsService>().Current.StartFullScreen)
             {
-                desktop.MainWindow.WindowState = WindowState.FullScreen;
+                mainWindow.WindowState = WindowState.FullScreen;
             }
+            desktop.MainWindow = mainWindow;
+            desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
             desktop.Exit += OnDesktopExit;
             SingleInstance.Current?.ListenForActivation(() => Dispatcher.UIThread.Post(() =>
             {
@@ -76,9 +92,14 @@ public partial class App : Application
                 window.Activate();
             }));
             // The main window starts the initialization once it is shown: the login window needs it as its owner.
+            mainWindow.Show();
         }
-
-        base.OnFrameworkInitializationCompleted();
+        catch (Exception exception)
+        {
+            UnhandledExceptionLogger.LogStartupFailure(exception);
+            splash.Finish();
+            desktop.Shutdown(1);
+        }
     }
 
     private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)

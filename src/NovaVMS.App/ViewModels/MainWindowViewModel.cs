@@ -82,6 +82,25 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     /// </summary>
     public event EventHandler? ExitRequested;
 
+    /// <summary>
+    /// Raised once the start window can close: before the login window, or once the first view is shown.
+    /// Devices keep connecting afterwards, reported in the status bar.
+    /// </summary>
+    public event EventHandler? StartupFinished;
+
+    private bool _isStartupFinished;
+
+    private void FinishStartup()
+    {
+        if (_isStartupFinished)
+        {
+            return;
+        }
+
+        _isStartupFinished = true;
+        StartupFinished?.Invoke(this, EventArgs.Empty);
+    }
+
     public bool IsLivePage => CurrentPage == AppPage.Live;
 
     public bool IsPlaybackPage => CurrentPage == AppPage.Playback;
@@ -124,20 +143,32 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task InitializeAsync()
     {
-        await _configuration.LoadAsync();
-        // A newer version from the settings database is applied before devices connect.
-        await _settingsSync.StartAsync();
-        // Users come from the configuration, so the login follows the newest synchronized version.
-        if (!Session.TryAutoLogin() && !await _dialogs.LoginAsync(Session, string.Empty))
+        try
         {
-            ExitRequested?.Invoke(this, EventArgs.Empty);
-            return;
-        }
+            await _configuration.LoadAsync();
+            // A newer version from the settings database is applied before devices connect.
+            await _settingsSync.StartAsync();
+            // Users come from the configuration, so the login follows the newest synchronized version.
+            if (!Session.TryAutoLogin())
+            {
+                FinishStartup();
+                if (!await _dialogs.LoginAsync(Session, string.Empty))
+                {
+                    ExitRequested?.Invoke(this, EventArgs.Empty);
+                    return;
+                }
+            }
 
-        Updates.Start();
-        Live.ApplyDefaultLayout();
-        if (_configuration.Current.Views.FirstOrDefault() is { } firstView)
-            await OpenSavedViewAsync(firstView.Id);
+            Updates.Start();
+            Live.ApplyDefaultLayout();
+            if (_configuration.Current.Views.FirstOrDefault() is { } firstView)
+                await OpenSavedViewAsync(firstView.Id);
+        }
+        finally
+        {
+            // The start window never outlives a failed start.
+            FinishStartup();
+        }
 
         var deviceCount = _configuration.Current.Devices.Count;
         if (deviceCount == 0)

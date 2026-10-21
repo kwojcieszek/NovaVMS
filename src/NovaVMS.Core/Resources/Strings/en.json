@@ -453,5 +453,7 @@
   "Aspect_Original": "Original (camera proportions)",
   "Aspect_Fit": "Fit (fill the tile)",
   "Shutdown_Title": "Closing NovaVMS",
-  "Shutdown_Message": "Please wait, stopping video and releasing resources…"
+  "Shutdown_Message": "Please wait, stopping video and releasing resources…",
+  "Startup_Title": "Starting NovaVMS",
+  "Startup_Message": "Please wait, loading the configuration and preparing the video…"
 }
