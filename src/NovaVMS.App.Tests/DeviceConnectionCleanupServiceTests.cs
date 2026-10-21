@@ -48,4 +48,29 @@ public sealed class DeviceConnectionCleanupServiceTests
     {
         await _factory.ReleaseCalled.Task.WaitAsync(TimeSpan.FromSeconds(5));
     }
+
+    [Fact]
+    public async Task ShutdownWaitsForQueuedConnectionCleanup()
+    {
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _factory.BeforeRelease = () =>
+        {
+            entered.TrySetResult();
+            if (!release.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException();
+        };
+        using var cleanup = new DeviceConnectionCleanupService(_configuration, _factory);
+        try
+        {
+            await _configuration.LoadAsync();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            cleanup.Dispose();
+            Assert.False(cleanup.Disposal.IsCompleted);
+            release.Set();
+            await cleanup.Disposal.WaitAsync(TimeSpan.FromSeconds(5));
+            await _configuration.SaveAsync();
+            Assert.Single(_factory.Releases);
+        }
+        finally { release.Set(); await cleanup.Disposal; }
+    }
 }

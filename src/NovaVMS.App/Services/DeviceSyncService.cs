@@ -13,6 +13,9 @@ public sealed class DeviceSyncService
     private readonly ConfigurationService _configuration;
     private readonly IDeviceClientFactory _clientFactory;
     private readonly ConcurrentDictionary<Guid, bool> _online = new();
+    private readonly OperationLifetime _operations = new();
+
+    public Task ShutdownAsync() => _operations.StopAsync();
 
     public DeviceSyncService(ConfigurationService configuration, IDeviceClientFactory clientFactory)
     {
@@ -46,14 +49,19 @@ public sealed class DeviceSyncService
         return results.Count(result => result.Success);
     }
 
-    public async Task<DeviceSyncResult> TrySyncAsync(Device device, CancellationToken cancellationToken = default)
+    public Task<DeviceSyncResult> TrySyncAsync(Device device, CancellationToken cancellationToken = default)
+        => _operations.RunAsync(token => TrySyncCoreAsync(device, token), cancellationToken);
+
+    private async Task<DeviceSyncResult> TrySyncCoreAsync(Device device, CancellationToken cancellationToken)
     {
         try
         {
             using var client = await _clientFactory.CreateAsync(device, rememberAddress: false, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             if (client is IDeviceConnectionClient connectionClient)
             {
                 var connection = await connectionClient.TryConnectAsync(cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (!connection.Success)
                 {
                     SetOnline(device.Id, false);
@@ -63,7 +71,10 @@ public sealed class DeviceSyncService
             }
 
             var info = await client.GetDeviceInfoAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             var channels = await client.GetChannelsAsync(cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             device.Type = info.Type;
             device.Model = string.IsNullOrWhiteSpace(info.Model) ? device.Model : info.Model;

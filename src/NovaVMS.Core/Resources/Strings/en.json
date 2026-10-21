@@ -454,6 +454,8 @@
   "Aspect_Fit": "Fit (fill the tile)",
   "Shutdown_Title": "Closing NovaVMS",
   "Shutdown_Message": "Please wait, stopping video and releasing resources…",
+  "Error_FatalTitle": "NovaVMS — application error",
+  "Error_FatalMessage": "NovaVMS encountered an error and must close. Error details are saved in:\n{0}\n\nIf this folder is unavailable, check:\n{1}",
   "Startup_Title": "Starting NovaVMS",
   "Startup_Message": "Please wait, loading the configuration and preparing the video…"
 }

@@ -126,15 +126,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Releases media players once the main window is closed and its video views are detached.
-    /// Releasing them later, at application exit, crashes the runtime inside LibVLC callbacks.
+    /// Drains device calls and releases media players while their native surfaces still exist.
     /// </summary>
     public async Task CompleteShutdownAsync()
     {
         PrepareShutdown();
+        var synchronization = _sync.ShutdownAsync();
+        Ptz.Dispose();
         Live.Dispose();
         Playback.Dispose();
-        await Task.WhenAll(Live.Disposal, Playback.Disposal);
+        await Task.WhenAll(Live.Disposal, Playback.Disposal, Ptz.Disposal, synchronization);
         await _configuration.FlushAsync();
         // Send changes still waiting for the automatic upload, without holding the exit on an unreachable database.
         await Task.WhenAny(_settingsSync.FlushAsync(), Task.Delay(SettingsUploadShutdownTimeout));
@@ -146,8 +147,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         try
         {
             await _configuration.LoadAsync();
+            if (_lifetime.IsCancellationRequested) return;
             // A newer version from the settings database is applied before devices connect.
             await _settingsSync.StartAsync();
+            if (_lifetime.IsCancellationRequested) return;
             // Users come from the configuration, so the login follows the newest synchronized version.
             if (!Session.TryAutoLogin())
             {
@@ -159,6 +162,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 }
             }
 
+            if (_lifetime.IsCancellationRequested) return;
             Updates.Start();
             Live.ApplyDefaultLayout();
             if (_configuration.Current.Views.FirstOrDefault() is { } firstView)

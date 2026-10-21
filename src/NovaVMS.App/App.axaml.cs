@@ -23,14 +23,19 @@ public partial class App : Application
         var services = _services;
         _services = null;
         if (services is null) return;
+        var cleanup = services.GetService<DeviceConnectionCleanupService>();
+        cleanup?.Dispose();
+        if (cleanup is not null) await cleanup.Disposal;
         var factory = services.GetService<IDeviceClientFactory>();
         var libVlc = services.GetService<LibVLCSharp.Shared.LibVLC>();
+        var recordingVlc = services.GetKeyedService<LibVLCSharp.Shared.LibVLC>(VideoPlayerFactory.Recordings);
         // Native resources are idempotently released in the background. Dispose the
         // provider on the UI thread afterwards: transient settings pages own UI timers.
         await Task.Run(() =>
         {
             (factory as IDisposable)?.Dispose();
             libVlc?.Dispose();
+            recordingVlc?.Dispose();
         });
         services.Dispose();
         await UnhandledExceptionLogger.FlushAsync();
@@ -98,6 +103,7 @@ public partial class App : Application
         {
             UnhandledExceptionLogger.LogStartupFailure(exception);
             splash.Finish();
+            FatalErrorNotice.Show();
             desktop.Shutdown(1);
         }
     }

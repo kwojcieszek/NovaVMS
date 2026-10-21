@@ -34,9 +34,7 @@ internal sealed class HcNetSdkVideoStream : BlockingPipeStream, IVideoStreamStat
 
     private readonly long _id;
     private readonly bool _isPlayback;
-    private readonly object _handleLock = new();
-    private int _handle = -1;
-    private bool _isStopped;
+    private NativeStreamLifetime? _lifetime;
     private readonly HikvisionStreamDecoder? _decoder;
     private readonly ProgramStreamTimestampAligner _timestamps = new();
     private string? _errorMessage;
@@ -56,20 +54,19 @@ internal sealed class HcNetSdkVideoStream : BlockingPipeStream, IVideoStreamStat
                 _errorMessage = message;
                 Complete();
             });
-        ActiveStreams[_id] = this;
     }
 
     public static Stream OpenLive(Device device, int channelNumber, StreamType streamType, bool decodeVideo = false)
     {
         var stream = new HcNetSdkVideoStream(isPlayback: false, device.StreamEncryptionKey, decodeVideo);
-        _ = Task.Run(() => stream.StartAsync(device, session => stream.StartLive(session, channelNumber, streamType)));
+        stream.BeginStart(device, session => stream.StartLive(session, channelNumber, streamType));
         return stream;
     }
 
     public static Stream OpenPlayback(Device device, int channelNumber, DateTime start, DateTime end)
     {
         var stream = new HcNetSdkVideoStream(isPlayback: true, device.StreamEncryptionKey);
-        _ = Task.Run(() => stream.StartAsync(device, session => stream.StartPlayback(session, channelNumber, start, end)));
+        stream.BeginStart(device, session => stream.StartPlayback(session, channelNumber, start, end));
         return stream;
     }
 
@@ -80,7 +77,7 @@ internal sealed class HcNetSdkVideoStream : BlockingPipeStream, IVideoStreamStat
     {
         foreach (var stream in ActiveStreams.Values)
         {
-            stream.ReleaseHandle(stream.MarkStopped());
+            stream.Dispose();
         }
     }
 
@@ -88,35 +85,36 @@ internal sealed class HcNetSdkVideoStream : BlockingPipeStream, IVideoStreamStat
     {
         if (disposing)
         {
-            // Stopping an SDK stream can take a moment; the caller (usually the UI thread) does not wait for it.
-            var handle = MarkStopped();
-            if (handle >= 0)
-            {
-                _ = Task.Run(() => ReleaseHandle(handle));
-            }
-            else
-            {
-                ReleaseHandle(handle);
-            }
+            // VideoMedia.Stop runs off the UI thread. Do not return while SDK callbacks are still alive.
+            _lifetime?.Dispose();
         }
 
         base.Dispose(disposing);
     }
 
-    private async Task StartAsync(Device device, Func<HcNetSdkSession, int> start)
+    private void BeginStart(Device device, Func<HcNetSdkSession, int> start)
+    {
+        _lifetime = new NativeStreamLifetime(token => StartAsync(device, start, token), StopHandle, Complete, () =>
+        {
+            try { _decoder?.Dispose(); }
+            finally { ActiveStreams.TryRemove(_id, out _); }
+        }, startImmediately: false);
+        ActiveStreams[_id] = this;
+        _lifetime.Start();
+    }
+
+    private async Task<int> StartAsync(Device device, Func<HcNetSdkSession, int> start, CancellationToken token)
     {
         try
         {
-            var connection = await HcNetSdkSessionPool.TryAcquireAsync(device, CancellationToken.None).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
+            var connection = await HcNetSdkSessionPool.TryAcquireAsync(device, token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
             if (connection.Session is not { } session)
             {
                 _errorMessage = connection.Error!.Message;
                 Complete();
-                return;
-            }
-            if (IsStopped())
-            {
-                return;
+                return -1;
             }
 
             var handle = start(session);
@@ -131,25 +129,16 @@ internal sealed class HcNetSdkVideoStream : BlockingPipeStream, IVideoStreamStat
 
                 // Ending the stream makes the player report the failure; the tile retries later.
                 Complete();
-                return;
+                return -1;
             }
-
-            lock (_handleLock)
-            {
-                if (!_isStopped)
-                {
-                    _handle = handle;
-                    return;
-                }
-            }
-
-            // Disposed while the transfer was starting.
-            ReleaseHandle(handle);
+            return handle;
         }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { return -1; }
         catch (Exception exception) when (DeviceFailure.IsExpected(exception))
         {
             _errorMessage = exception.Message;
             Complete();
+            return -1;
         }
     }
 
@@ -198,46 +187,6 @@ internal sealed class HcNetSdkVideoStream : BlockingPipeStream, IVideoStreamStat
         }
 
         return handle;
-    }
-
-    private bool IsStopped()
-    {
-        lock (_handleLock)
-        {
-            return _isStopped;
-        }
-    }
-
-    /// <summary>
-    /// Marks the stream as stopped and returns the SDK handle that still has to be released (-1 if none).
-    /// </summary>
-    private int MarkStopped()
-    {
-        Complete();
-        lock (_handleLock)
-        {
-            if (_isStopped)
-            {
-                return -1;
-            }
-
-            _isStopped = true;
-            var handle = _handle;
-            _handle = -1;
-            return handle;
-        }
-    }
-
-    private void ReleaseHandle(int handle)
-    {
-        if (handle >= 0)
-        {
-            StopHandle(handle);
-        }
-
-        _decoder?.Dispose();
-
-        ActiveStreams.TryRemove(_id, out _);
     }
 
     private void StopHandle(int handle)

@@ -37,7 +37,7 @@ public sealed class VideoTileAttachmentTests
             window.Show();
             Dispatcher.UIThread.RunJobs();
             Assert.True(host.Bounds.Width > 0);
-            for (var index = 0; index < 5; index++)
+            for (var index = 0; index < 100; index++)
             {
                 window.Content = null;
                 Assert.True(host.Bounds.Width > 0); // Cached size survives detaching, as it does on settings-tab switches.

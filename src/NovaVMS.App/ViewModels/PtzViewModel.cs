@@ -31,6 +31,8 @@ public sealed partial class PtzViewModel : ViewModelBase, IDisposable
     private Device? _clientDevice;
     private string? _clientSettings;
     private bool _isDisposed;
+    private Task? _disposal;
+    public Task Disposal => _disposal ?? Task.CompletedTask;
 
     [ObservableProperty]
     private string _targetName = Localizer.Text(NoTargetKey);
@@ -95,6 +97,9 @@ public sealed partial class PtzViewModel : ViewModelBase, IDisposable
     }
 
     public void Dispose()
+        => _disposal ??= DisposeCoreAsync();
+
+    private async Task DisposeCoreAsync()
     {
         if (_isDisposed)
         {
@@ -103,7 +108,10 @@ public sealed partial class PtzViewModel : ViewModelBase, IDisposable
 
         _isDisposed = true;
         Localizer.Instance.LanguageChanged -= OnLanguageChanged;
-        ReleaseClient();
+        // A command can still be inside an SDK call. Keep its client and the SDK alive until it returns.
+        await _commandGate.WaitAsync();
+        try { ReleaseClient(); }
+        finally { _commandGate.Release(); }
     }
 
     [RelayCommand(CanExecute = nameof(HasTarget))]
@@ -169,6 +177,7 @@ public sealed partial class PtzViewModel : ViewModelBase, IDisposable
             if (client is IDeviceConnectionClient connectionClient)
             {
                 var connection = await connectionClient.TryConnectAsync();
+                if (_isDisposed) return;
                 if (!connection.Success)
                 {
                     var message = DeviceOperationErrors.Report($"PTZ control: {camera.FullName}", connection.Error!);

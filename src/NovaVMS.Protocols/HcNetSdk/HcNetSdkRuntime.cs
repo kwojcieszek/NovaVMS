@@ -80,6 +80,10 @@ public static class HcNetSdkRuntime
     /// </summary>
     public static void Shutdown()
     {
+        // A stream may still be waiting to initialize/login. Drain it without holding the
+        // initialization lock, otherwise that opening and shutdown would wait for each other.
+        HcNetSdkVideoStream.StopAll();
+        HikvisionRtspVideoStream.StopAll();
         lock (SyncRoot)
         {
             if (!_isInitialized)
@@ -87,8 +91,6 @@ public static class HcNetSdkRuntime
                 return;
             }
 
-            HcNetSdkVideoStream.StopAll();
-            HikvisionRtspVideoStream.StopAll();
             HcNetSdkSessionPool.LogoutAll();
             HcNetSdkNative.Cleanup();
             _isInitialized = false;

@@ -12,6 +12,7 @@ public sealed class DeviceConnectionCleanupService : IDisposable
     private readonly IDeviceClientFactory _clientFactory;
     private readonly AsyncWorkQueue _cleanups = new();
     private string? _lastSignature;
+    public Task Disposal { get; private set; } = Task.CompletedTask;
 
     public DeviceConnectionCleanupService(ConfigurationService configuration, IDeviceClientFactory clientFactory)
     {
@@ -23,6 +24,7 @@ public sealed class DeviceConnectionCleanupService : IDisposable
     public void Dispose()
     {
         _configuration.Changed -= OnConfigurationChanged;
+        Disposal = _cleanups.WhenIdle;
     }
 
     private void OnConfigurationChanged(object? sender, EventArgs e)

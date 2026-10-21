@@ -454,6 +454,8 @@
   "Aspect_Fit": "Dopasuj (wypełnij kafelek)",
   "Shutdown_Title": "Zamykanie programu",
   "Shutdown_Message": "Proszę czekać, trwa zatrzymywanie podglądu i zwalnianie zasobów…",
+  "Error_FatalTitle": "NovaVMS — błąd aplikacji",
+  "Error_FatalMessage": "Wystąpił błąd i NovaVMS musi zostać zamknięty. Szczegóły błędu zapisano w:\n{0}\n\nJeśli ten folder jest niedostępny, sprawdź:\n{1}",
   "Startup_Title": "Uruchamianie programu",
   "Startup_Message": "Proszę czekać, trwa wczytywanie konfiguracji i przygotowanie podglądu…"
 }

@@ -9,6 +9,8 @@ namespace NovaVMS.App.Tests;
 internal sealed class FakeDeviceClientFactory : IDeviceClientFactory
 {
     public List<FakeDeviceClient> Created { get; } = new();
+    public Action<FakeDeviceClient>? ConfigureClient { get; set; }
+    public Action? BeforeRelease { get; set; }
 
     public List<IReadOnlyCollection<Device>> Releases { get; } = new();
 
@@ -17,12 +19,14 @@ internal sealed class FakeDeviceClientFactory : IDeviceClientFactory
     public IDeviceClient Create(Device device)
     {
         var client = new FakeDeviceClient(device);
+        ConfigureClient?.Invoke(client);
         Created.Add(client);
         return client;
     }
 
     public void ReleaseUnusedConnections(IReadOnlyCollection<Device> devices)
     {
+        BeforeRelease?.Invoke();
         lock (Releases)
         {
             Releases.Add(devices);

@@ -28,6 +28,7 @@ internal static class Program
         catch (Exception exception)
         {
             UnhandledExceptionLogger.LogStartupFailure(exception);
+            FatalErrorNotice.Show();
             Environment.ExitCode = 1;
         }
     }

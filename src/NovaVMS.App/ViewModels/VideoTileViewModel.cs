@@ -482,7 +482,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         var player = _player;
         var version = ++_streamVersion;
         var withAudio = IsAudioEnabled;
-        var hardware = !_softwareFallback;
+        var hardware = VideoPlayerFactory.UseHardwareDecoding && !_softwareFallback;
         Status = TileStatus.Connecting;
         StatusText = string.Empty;
         ErrorDetails = null;
@@ -548,10 +548,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
 
     private MediaPlayer CreatePlayer(LibVLC libVlc)
     {
-        var player = new MediaPlayer(libVlc)
-        {
-            EnableHardwareDecoding = true
-        };
+        var player = VideoPlayerFactory.Create(libVlc);
         // LibVLCSharp does not pass the player as the event sender, so each player gets its own handlers.
         player.Playing += (_, _) => OnPlayerPlaying(player);
         player.EncounteredError += (_, _) => OnPlayerError(player);
@@ -579,7 +576,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         var player = InactivePlayer;
         if (!HasVideoSurface(player)) { ReportSwitchFailure(Localizer.Text("Tile_SwitchFailed")); return; }
         _switchRequest = request;
-        var hardware = !_softwareFallback;
+        var hardware = VideoPlayerFactory.UseHardwareDecoding && !_softwareFallback;
         var withAudio = IsAudioEnabled;
         _displayGeometry.Learn(request.AspectRatio);
         var ratio = DisplayAspectRatio;

@@ -46,6 +46,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     private DateTime _shuttleAnchor;
     private long _shuttleStarted;
     private long _previewStarted;
+    private long _previewVisibleStarted;
     private VideoMedia? _media;
     private CameraReference? _camera;
     private DateTime _playbackStart;
@@ -153,7 +154,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     public IReadOnlyList<PlaybackSpeedOption> Speeds => PlaybackSpeedOption.All;
 
-    public PlaybackViewModel(LibVLC libVlc, ConfigurationService configuration, IDeviceClientFactory clientFactory,
+    public PlaybackViewModel([Microsoft.Extensions.DependencyInjection.FromKeyedServices(VideoPlayerFactory.Recordings)] LibVLC libVlc, ConfigurationService configuration, IDeviceClientFactory clientFactory,
         IDialogService dialogs, RecordingExporter exporter)
     {
         _libVlc = libVlc;
@@ -162,7 +163,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         _dialogs = dialogs;
         _exporter = exporter;
 
-        _player = new MediaPlayer(libVlc);
+        _player = VideoPlayerFactory.Create(libVlc);
         _player.EncounteredError += OnPlayerError;
         _player.EndReached += OnPlayerEndReached;
         VideoPlayer = _player;
@@ -460,7 +461,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
             var source = await client.GetPlaybackSourceAsync(camera.Channel.Number, start, end, _lifetime.Token);
             if (_isShutDown || version != _playbackVersion) return;
             var caching = _configuration.Current.Settings.GetNetworkCachingMs(StreamType.Main);
-            var media = await _operations.RunAsync(() => VideoMedia.Create(_libVlc, source, camera.Device.Username, camera.Device.Password, caching));
+            var media = await _operations.RunAsync(() => VideoMedia.Create(_libVlc, source, camera.Device.Username, camera.Device.Password, caching, paceStream: true));
             if (_isShutDown || version != _playbackVersion)
             {
                 await _operations.RunAsync(media.Dispose);
@@ -480,6 +481,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
             StatusText = Localizer.Format("Playback_PlayingFrom", start.ToString("HH:mm:ss"));
             _positionTimer.Start();
             _previewStarted = Stopwatch.GetTimestamp();
+            _previewVisibleStarted = 0;
         }
         catch (OperationCanceledException) when (_isShutDown) { }
         catch (Exception exception)
@@ -522,10 +524,15 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         {
             // RTSP and callback streams are not seekable files, and LibVLC does not support
             // negative playback rates. Shuttle by absolute recording time for every protocol.
-            if (Stopwatch.GetElapsedTime(_previewStarted) < TimeSpan.FromMilliseconds(900)) return;
-            // Give a slow recorder time to produce a visible preview before replacing the session.
-            if (_media?.Media.Statistics.DisplayedPictures == 0
-                && Stopwatch.GetElapsedTime(_previewStarted) < TimeSpan.FromSeconds(4)) return;
+            // Count the preview interval from its first displayed frame, not Play().
+            // SDK buffering can take longer than the interval; reopening immediately
+            // after the first frame otherwise keeps the output almost permanently black.
+            if (_media?.Media.Statistics.DisplayedPictures > 0)
+            {
+                if (_previewVisibleStarted == 0) _previewVisibleStarted = Stopwatch.GetTimestamp();
+                if (Stopwatch.GetElapsedTime(_previewVisibleStarted) < TimeSpan.FromMilliseconds(900)) return;
+            }
+            else if (Stopwatch.GetElapsedTime(_previewStarted) < TimeSpan.FromSeconds(4)) return;
             var target = _shuttleAnchor.AddSeconds(Stopwatch.GetElapsedTime(_shuttleStarted).TotalSeconds * SelectedSpeed.Rate);
             if (target < Day || target >= Day.AddDays(1))
             {

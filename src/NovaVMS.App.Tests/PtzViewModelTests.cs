@@ -76,4 +76,26 @@ public sealed class PtzViewModelTests
         ptz.SetTarget(new CameraReference { DeviceId = _device.Id, ChannelNumber = 1 });
         return ptz;
     }
+
+    [Fact]
+    public async Task ShutdownWaitsForActiveCommandBeforeReleasingItsClient()
+    {
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _factory.ConfigureClient = client => client.Move = () => release.Task;
+        var ptz = await CreateAsync();
+        var moving = ptz.StartMoveAsync(PtzDirection.Up);
+        try
+        {
+            ptz.Dispose();
+            var client = Assert.Single(_factory.Created);
+            Assert.False(client.IsDisposed);
+            Assert.False(ptz.Disposal.IsCompleted);
+            var queued = ptz.StartMoveAsync(PtzDirection.Left);
+            release.SetResult();
+            await Task.WhenAll(moving, queued, ptz.Disposal).WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(client.IsDisposed);
+            Assert.Equal(["move"], client.Commands);
+        }
+        finally { release.TrySetResult(); ptz.Dispose(); await ptz.Disposal; }
+    }
 }

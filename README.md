@@ -178,6 +178,13 @@ are written to `logs/errors-YYYYMMDD.log` with timestamps, process/thread IDs an
 If the application data directory cannot be written, logging falls back to `NovaVMS/logs` in the system
 temporary directory, then to standard error. Fatal native crashes, forced process termination and
 stack overflows may bypass managed exception handlers.
+On Windows, a managed startup or main-loop failure also displays an error dialog with the log locations.
+LibVLC hardware decoding is disabled on Windows after reproducing a native D3D11 decoder access
+violation when stopping a recording. This increases CPU use, especially with many high-resolution streams.
+Recordings use a separate LibVLC instance with frame dropping disabled and paced SDK input, so a fast
+recorder transfer neither races through the footage nor leaves only the first frame visible.
+Shutdown waits for active device synchronization, PTZ commands and queued connection cleanup before
+releasing the native SDK; cancelling a call alone does not mean its native work has finished.
 
 ## Settings database
 

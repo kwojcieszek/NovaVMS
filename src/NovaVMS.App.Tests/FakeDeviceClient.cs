@@ -13,11 +13,13 @@ internal sealed class FakeDeviceClient(Device device) : IDeviceClient
     public List<string> Commands { get; } = new();
 
     public bool IsDisposed { get; private set; }
+    public Func<Task>? Move { get; set; }
+    public Func<CancellationToken, Task<DeviceInfo>>? ReadInfo { get; set; }
 
     public Task PtzMoveAsync(int channelNumber, int pan, int tilt, int zoom, CancellationToken cancellationToken = default)
     {
         Commands.Add("move");
-        return Task.CompletedTask;
+        return Move?.Invoke() ?? Task.CompletedTask;
     }
 
     public Task PtzStopAsync(int channelNumber, CancellationToken cancellationToken = default)
@@ -49,7 +51,7 @@ internal sealed class FakeDeviceClient(Device device) : IDeviceClient
 
     public Task<DeviceInfo> GetDeviceInfoAsync(CancellationToken cancellationToken = default)
     {
-        throw new NotSupportedException();
+        return ReadInfo?.Invoke(cancellationToken) ?? throw new NotSupportedException();
     }
 
     public Task<IReadOnlyList<Channel>> GetChannelsAsync(CancellationToken cancellationToken = default)

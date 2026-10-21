@@ -30,6 +30,8 @@ internal static class ServiceConfiguration
         services.AddSingleton<DeviceCsvReader>();
         // Internal transition snapshots must not display filenames or preview thumbnails over video.
         services.AddSingleton(_ => new LibVLC("--no-osd", "--no-snapshot-preview", "--no-video-title-show"));
+        services.AddKeyedSingleton<LibVLC>(VideoPlayerFactory.Recordings,
+            (_, _) => VideoPlayerFactory.CreateRecordingEngine());
 
         services.AddSingleton<ConfigurationService>();
         services.AddSingleton<LocalSettingsService>();

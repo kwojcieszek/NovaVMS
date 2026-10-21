@@ -7,7 +7,7 @@ using NovaVMS.Core.Models;
 namespace NovaVMS.App.Services;
 
 /// <summary>Independent player writes a bounded MP4 without interrupting the displayed recording.</summary>
-public sealed class RecordingExporter(LibVLC libVlc)
+public sealed class RecordingExporter([Microsoft.Extensions.DependencyInjection.FromKeyedServices(VideoPlayerFactory.Recordings)] LibVLC libVlc)
 {
     internal static string FileName(string cameraName, int channel, DateTime start, DateTime end)
     {
@@ -27,11 +27,11 @@ public sealed class RecordingExporter(LibVLC libVlc)
             var partial = destination + $".{Guid.NewGuid():N}.partial";
             try
             {
-                using var media = VideoMedia.Create(libVlc, source, username, password, 300);
+                using var media = VideoMedia.Create(libVlc, source, username, password, 300, paceStream: true);
                 media.Media.AddOption(":sout=" + BuildOutput(partial));
                 media.Media.AddOption(":run-time=" + duration.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture));
                 media.Media.AddOption(":no-sout-all");
-                using var player = new MediaPlayer(libVlc);
+                using var player = VideoPlayerFactory.Create(libVlc);
                 var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 player.EndReached += (_, _) => completion.TrySetResult(true);
                 player.EncounteredError += (_, _) => completion.TrySetException(new IOException(media.ErrorMessage ?? "Recording export failed."));

@@ -31,7 +31,7 @@ public sealed class VideoMedia : IDisposable
         ?? (_networkSession as IVideoStreamStatus)?.ErrorMessage;
 
     public static VideoMedia Create(LibVLC libVlc, VideoSource source, string username, string password, int networkCachingMs,
-        bool withAudio = true, int maxFrameRate = 0)
+        bool withAudio = true, int maxFrameRate = 0, bool paceStream = false)
     {
         ArgumentNullException.ThrowIfNull(source);
 
@@ -43,7 +43,7 @@ public sealed class VideoMedia : IDisposable
             Media? streamMedia = null;
             try
             {
-                input = new StreamMediaInput(stream);
+                input = paceStream ? new RecordingMediaInput(stream) : new StreamMediaInput(stream);
                 streamMedia = new Media(libVlc, input);
                 streamMedia.AddOption($":network-caching={networkCachingMs}");
                 AddAudioOption(streamMedia, withAudio);
