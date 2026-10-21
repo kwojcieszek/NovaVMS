@@ -24,8 +24,8 @@
         </Button>
       </StackPanel>
 
-      <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,12,*" Margin="0,8,0,0">
-        <Expander Grid.Column="0" HorizontalAlignment="Stretch" VerticalAlignment="Top">
+      <StackPanel DockPanel.Dock="Bottom" Spacing="12" Margin="0,8,0,0">
+        <Expander HorizontalAlignment="Stretch" VerticalAlignment="Top">
           <Expander.Header>
             <mi:MaterialIconText Kind="LanConnect" Text="{l:Tr Devices_Discovery}" />
           </Expander.Header>
@@ -52,7 +52,7 @@
           </StackPanel>
         </Expander>
 
-        <Expander Grid.Column="2" HorizontalAlignment="Stretch" VerticalAlignment="Top">
+        <Expander HorizontalAlignment="Stretch" VerticalAlignment="Top">
           <Expander.Header>
             <mi:MaterialIconText Kind="FileDelimitedOutline" Text="{l:Tr Devices_ImportTitle}" />
           </Expander.Header>
@@ -75,7 +75,7 @@
             <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Devices_IvmsHint}" />
           </StackPanel>
         </Expander>
-      </Grid>
+      </StackPanel>
 
       <DataGrid ItemsSource="{Binding Devices}"
                 SelectedItem="{Binding SelectedDevice}"
@@ -107,11 +107,13 @@
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
-          <DataGridTextColumn Header="{l:Tr Devices_ColumnName}" Binding="{Binding Name}" Width="2*" FontWeight="SemiBold" />
-          <DataGridTextColumn Header="{l:Tr Devices_ColumnAddress}" Binding="{Binding Address}" Width="1.4*" />
-          <DataGridTextColumn Header="{l:Tr Devices_SecondaryHost}" Binding="{Binding SecondaryAddress}" Width="1.4*" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnName}" Binding="{Binding Name}" Width="3*" MinWidth="220" FontWeight="SemiBold" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnAddress}" Binding="{Binding Address}" Width="2.3*" MinWidth="195" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnPort}" Binding="{Binding Port}" Width="64" MinWidth="58" />
+          <DataGridTextColumn Header="{l:Tr Devices_SecondaryHost}" Binding="{Binding SecondaryAddress}" Width="2.3*" MinWidth="195" />
+          <DataGridTextColumn Header="{l:Tr Devices_ColumnSecondaryPort}" Binding="{Binding SecondaryPort}" Width="70" MinWidth="58" />
+          <DataGridTextColumn Header="{l:Tr Devices_SecondaryRtspPort}" Binding="{Binding SecondaryRtspPort}" Width="Auto" />
           <DataGridTextColumn Header="{l:Tr Devices_ActiveAddress}" Binding="{Binding ActiveAddress}" Width="1.4*" />
-          <DataGridTextColumn Header="{l:Tr Devices_ColumnPort}" Binding="{Binding Port}" Width="Auto" />
           <DataGridTextColumn Header="{l:Tr Devices_ColumnProtocol}" Binding="{Binding Protocol}" Width="1.4*" />
           <DataGridTextColumn Header="{l:Tr Devices_ColumnType}" Binding="{Binding Type}" Width="Auto" />
           <DataGridTextColumn Header="{l:Tr Devices_ColumnModel}" Binding="{Binding Model}" Width="1.4*" />
@@ -142,27 +144,36 @@
         </ComboBox>
         <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Devices_ProtocolHint}" />
 
-        <TextBlock Classes="muted" Text="{l:Tr Devices_Host}" />
-        <TextBox Watermark="192.168.1.64" Text="{Binding EditHost}" />
-
-        <TextBlock Classes="muted" Text="{l:Tr Devices_SecondaryHost}" />
-        <TextBox Text="{Binding EditSecondaryHost}" Watermark="{l:Tr Devices_SecondaryHostWatermark}" />
-        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Devices_SecondaryHostHint}" />
-
-        <Grid ColumnDefinitions="*,12,*" IsVisible="{Binding IsNetworkProtocol}">
-          <StackPanel Grid.Column="0" Spacing="6">
-            <TextBlock Classes="muted" Text="{l:Tr Devices_HttpPort}" />
-            <TextBox Text="{Binding EditHttpPort}" />
-          </StackPanel>
-          <StackPanel Grid.Column="2" Spacing="6">
-            <TextBlock Classes="muted" Text="{l:Tr Devices_RtspPort}" />
-            <TextBox Text="{Binding EditRtspPort}" />
-          </StackPanel>
+        <Grid ColumnDefinitions="*,12,110" RowDefinitions="Auto,Auto">
+          <TextBlock Classes="muted" Text="{l:Tr Devices_Host}" Margin="0,0,0,6" />
+          <TextBlock Grid.Column="2" Classes="muted" Text="{l:Tr Devices_SdkPort}"
+                     IsVisible="{Binding IsSdkProtocol}" TextWrapping="Wrap" Margin="0,0,0,6" />
+          <TextBlock Grid.Column="2" Classes="muted" Text="{l:Tr Devices_HttpPort}"
+                     IsVisible="{Binding IsNetworkProtocol}" TextWrapping="Wrap" Margin="0,0,0,6" />
+          <TextBox Grid.Row="1" Watermark="192.168.1.64" Text="{Binding EditHost}" />
+          <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding EditSdkPort}" IsVisible="{Binding IsSdkProtocol}" />
+          <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding EditHttpPort}" IsVisible="{Binding IsNetworkProtocol}" />
         </Grid>
 
-        <StackPanel Spacing="6" IsVisible="{Binding IsSdkProtocol}">
-          <TextBlock Classes="muted" Text="{l:Tr Devices_SdkPort}" />
-          <TextBox Text="{Binding EditSdkPort}" />
+        <StackPanel Spacing="6" IsVisible="{Binding IsNetworkProtocol}">
+          <TextBlock Classes="muted" Text="{l:Tr Devices_RtspPort}" />
+          <TextBox Text="{Binding EditRtspPort}" />
+        </StackPanel>
+
+        <Grid ColumnDefinitions="*,12,110" RowDefinitions="Auto,Auto">
+          <TextBlock Classes="muted" Text="{l:Tr Devices_SecondaryHost}" Margin="0,0,0,6" />
+          <TextBlock Grid.Column="2" Classes="muted" Text="{l:Tr Devices_SecondaryPort}" TextWrapping="Wrap" Margin="0,0,0,6" />
+          <TextBox Grid.Row="1" Text="{Binding EditSecondaryHost}" Watermark="{l:Tr Devices_SecondaryHostWatermark}" />
+          <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding EditSecondaryPort}" Minimum="1" Maximum="65535"
+                         ShowButtonSpinner="False"
+                         FormatString="0" ToolTip.Tip="{l:Tr Devices_SecondaryPort}" />
+        </Grid>
+        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Devices_SecondaryHostHint}" />
+
+        <StackPanel Spacing="6" IsVisible="{Binding IsNetworkProtocol}">
+          <TextBlock Classes="muted" Text="{l:Tr Devices_SecondaryRtspPort}" />
+          <NumericUpDown Value="{Binding EditSecondaryRtspPort}" Minimum="1" Maximum="65535"
+                         ShowButtonSpinner="False" FormatString="0" />
         </StackPanel>
 
         <CheckBox Content="{l:Tr Devices_UseHttps}" IsChecked="{Binding EditUseHttps}" IsVisible="{Binding IsNetworkProtocol}" />

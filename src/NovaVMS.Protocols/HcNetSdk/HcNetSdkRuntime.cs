@@ -37,9 +37,9 @@ public static class HcNetSdkRuntime
 
     public static string ResolveDirectory(string configuredDirectory)
     {
-        return string.IsNullOrWhiteSpace(configuredDirectory)
-            ? Path.Combine(AppContext.BaseDirectory, DefaultFolderName)
-            : configuredDirectory.Trim();
+        var directory = string.IsNullOrWhiteSpace(configuredDirectory)
+            ? DefaultFolderName : configuredDirectory.Trim();
+        return Path.GetFullPath(directory, AppContext.BaseDirectory);
     }
 
     /// <summary>

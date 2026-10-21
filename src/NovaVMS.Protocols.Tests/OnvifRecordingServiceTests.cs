@@ -81,6 +81,39 @@ public sealed class OnvifRecordingServiceTests
     }
 
     [Fact]
+    public async Task ReplayConnectsToSecondaryRtspPort()
+    {
+        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        listener.Start();
+        try
+        {
+            var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+            var device = Device();
+            device.SecondaryHost = "127.0.0.1";
+            device.SecondaryRtspPort = port;
+            var service = new OnvifRecordingService(device.ForSecondaryAddress(), (_, request, _) => Task.FromResult(request.Name.LocalName switch
+            {
+                "GetServices" => Services(),
+                "FindRecordings" => Token("recordings"),
+                "GetRecordingSearchResults" => RecordingPage(),
+                "EndSearch" => new XElement("EndSearchResponse"),
+                "GetReplayUri" => Replay(request),
+                _ => throw new InvalidOperationException(request.Name.LocalName)
+            }));
+            var source = await service.GetSourceAsync("source2", ["profile2"], Day.AddHours(1), Day.AddHours(2), default);
+            var uri = source.OpenUri(out var lifetime);
+            using var session = lifetime;
+            using var player = new System.Net.Sockets.TcpClient();
+            await player.ConnectAsync(uri.Host, uri.Port);
+            using var remote = await listener.AcceptTcpClientAsync().WaitAsync(TimeSpan.FromSeconds(3));
+            var proxy = Assert.IsType<OnvifReplayProxy>(lifetime);
+            proxy.Dispose();
+            await proxy.Completion.WaitAsync(TimeSpan.FromSeconds(3));
+        }
+        finally { listener.Stop(); }
+    }
+
+    [Fact]
     public async Task CancellationEndsDeviceSideSearch()
     {
         using var stop = new CancellationTokenSource();

@@ -15,7 +15,7 @@
     <!-- Groups -->
     <DockPanel Grid.Column="0">
       <TextBlock DockPanel.Dock="Top" Classes="sectionTitle" Text="{l:Tr Groups_Title}" />
-      <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,8,0,0">
+      <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,8">
         <StackPanel Orientation="Horizontal" Spacing="6">
           <Button Command="{Binding AddGroupCommand}">
             <mi:MaterialIconText Kind="FolderPlusOutline" Text="{l:Tr Groups_New}" />
@@ -62,12 +62,14 @@
     <!-- Cameras in the group -->
     <DockPanel Grid.Column="2">
       <TextBlock DockPanel.Dock="Top" Classes="sectionTitle" Text="{l:Tr Groups_CamerasInGroup}" />
-      <Button DockPanel.Dock="Bottom"
-              Margin="0,8,0,0"
+      <Button DockPanel.Dock="Top"
+              Margin="0,0,0,8"
               Command="{Binding RemoveCameraCommand}">
         <mi:MaterialIconText Kind="ArrowRightBold" Text="{l:Tr Groups_RemoveFromGroup}" />
       </Button>
-      <ListBox ItemsSource="{Binding GroupCameras}" SelectedItem="{Binding SelectedGroupCamera}">
+      <ListBox ItemsSource="{Binding GroupCameras}"
+               SelectedItem="{Binding SelectedGroupCamera}"
+               Tapped="OnCameraTapped">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="models:CameraDescriptor">
             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -82,12 +84,26 @@
     <!-- Available cameras -->
     <DockPanel Grid.Column="4">
       <TextBlock DockPanel.Dock="Top" Classes="sectionTitle" Text="{l:Tr Groups_Available}" />
-      <Button DockPanel.Dock="Bottom"
-              Margin="0,8,0,0"
+      <ComboBox DockPanel.Dock="Top"
+                Margin="0,0,0,8"
+                ItemsSource="{Binding DeviceFilters}"
+                SelectedItem="{Binding AvailableDeviceFilter}"
+                HorizontalAlignment="Stretch"
+                ToolTip.Tip="{l:Tr Groups_FilterByDevice}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="models:DeviceFilterOption">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <Button DockPanel.Dock="Top"
+              Margin="0,0,0,8"
               Command="{Binding AddCameraCommand}">
         <mi:MaterialIconText Kind="ArrowLeftBold" Text="{l:Tr Tree_AddToGroup}" />
       </Button>
-      <ListBox ItemsSource="{Binding AvailableCameras}" SelectedItem="{Binding SelectedAvailableCamera}">
+      <ListBox ItemsSource="{Binding AvailableCameras}"
+               SelectedItem="{Binding SelectedAvailableCamera}"
+               Tapped="OnCameraTapped">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="models:CameraDescriptor">
             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -100,15 +116,15 @@
     </DockPanel>
 
   </Grid>
-    <Grid Grid.Row="2" ColumnDefinitions="*,12,*">
-      <views:VideoTileView DataContext="{Binding Preview.Tile}" />
-      <StackPanel Grid.Column="2" Spacing="8" VerticalAlignment="Center">
+    <!-- Preview of the clicked camera in the bottom right corner -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,16,Auto">
+      <StackPanel Grid.Column="0" Spacing="8" VerticalAlignment="Center">
         <TextBlock Classes="sectionTitle" Text="{l:Tr Groups_Preview}" />
         <TextBlock Text="{l:Tr Groups_PreviewHint}" TextWrapping="Wrap" />
         <TextBlock Text="{Binding Preview.Message}" TextWrapping="Wrap" />
       </StackPanel>
+      <!-- 16:9 area: the row is 260 px high. -->
+      <views:VideoTileView Grid.Column="2" Width="462" Height="260" DataContext="{Binding Preview.Tile}" />
     </Grid>
   </Grid>
 </UserControl>
-
-

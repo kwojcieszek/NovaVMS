@@ -50,6 +50,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         Tree.PropertyChanged += OnTreePropertyChanged;
         Tree.OpenRequested += OnTreeOpenRequested;
+        Tree.SaveViewRequested += OnTreeSaveViewRequested;
+        Tree.ViewCameraRemoved += (_, camera) => Live.RemoveViewCamera(camera.ParentViewId, camera.ViewSlotIndex);
+        Tree.ResetViewRequested += OnTreeResetViewRequested;
+        Tree.GroupContentChanged += OnTreeGroupContentChanged;
         Live.PropertyChanged += OnLivePropertyChanged;
     }
 
@@ -109,6 +113,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         // A newer version from the settings database is applied before devices connect.
         await _settingsSync.StartAsync();
         Live.ApplyDefaultLayout();
+        if (_configuration.Current.Views.FirstOrDefault() is { } firstView)
+            await OpenSavedViewAsync(firstView.Id);
 
         var deviceCount = _configuration.Current.Devices.Count;
         if (deviceCount == 0)
@@ -192,6 +198,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 Live.OpenCamera(camera.Reference);
                 break;
             }
+            case ResourceGroupNodeViewModel { IsViewsFolder: true }:
+                break;
+            case ResourceGroupNodeViewModel { IsSavedView: true, Id: { } viewId } when IsLivePage:
+                _ = OpenSavedViewAsync(viewId);
+                break;
             case ResourceGroupNodeViewModel group when IsLivePage:
             {
                 var cameras = Tree.GetCameras(group);
@@ -201,7 +212,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                     break;
                 }
 
-                Live.ShowGroup(group.Id?.ToString() ?? $"special:{group.Kind}", cameras);
+                Live.ShowGroup(group.ViewKey, cameras);
                 StatusBar.Message = Localizer.Format("Main_ShowingGroup", group.Name, cameras.Count);
                 break;
             }
@@ -225,10 +236,34 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    private async Task OpenSavedViewAsync(Guid id)
+    {
+        try { await Live.ShowSavedViewAsync(id); }
+        catch (Exception exception) { StatusBar.Message = DeviceOperationErrors.Report("Opening saved view", exception); }
+    }
+
     private void OnTreeOpenRequested(object? sender, ResourceNodeViewModel node)
     {
         CurrentPage = AppPage.Live;
         Open(node);
+    }
+
+    private void OnTreeSaveViewRequested(object? sender, EventArgs e)
+    {
+        CurrentPage = AppPage.Live;
+        Live.SaveNewViewCommand.Execute(null);
+    }
+
+    private void OnTreeResetViewRequested(object? sender, ResourceGroupNodeViewModel group)
+    {
+        Live.ResetGroupView(group.ViewKey, Tree.GetCameras(group));
+        StatusBar.Message = Localizer.Format("Main_GroupViewReset", group.Name);
+    }
+
+    private void OnTreeGroupContentChanged(object? sender, GroupContentChangedEventArgs e)
+    {
+        // A remembered placement no longer matches a group whose cameras changed.
+        Live.ResetGroupView(e.ViewKey, e.Cameras);
     }
 
     private void OnTreePropertyChanged(object? sender, PropertyChangedEventArgs e)

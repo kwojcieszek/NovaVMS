@@ -61,6 +61,8 @@ internal static class UnhandledExceptionLogger
         return barrier.Task;
     }
 
+    internal static void LogStartupFailure(Exception exception) => WriteLog("Application startup or main loop failure", exception);
+
     private static async Task WriteLogsAsync()
     {
         await foreach (var entry in Entries.Reader.ReadAllAsync().ConfigureAwait(false))

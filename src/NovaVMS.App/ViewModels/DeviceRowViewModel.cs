@@ -33,7 +33,13 @@ public sealed partial class DeviceRowViewModel : ViewModelBase
 
     public string SecondaryAddress => Device.SecondaryHost;
 
-    public string ActiveAddress => _clientFactory?.GetSelectedHost(Device) ?? Localizer.Text("Devices_AddressNotSelected");
+    public int? SecondaryPort => string.IsNullOrWhiteSpace(Device.SecondaryHost) ? null : Device.SecondaryPort ?? Port;
+
+    public int? SecondaryRtspPort => string.IsNullOrWhiteSpace(Device.SecondaryHost) ? null : Device.SecondaryRtspPort ?? Device.RtspPort;
+
+    public string ActiveAddress => _clientFactory?.GetSelectedHost(Device) is { } host
+        ? $"{host}:{_clientFactory.GetSelectedConnection(Device).ConnectionPort}"
+        : Localizer.Text("Devices_AddressNotSelected");
 
     public int Port => Device.Protocol == DeviceProtocol.HikvisionSdk ? Device.SdkPort : Device.HttpPort;
 

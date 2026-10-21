@@ -104,7 +104,7 @@ internal static class HcNetSdkSessionPool
             current.Add(BuildKey(device));
             if (!string.IsNullOrWhiteSpace(device.SecondaryHost))
             {
-                current.Add(BuildKey(device.ForHost(device.SecondaryHost)));
+                current.Add(BuildKey(device.ForSecondaryAddress()));
             }
         }
 

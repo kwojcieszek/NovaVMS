@@ -9,6 +9,7 @@ public sealed class AppConfiguration
     public AppConfiguration CreateSnapshot() => new()
     {
         Settings = Settings.Copy(),
+        Views = Views.Select(view => view.Copy()).ToList(),
         GroupLiveViews = GroupLiveViews.ToDictionary(pair => pair.Key, pair => pair.Value.Copy()),
         Devices = Devices.Select(device =>
         {
@@ -25,6 +26,7 @@ public sealed class AppConfiguration
     public List<Device> Devices { get; set; } = new();
 
     public List<CameraGroup> Groups { get; set; } = new();
+    public List<SavedCameraView> Views { get; set; } = new();
 
     public AppSettings Settings { get; set; } = new();
     public Dictionary<string, GroupLiveView> GroupLiveViews { get; set; } = new();

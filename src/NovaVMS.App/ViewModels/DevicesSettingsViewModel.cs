@@ -35,6 +35,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     private readonly DispatcherTimer _stateTimer;
     private bool _isCheckingStates;
     private bool _isDisposed;
+    private readonly CancellationTokenSource _stateCheckStop = new();
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteDeviceCommand))]
@@ -56,6 +57,12 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
 
     [ObservableProperty]
     private string _editSecondaryHost = string.Empty;
+
+    [ObservableProperty]
+    private int? _editSecondaryPort;
+
+    [ObservableProperty]
+    private int? _editSecondaryRtspPort;
 
     [ObservableProperty]
     private int _editHttpPort = 80;
@@ -158,6 +165,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         }
 
         _isDisposed = true;
+        _stateCheckStop.Cancel();
         _configuration.Replaced -= OnConfigurationReplaced;
         _stateTimer.Stop();
         _stateTimer.Tick -= OnStateTimerTick;
@@ -180,6 +188,11 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     [RelayCommand(CanExecute = nameof(CanSaveDevice))]
     private async Task SaveDeviceAsync()
     {
+        if (EditSecondaryPort is < 1 or > 65535 || EditSecondaryRtspPort is < 1 or > 65535)
+        {
+            InfoText = Localizer.Text("Devices_InvalidSecondaryPort");
+            return;
+        }
         if (EditStreamEncryptionKey.Contains('\0') || Encoding.UTF8.GetByteCount(EditStreamEncryptionKey) > 128)
         {
             InfoText = Localizer.Text("Devices_StreamKeyInvalid");
@@ -191,6 +204,8 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         device.Name = EditName.Trim();
         device.Host = EditHost.Trim();
         device.SecondaryHost = EditSecondaryHost.Trim();
+        device.SecondaryPort = EditSecondaryPort;
+        device.SecondaryRtspPort = EditSecondaryRtspPort;
         device.HttpPort = EditHttpPort;
         device.RtspPort = EditRtspPort;
         device.SdkPort = EditSdkPort;
@@ -319,7 +334,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
             await using (var setup = source.Value.Setup)
                 result = await new IvmsDeviceReader().ReadAsync(content, setup);
             IsBusy = false;
-            await ImportDevicesAsync(result);
+            await ImportDevicesAsync(result, replaceExisting: true);
         }
         catch (Exception exception) when (exception is FormatException or IOException or InvalidDataException
             or System.Data.Common.DbException or UnauthorizedAccessException)
@@ -329,17 +344,17 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         finally { IsBusy = false; }
     }
 
-    private async Task ImportDevicesAsync(DeviceCsvResult result)
+    private async Task ImportDevicesAsync(DeviceCsvResult result, bool replaceExisting = false)
     {
         var existing = _configuration.Current.Devices
             .Select(device => DeviceKey(device))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var newDevices = result.Devices
+        var newDevices = replaceExisting ? result.Devices.ToList() : result.Devices
             .Where(device => existing.Add(DeviceKey(device)))
             .ToList();
         var skipped = result.Devices.Count - newDevices.Count;
 
-        if (newDevices.Count == 0)
+        if (newDevices.Count == 0 && result.Groups.Count == 0)
         {
             InfoText = result.Devices.Count == 0
                 ? Localizer.Text("Devices_ImportEmpty")
@@ -347,36 +362,55 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
             return;
         }
 
-        var message = Localizer.Format("Devices_ImportConfirm", newDevices.Count);
+        var message = replaceExisting
+            ? Localizer.Format("Devices_IvmsReplaceConfirm", _configuration.Current.Devices.Count,
+                _configuration.Current.Groups.Count, newDevices.Count, result.Groups.Count)
+            : result.Groups.Count > 0
+            ? Localizer.Format("Devices_ImportDevicesGroupsConfirm", newDevices.Count, result.Groups.Count)
+            : Localizer.Format("Devices_ImportConfirm", newDevices.Count);
         if (skipped > 0)
         {
             message += "\n" + Localizer.Format("Devices_ImportSkippedNote", skipped);
         }
 
-        if (!await _dialogs.ConfirmAsync(Localizer.Text("Devices_ImportTitle"), message))
+        var title = Localizer.Text(replaceExisting ? "Devices_IvmsReplaceTitle" : "Devices_ImportTitle");
+        if (!await _dialogs.ConfirmAsync(title, message))
         {
             return;
         }
 
         var rows = new List<DeviceRowViewModel>();
-        foreach (var device in newDevices)
+        int groupsImported;
+        if (replaceExisting)
         {
-            _configuration.Current.Devices.Add(device);
-            var row = new DeviceRowViewModel(device, _clientFactory);
-            Devices.Add(row);
-            rows.Add(row);
-            // Imported channel names remain available even if the recorder is offline.
-            _configuration.SyncDeviceGroup(device, allowCreate: device.Channels.Count > 0);
+            await _configuration.ReplaceDevicesAndGroupsAsync(newDevices, result.Groups);
+            // Replacement creates a new object graph; synchronize those persisted instances.
+            newDevices = _configuration.Current.Devices.ToList();
+            rows.AddRange(Devices);
+            groupsImported = result.Groups.Count;
         }
-
-        await _configuration.SaveAsync();
+        else
+        {
+            foreach (var device in newDevices)
+            {
+                _configuration.Current.Devices.Add(device);
+                var row = new DeviceRowViewModel(device, _clientFactory);
+                Devices.Add(row);
+                rows.Add(row);
+                // Imported channel names remain available even if the recorder is offline.
+                if (result.Groups.Count == 0)
+                    _configuration.SyncDeviceGroup(device, allowCreate: device.Channels.Count > 0);
+            }
+            groupsImported = ImportedCameraGroups.Merge(_configuration.Current, result);
+            await _configuration.SaveAsync();
+        }
 
         IsBusy = true;
         InfoText = Localizer.Format("Devices_ImportConnecting", newDevices.Count);
         bool[] connected;
         try
         {
-            connected = await Task.WhenAll(newDevices.Select(TryConnectImportedDeviceAsync));
+            connected = await Task.WhenAll(newDevices.Select(device => TryConnectImportedDeviceAsync(device, !replaceExisting)));
             await _configuration.SaveAsync();
         }
         finally { IsBusy = false; }
@@ -389,6 +423,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         _ = CheckStatesAsync();
 
         var summary = Localizer.Format("Devices_ImportSummary", newDevices.Count, connected.Count(success => success));
+        if (groupsImported > 0) summary += " " + Localizer.Format("Devices_ImportGroupsSummary", groupsImported);
         if (skipped > 0)
         {
             summary += Localizer.Format("Devices_ImportSkipped", skipped);
@@ -428,11 +463,10 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
 
     private static string DeviceKey(Device device)
     {
-        var port = device.Protocol == DeviceProtocol.HikvisionSdk ? device.SdkPort : device.HttpPort;
-        return $"{device.Protocol}:{device.Host.Trim()}:{port}";
+        return ImportedCameraGroups.DeviceKey(device);
     }
 
-    private async Task<bool> TryConnectImportedDeviceAsync(Device device)
+    private async Task<bool> TryConnectImportedDeviceAsync(Device device, bool allowCreateGroup = true)
     {
         var importedNames = device.Channels.ToDictionary(channel => channel.Number, channel => channel.Name);
         var result = await _sync.TrySyncAsync(device);
@@ -442,7 +476,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
             if (importedNames.TryGetValue(channel.Number, out var name) && !string.IsNullOrWhiteSpace(name))
                 channel.Name = name;
         }
-        _configuration.SyncDeviceGroup(device, allowCreate: true);
+        _configuration.SyncDeviceGroup(device, allowCreate: allowCreateGroup);
         return true;
     }
 
@@ -469,6 +503,8 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         EditName = device.Name;
         EditHost = device.Host;
         EditSecondaryHost = device.SecondaryHost;
+        EditSecondaryPort = device.SecondaryPort;
+        EditSecondaryRtspPort = device.SecondaryRtspPort;
         EditHttpPort = device.HttpPort;
         EditRtspPort = device.RtspPort;
         EditSdkPort = device.SdkPort;
@@ -556,19 +592,23 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
 
     private async Task CheckStateAsync(DeviceRowViewModel row)
     {
+        if (_isDisposed) return;
+        var signature = row.Device.GetConnectionSignature();
+        var snapshot = row.Device.ForHost(row.Device.Host);
         if (row.State != DeviceConnectionState.Online && row.State != DeviceConnectionState.Offline)
         {
             row.State = DeviceConnectionState.Checking;
         }
 
         bool reachable;
-        try { reachable = await _reachability.IsReachableAsync(row.Device.ForHost(_clientFactory.GetSelectedHost(row.Device) ?? row.Device.Host)); }
+        try { reachable = await DeviceAvailability.CheckAsync(_reachability, snapshot, _stateCheckStop.Token); }
+        catch (OperationCanceledException) when (_stateCheckStop.IsCancellationRequested) { return; }
         catch (Exception exception) when (DeviceFailure.IsExpected(exception))
         {
             reachable = false;
             DeviceOperationErrors.Report($"Device availability: {row.Device.DisplayName}", exception);
         }
-        if (!_isDisposed)
+        if (!_isDisposed && Devices.Contains(row) && row.Device.GetConnectionSignature() == signature)
         {
             row.State = reachable ? DeviceConnectionState.Online : DeviceConnectionState.Offline;
             row.Refresh();
@@ -594,6 +634,8 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         EditName = string.Empty;
         EditHost = string.Empty;
         EditSecondaryHost = string.Empty;
+        EditSecondaryPort = null;
+        EditSecondaryRtspPort = null;
         EditHttpPort = 80;
         EditRtspPort = 554;
         EditSdkPort = 8000;

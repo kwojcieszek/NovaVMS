@@ -17,6 +17,13 @@ public sealed class ResourceGroupNodeViewModel : ResourceNodeViewModel
 
     public Guid? Id { get; }
 
+    /// <summary>
+    /// Key under which the live view remembers the split and camera placement of this group.
+    /// </summary>
+    public string ViewKey => GetViewKey(Id, Kind);
+
+    public static string GetViewKey(Guid? id, GroupNodeKind kind) => id?.ToString() ?? $"special:{kind}";
+
     public GroupNodeKind Kind { get; }
 
     public bool IsCustom => Kind == GroupNodeKind.Custom;
@@ -27,7 +34,13 @@ public sealed class ResourceGroupNodeViewModel : ResourceNodeViewModel
 
     public bool IsFavorites => Kind == GroupNodeKind.Favorites;
 
-    public bool CanEdit => IsCustom || IsDeviceGroup;
+    public bool IsViewsFolder => Kind == GroupNodeKind.ViewsFolder;
+    public bool IsSavedView => Kind == GroupNodeKind.SavedView;
+    public bool IsCameraGroup => !IsViewsFolder && !IsSavedView;
+    public bool CanEdit => IsCustom || IsDeviceGroup || IsSavedView;
+    public bool CanEditGroup => IsCustom || IsDeviceGroup;
+    public ObservableCollection<ResourceGroupNodeViewModel> Views { get; } = new();
+    public IEnumerable<ResourceNodeViewModel> Children => IsViewsFolder ? Views : Cameras;
 
     public ObservableCollection<CameraNodeViewModel> Cameras { get; } = new();
 }

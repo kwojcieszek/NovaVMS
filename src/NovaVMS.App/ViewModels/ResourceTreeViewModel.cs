@@ -22,6 +22,8 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
     private readonly StatusBarService _statusBar;
     private readonly Dictionary<(GroupNodeKind Kind, Guid? Id), bool> _expandedGroups = new();
     private bool _isFiltered;
+    // Unfiltered cameras of every group from the last rebuild, to detect changed group content.
+    private Dictionary<string, IReadOnlyList<CameraReference>>? _groupContents;
 
     [ObservableProperty]
     private string _searchText = string.Empty;
@@ -52,6 +54,35 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
     /// Raised when the user asks to open a camera or a whole group in the live view.
     /// </summary>
     public event EventHandler<ResourceNodeViewModel>? OpenRequested;
+    public event EventHandler? SaveViewRequested;
+    public event EventHandler<CameraNodeViewModel>? ViewCameraRemoved;
+
+    [RelayCommand]
+    private async Task RemoveFromViewAsync(CameraNodeViewModel? node)
+    {
+        if (node?.ParentViewId is not { } id) return;
+        var view = _configuration.Current.Views.FirstOrDefault(view => view.Id == id);
+        var index = node.ViewSlotIndex;
+        if (view is null || index < 0 || index >= view.Layout.Cameras.Count
+            || view.Layout.Cameras[index] != node.Reference) return;
+        view.Layout.Cameras[index] = null;
+        view.Layout.EmptySlots.Add(index);
+        ViewCameraRemoved?.Invoke(this, node);
+        await _configuration.SaveAsync();
+    }
+
+    [RelayCommand]
+    private void RequestSaveView() => SaveViewRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>
+    /// Raised when the user asks to forget the remembered live view of a group.
+    /// </summary>
+    public event EventHandler<ResourceGroupNodeViewModel>? ResetViewRequested;
+
+    /// <summary>
+    /// Raised after a rebuild for every existing group whose cameras were added, removed or reordered.
+    /// </summary>
+    public event EventHandler<GroupContentChangedEventArgs>? GroupContentChanged;
 
     public ObservableCollection<ResourceGroupNodeViewModel> Groups { get; } = new();
 
@@ -125,6 +156,15 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void ResetGroupView(ResourceGroupNodeViewModel? node)
+    {
+        if (node is not null)
+        {
+            ResetViewRequested?.Invoke(this, node);
+        }
+    }
+
+    [RelayCommand]
     private async Task ToggleSearchAsync()
     {
         _configuration.Current.Settings.ShowCameraSearch = !IsSearchVisible;
@@ -151,6 +191,16 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
     [RelayCommand]
     private async Task RenameGroupAsync(ResourceGroupNodeViewModel? node)
     {
+        if (node is { IsSavedView: true, Id: { } viewId })
+        {
+            var view = _configuration.Current.Views.FirstOrDefault(candidate => candidate.Id == viewId);
+            if (view is null) return;
+            var viewName = await _dialogs.PromptTextAsync(Localizer.Text("Views_Rename"), Localizer.Text("Views_NamePrompt"), view.Name);
+            if (string.IsNullOrWhiteSpace(viewName)) return;
+            view.Name = viewName.Trim();
+            await _configuration.SaveAsync();
+            return;
+        }
         var group = node?.Id is Guid id ? _configuration.FindGroup(id) : null;
         if (group is null)
         {
@@ -170,6 +220,14 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
     [RelayCommand]
     private async Task DeleteGroupAsync(ResourceGroupNodeViewModel? node)
     {
+        if (node is { IsSavedView: true, Id: { } viewId })
+        {
+            var view = _configuration.Current.Views.FirstOrDefault(candidate => candidate.Id == viewId);
+            if (view is null || !await _dialogs.ConfirmAsync(Localizer.Text("Views_Delete"), Localizer.Format("Views_DeleteConfirm", view.Name))) return;
+            _configuration.Current.Views.Remove(view);
+            await _configuration.SaveAsync();
+            return;
+        }
         var group = node?.Id is Guid id ? _configuration.FindGroup(id) : null;
         if (group is null)
         {
@@ -236,7 +294,7 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
 
     private void OnStatusChanged(object? sender, EventArgs e)
     {
-        foreach (var group in Groups)
+        foreach (var group in Groups.Concat(Groups.SelectMany(folder => folder.Views)))
         {
             foreach (var camera in group.Cameras)
             {
@@ -252,12 +310,41 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
 
         var filter = SearchText.Trim();
         _isFiltered = filter.Length > 0;
+        var contents = new Dictionary<string, IReadOnlyList<CameraReference>>();
         var customGroups = _configuration.Current.Groups.Where(group => group.IsCustom).ToList();
         var assigned = new HashSet<CameraReference>();
 
         // Bookmarks are a separate view; they do not change a camera's group membership.
         var favorites = _configuration.GetAllCameras().Where(camera => camera.Channel.IsFavorite).ToList();
         AddGroupNode(null, Localizer.Text("Tree_Favorites"), GroupNodeKind.Favorites, favorites, customGroups, filter);
+        AddGroupContent(contents, null, GroupNodeKind.Favorites, favorites);
+
+        var viewsFolder = new ResourceGroupNodeViewModel(this, null, Localizer.Text("Views_Title"), GroupNodeKind.ViewsFolder)
+        {
+            IsExpanded = filter.Length > 0 || !_expandedGroups.TryGetValue((GroupNodeKind.ViewsFolder, null), out var expandedViews) || expandedViews
+        };
+        foreach (var view in _configuration.Current.Views)
+        {
+            if (filter.Length > 0 && !view.Name.Contains(filter, StringComparison.CurrentCultureIgnoreCase)
+                && !view.Layout.Cameras.OfType<CameraReference>().Any(reference =>
+                    _configuration.FindCamera(reference)?.FullName.Contains(filter, StringComparison.CurrentCultureIgnoreCase) == true)) continue;
+            var node = new ResourceGroupNodeViewModel(this, view.Id, view.Name, GroupNodeKind.SavedView)
+            {
+                IsExpanded = filter.Length > 0 || (_expandedGroups.TryGetValue((GroupNodeKind.SavedView, view.Id), out var expanded) && expanded)
+            };
+            for (var index = 0; index < view.Layout.Cameras.Count; index++)
+            {
+                if (view.Layout.Cameras[index] is not { } reference) continue;
+                var camera = _configuration.FindCamera(reference);
+                if (camera is null) continue;
+                node.Cameras.Add(new CameraNodeViewModel(this, reference, camera.DisplayName, camera.FullName, view.Id, false,
+                    BuildAddToGroupActions(reference, null, customGroups))
+                    { IsOnline = IsOnline(camera), IsFavorite = camera.Channel.IsFavorite,
+                        ParentViewId = view.Id, ViewSlotIndex = index });
+            }
+            viewsFolder.Views.Add(node);
+        }
+        Groups.Add(viewsFolder);
 
         var orderedGroups = customGroups.Concat(_configuration.Current.Groups.Where(group => !group.IsCustom));
         foreach (var group in orderedGroups)
@@ -274,6 +361,7 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
 
             var kind = group.IsCustom ? GroupNodeKind.Custom : GroupNodeKind.Device;
             AddGroupNode(group.Id, group.Name, kind, cameras, customGroups, filter);
+            AddGroupContent(contents, group.Id, kind, cameras);
         }
 
         var unassigned = _configuration.GetAllCameras()
@@ -282,7 +370,32 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
         if (unassigned.Count > 0)
         {
             AddGroupNode(null, Localizer.Text(UnassignedGroupKey), GroupNodeKind.Unassigned, unassigned, customGroups, filter);
+            AddGroupContent(contents, null, GroupNodeKind.Unassigned, unassigned);
         }
+
+        var previous = _groupContents;
+        _groupContents = contents;
+        if (previous is null)
+        {
+            return;
+        }
+
+        foreach (var (key, cameras) in contents)
+        {
+            if (previous.TryGetValue(key, out var before) && !before.SequenceEqual(cameras))
+            {
+                GroupContentChanged?.Invoke(this, new GroupContentChangedEventArgs(key, cameras));
+            }
+        }
+    }
+
+    private static void AddGroupContent(
+        Dictionary<string, IReadOnlyList<CameraReference>> contents,
+        Guid? id,
+        GroupNodeKind kind,
+        IReadOnlyList<CameraDescriptor> cameras)
+    {
+        contents[ResourceGroupNodeViewModel.GetViewKey(id, kind)] = cameras.Select(camera => camera.Reference).ToArray();
     }
 
     private void AddGroupNode(
@@ -347,6 +460,7 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
         foreach (var group in Groups)
         {
             _expandedGroups[(group.Kind, group.Id)] = group.IsExpanded;
+            foreach (var view in group.Views) _expandedGroups[(view.Kind, view.Id)] = view.IsExpanded;
         }
     }
 

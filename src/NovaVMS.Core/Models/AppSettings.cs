@@ -8,6 +8,19 @@ public sealed class AppSettings
     internal AppSettings Copy() => (AppSettings)MemberwiseClone();
     public GridStreamMode GridStreamMode { get; set; } = GridStreamMode.Auto;
 
+    /// <summary>Minimum video area height in physical display pixels for MAIN in automatic mode.</summary>
+    public int MainStreamMinimumHeight { get; set; } = 540;
+
+    public StreamType GetLiveStreamType(double videoHeight, bool singleOrMaximized)
+    {
+        if (GridStreamMode == GridStreamMode.Main) return StreamType.Main;
+        if (GridStreamMode == GridStreamMode.Sub) return StreamType.Sub;
+        // The view reports its actual size after native surfaces and layout are ready.
+        if (!double.IsFinite(videoHeight) || videoHeight <= 0)
+            return singleOrMaximized ? StreamType.Main : StreamType.Sub;
+        return videoHeight >= Math.Max(1, MainStreamMinimumHeight) ? StreamType.Main : StreamType.Sub;
+    }
+
     /// <summary>
     /// Network buffer for the sub stream (tiles in a split). Increase on unstable networks.
     /// The name is kept for existing configuration files.
@@ -48,8 +61,9 @@ public sealed class AppSettings
     public string Language { get; set; } = string.Empty;
 
     /// <summary>
-    /// Folder with the Hikvision SDK libraries (HCNetSDK); empty means the "hcnetsdk" folder next to the application.
+    /// Folder with the Hikvision SDK libraries (HCNetSDK). Relative paths are based on the application
+    /// directory; empty also means its "hcnetsdk" subfolder.
     /// </summary>
-    public string HcNetSdkDirectory { get; set; } = string.Empty;
+    public string HcNetSdkDirectory { get; set; } = "hcnetsdk";
 }
 

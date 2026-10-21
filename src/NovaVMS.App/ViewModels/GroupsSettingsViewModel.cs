@@ -35,6 +35,9 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     private Device? _selectedSourceDevice;
 
     [ObservableProperty]
+    private DeviceFilterOption? _availableDeviceFilter;
+
+    [ObservableProperty]
     private string _editGroupName = string.Empty;
 
     public GroupsSettingsViewModel(ConfigurationService configuration, GroupCameraPreviewViewModel preview)
@@ -57,6 +60,11 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     public ObservableCollection<CameraDescriptor> AvailableCameras { get; } = new();
 
     public ObservableCollection<Device> Devices { get; } = new();
+
+    /// <summary>
+    /// Devices the list of available cameras can be narrowed to, preceded by "all devices".
+    /// </summary>
+    public ObservableCollection<DeviceFilterOption> DeviceFilters { get; } = new();
 
     public void Dispose()
     {
@@ -150,6 +158,24 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
         return SelectedSourceDevice is not null;
     }
 
+    partial void OnAvailableDeviceFilterChanged(DeviceFilterOption? value)
+    {
+        if (_isRefreshing)
+        {
+            return;
+        }
+
+        _isRefreshing = true;
+        try
+        {
+            RefreshAvailableCameras();
+        }
+        finally
+        {
+            _isRefreshing = false;
+        }
+    }
+
     partial void OnSelectedGroupChanged(CameraGroup? value)
     {
         if (_isRefreshing)
@@ -206,11 +232,12 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     {
         var selectedGroupId = SelectedGroup?.Id;
         var selectedDeviceId = SelectedSourceDevice?.Id;
+        var filterDeviceId = AvailableDeviceFilter?.Device?.Id;
 
         _isRefreshing = true;
         try
         {
-            RebuildLists(selectedGroupId, selectedDeviceId);
+            RebuildLists(selectedGroupId, selectedDeviceId, filterDeviceId);
         }
         finally
         {
@@ -225,7 +252,7 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
         RefreshGroupCameras();
     }
 
-    private void RebuildLists(Guid? selectedGroupId, Guid? selectedDeviceId)
+    private void RebuildLists(Guid? selectedGroupId, Guid? selectedDeviceId, Guid? filterDeviceId)
     {
         Groups.Clear();
         foreach (var group in _configuration.Current.Groups.OrderBy(group => group.IsCustom ? 0 : 1))
@@ -239,14 +266,33 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
             Devices.Add(device);
         }
 
-        AvailableCameras.Clear();
-        foreach (var camera in _configuration.GetAllCameras())
+        DeviceFilters.Clear();
+        DeviceFilters.Add(new DeviceFilterOption(null));
+        foreach (var device in _configuration.Current.Devices)
         {
-            AvailableCameras.Add(camera);
+            DeviceFilters.Add(new DeviceFilterOption(device));
         }
+
+        AvailableDeviceFilter = DeviceFilters.FirstOrDefault(option => option.Device?.Id == filterDeviceId) ?? DeviceFilters[0];
+        RefreshAvailableCameras();
 
         SelectedGroup = Groups.FirstOrDefault(group => group.Id == selectedGroupId);
         SelectedSourceDevice = Devices.FirstOrDefault(device => device.Id == selectedDeviceId);
+    }
+
+    private void RefreshAvailableCameras()
+    {
+        var selected = SelectedAvailableCamera?.Reference;
+        AvailableCameras.Clear();
+        foreach (var camera in _configuration.GetAllCameras())
+        {
+            if (AvailableDeviceFilter?.Matches(camera) != false)
+            {
+                AvailableCameras.Add(camera);
+            }
+        }
+
+        SelectedAvailableCamera = AvailableCameras.FirstOrDefault(camera => camera.Reference.Equals(selected));
     }
 
     private void RefreshGroupCameras()

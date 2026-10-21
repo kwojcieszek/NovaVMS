@@ -16,6 +16,9 @@ public interface IDeviceClientFactory
     /// <summary>Address pinned for this application session, or null before the first camera use.</summary>
     string? GetSelectedHost(Device device) => null;
 
+    /// <summary>Snapshot of the selected address and its associated protocol port.</summary>
+    Device GetSelectedConnection(Device device) => device.ForHost(GetSelectedHost(device) ?? device.Host);
+
     /// <summary>
     /// Releases long-lived connections (e.g. device logins) of devices that are no longer configured
     /// or whose connection settings changed. Blocking; call it off the UI thread.

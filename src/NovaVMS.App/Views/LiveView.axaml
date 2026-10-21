@@ -37,6 +37,11 @@
           </Button>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="2">
+          <Button Classes="toolbar" Command="{Binding SaveNewViewCommand}" ToolTip.Tip="{l:Tr Views_SaveNew}">
+            <mi:MaterialIconText Kind="ContentSavePlusOutline" Text="{l:Tr Views_SaveNew}" />
+          </Button>
+          <TextBlock Text="{Binding ActiveSavedViewName}" MaxWidth="110" TextTrimming="CharacterEllipsis"
+                     VerticalAlignment="Center" ToolTip.Tip="{l:Tr Views_AutoSave}" />
           <Button Classes="toolbar"
                   Command="{Binding ToggleAudioCommand}"
                   ToolTip.Tip="{l:Tr Live_AudioTip}">
@@ -91,4 +96,3 @@
 
   </DockPanel>
 </UserControl>
-

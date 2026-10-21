@@ -22,7 +22,11 @@ internal sealed class HikvisionStreamDecoder : IDisposable
     private readonly bool _playback;
     private readonly Action<byte[]> _output;
     private readonly Action<string> _failed;
-    private readonly Channel<(uint Type, byte[] Bytes)> _packets = Channel.CreateBounded<(uint, byte[])>(128);
+    // SDK callbacks fragment high-resolution key frames into hundreds of small packets.
+    // Limit their total bytes as well as count; 128 fragments could reject a valid MAIN key frame.
+    internal const int MaximumQueuedPacketBytes = 16 * 1024 * 1024;
+    private readonly Channel<(uint Type, byte[] Bytes)> _packets = Channel.CreateBounded<(uint, byte[])>(8192);
+    private long _queuedPacketBytes;
     private readonly CancellationTokenSource _stop = new();
     private readonly Task _worker;
     private int _port = -1;
@@ -54,8 +58,11 @@ internal sealed class HikvisionStreamDecoder : IDisposable
 
     public void Feed(uint type, byte[] bytes)
     {
-        if (Volatile.Read(ref _disposed) != 0 || _stop.IsCancellationRequested) return;
-        if (!_packets.Writer.TryWrite((type, bytes))) Fail(ProtocolText.Get("StreamDecoderBufferFull"));
+        if (Volatile.Read(ref _disposed) != 0 || _stop.IsCancellationRequested || bytes.Length == 0) return;
+        var queuedBytes = Interlocked.Add(ref _queuedPacketBytes, bytes.Length);
+        if (queuedBytes <= MaximumQueuedPacketBytes && _packets.Writer.TryWrite((type, bytes))) return;
+        Interlocked.Add(ref _queuedPacketBytes, -bytes.Length);
+        Fail(ProtocolText.Get("StreamDecoderBufferFull"));
     }
 
     private async Task RunAsync()
@@ -67,6 +74,7 @@ internal sealed class HikvisionStreamDecoder : IDisposable
             Ports[_port] = this;
             await foreach (var packet in _packets.Reader.ReadAllAsync(_stop.Token))
             {
+                Interlocked.Add(ref _queuedPacketBytes, -packet.Bytes.Length);
                 if (packet.Type == HcNetSdkConstants.DataSystemHeader)
                 {
                     if (_opened) throw new IOException(ProtocolText.Get("StreamDecoderChanged"));

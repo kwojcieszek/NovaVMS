@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NovaVMS.App.ViewModels"
+             xmlns:l="using:NovaVMS.App.Localization"
              xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
              x:Class="NovaVMS.App.Views.VideoTileView"
              x:DataType="vm:VideoTileViewModel">
@@ -32,6 +33,22 @@
         <vlc:VideoView x:Name="SecondaryVideo" MediaPlayer="{Binding SecondaryPlayer}" IsVisible="{Binding IsSecondaryViewVisible}" />
         <!-- Moved into the tile's owned overlay window by the view constructor. -->
         <Panel x:Name="VideoOverlay" Background="#01000000" DragDrop.AllowDrop="True">
+          <Path Classes="loadingSpinner" Data="M 12,2 A 10,10 0 1 1 2,12"
+                Width="24" Height="24" Stretch="Uniform" Stroke="#BFFFFFFF" StrokeThickness="2"
+                StrokeLineCap="Round" HorizontalAlignment="Center" VerticalAlignment="Center"
+                RenderTransformOrigin="50%,50%" IsHitTestVisible="False"
+                IsVisible="{Binding IsLoading}" AutomationProperties.Name="{l:Tr Tile_Connecting}">
+            <Path.Styles>
+              <Style Selector="Path.loadingSpinner">
+                <Style.Animations>
+                  <Animation Duration="0:0:0.9" IterationCount="INFINITE">
+                    <KeyFrame Cue="0%"><Setter Property="RotateTransform.Angle" Value="0" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="RotateTransform.Angle" Value="360" /></KeyFrame>
+                  </Animation>
+                </Style.Animations>
+              </Style>
+            </Path.Styles>
+          </Path>
           <TextBlock Classes="overlayText"
                      Text="{Binding OverlayText}"
                      IsVisible="{Binding IsOverlayTextVisible}" />

@@ -8,5 +8,7 @@ public enum GroupNodeKind
     Custom,
     Device,
     Unassigned,
-    Favorites
+    Favorites,
+    ViewsFolder,
+    SavedView
 }

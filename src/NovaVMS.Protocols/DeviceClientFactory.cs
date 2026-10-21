@@ -23,17 +23,19 @@ public sealed class DeviceClientFactory : IDeviceClientFactory, IDisposable
 
     public string? GetSelectedHost(Device device) => _addresses.GetSelectedHost(device);
 
+    public Device GetSelectedConnection(Device device) => _addresses.GetSelectedConnection(device);
+
     public async Task<IDeviceClient> CreateAsync(Device device, bool rememberAddress = true, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(device);
-        var host = await _addresses.ResolveAsync(device, rememberAddress, cancellationToken).ConfigureAwait(false);
-        return CreateAt(device.ForHost(host));
+        var selected = await _addresses.ResolveConnectionAsync(device, rememberAddress, cancellationToken).ConfigureAwait(false);
+        return CreateAt(selected);
     }
 
     public IDeviceClient Create(Device device)
     {
         ArgumentNullException.ThrowIfNull(device);
-        return CreateAt(device.ForHost(GetSelectedHost(device) ?? device.Host));
+        return CreateAt(GetSelectedConnection(device));
     }
 
     private static IDeviceClient CreateAt(Device device)

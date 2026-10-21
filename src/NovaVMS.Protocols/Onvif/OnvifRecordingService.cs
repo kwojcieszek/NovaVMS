@@ -56,7 +56,8 @@ internal sealed class OnvifRecordingService(Device device,
             new XElement(Replay + "RecordingToken", recording.ChildValue("RecordingToken"))), token).ConfigureAwait(false);
         if (!Uri.TryCreate(response.ChildValue("Uri"), UriKind.Absolute, out var reported) || reported.Scheme != "rtsp")
             throw new DeviceCommunicationException(ProtocolText.Get("OnvifNoMedia"));
-        var remote = new UriBuilder(reported) { Host = device.Host, UserName = "", Password = "" }.Uri;
+        var remote = new UriBuilder(reported) { Host = device.Host, Port = device.RtspPortOverride ?? reported.Port,
+            UserName = "", Password = "" }.Uri;
         return VideoSource.FromUri(() =>
         {
             var session = new OnvifReplayProxy(remote, device.Username, device.Password, start.ToUniversalTime(), end.ToUniversalTime());

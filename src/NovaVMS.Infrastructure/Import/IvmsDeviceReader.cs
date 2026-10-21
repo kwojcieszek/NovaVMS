@@ -26,6 +26,7 @@ public sealed class IvmsDeviceReader
     {
         byte[] database;
         byte[] setup;
+        byte[]? entities = null;
         if (encryptionSetup is not null)
         {
             database = await ReadLimitedAsync(source, MaximumDatabaseSize, cancellationToken);
@@ -36,13 +37,15 @@ public sealed class IvmsDeviceReader
             using var archive = new ZipArchive(source, ZipArchiveMode.Read, leaveOpen: true);
             database = await ReadEntryAsync(archive, "Device", MaximumDatabaseSize, cancellationToken);
             setup = await ReadEntryAsync(archive, "DESetup.xml", 64 * 1024, cancellationToken);
+            if (archive.Entries.Any(entry => string.Equals(entry.Name, "Entity", StringComparison.OrdinalIgnoreCase)))
+                entities = await ReadEntryAsync(archive, "Entity", MaximumDatabaseSize, cancellationToken);
         }
 
         // Cryptography and database parsing run off the UI thread.
-        return await Task.Run(() => Parse(database, setup, cancellationToken), cancellationToken);
+        return await Task.Run(() => Parse(database, setup, entities, cancellationToken), cancellationToken);
     }
 
-    private static DeviceCsvResult Parse(byte[] encrypted, byte[] setup, CancellationToken cancellationToken)
+    private static DeviceCsvResult Parse(byte[] encrypted, byte[] setup, byte[]? entities, CancellationToken cancellationToken)
     {
         var parameters = ReadParameters(setup);
         byte[]? plaintext = null;
@@ -67,6 +70,7 @@ public sealed class IvmsDeviceReader
 
             var devices = new Dictionary<string, (Device Device, int AnalogStart, int AnalogCount, int DigitalStart)>();
             var warnings = new List<string>();
+            var channels = new Dictionary<string, CameraReference>(StringComparer.OrdinalIgnoreCase);
             using (var command = connection.CreateCommand())
             {
                 // Some iVMS backups store ANSI name bytes in a database labelled UTF-8.
@@ -104,7 +108,7 @@ public sealed class IvmsDeviceReader
             using (var command = connection.CreateCommand())
             {
                 // Channel type 2 is a device resource, not an additional camera.
-                command.CommandText = "SELECT DeviceGUID, CAST(Name AS BLOB), ChannelType, ChannelNo FROM Channel WHERE ChannelType IN (0, 1) ORDER BY ChannelType, ChannelNo";
+                command.CommandText = "SELECT DeviceGUID, CAST(Name AS BLOB), ChannelType, ChannelNo, GUID FROM Channel WHERE ChannelType IN (0, 1) ORDER BY ChannelType, ChannelNo";
                 using var rows = command.ExecuteReader();
                 while (rows.Read())
                 {
@@ -118,10 +122,13 @@ public sealed class IvmsDeviceReader
                     if (number <= 0 || item.Device.Channels.Any(channel => channel.Number == number))
                         throw new FormatException(ImportText.Get("IvmsDamaged"));
                     item.Device.Channels.Add(new Channel { Number = number, Name = DecodeName((byte[])rows.GetValue(1)) });
+                    channels.Add(rows.GetString(4), new CameraReference { DeviceId = item.Device.Id, ChannelNumber = number });
                 }
             }
 
-            return new DeviceCsvResult(devices.Values.Select(item => item.Device).ToList(), warnings);
+            var groups = entities is null ? new List<CameraGroup>()
+                : ReadGroups(entities, parameters.Secret, channels, warnings, cancellationToken);
+            return new DeviceCsvResult(devices.Values.Select(item => item.Device).ToList(), warnings) { Groups = groups };
         }
         catch (Exception exception) when (exception is SqliteException or InvalidCastException or ArgumentException)
         {
@@ -141,6 +148,57 @@ public sealed class IvmsDeviceReader
     {
         try { return StrictUtf8.GetString(bytes); }
         catch (DecoderFallbackException) { return LegacyNameEncoding.GetString(bytes); }
+    }
+
+    private static List<CameraGroup> ReadGroups(byte[] encrypted, byte[] secret,
+        IReadOnlyDictionary<string, CameraReference> channels, List<string> warnings, CancellationToken token)
+    {
+        var plaintext = DecryptDatabase(encrypted, secret, token);
+        var path = Path.Combine(Path.GetTempPath(), $"novavms-groups-{Guid.NewGuid():N}.db");
+        try
+        {
+            File.WriteAllBytes(path, plaintext);
+            using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+                { DataSource = path, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString());
+            connection.Open();
+            return ReadGroupRows(connection, channels, warnings, token);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(plaintext);
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    internal static List<CameraGroup> ReadGroupRows(SqliteConnection connection,
+        IReadOnlyDictionary<string, CameraReference> channels, List<string> warnings, CancellationToken token)
+    {
+        var groups = new Dictionary<long, CameraGroup>();
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT ID, CAST(Name AS BLOB) FROM Grouping ORDER BY Sequence, ID";
+            using var rows = command.ExecuteReader();
+            while (rows.Read())
+            {
+                token.ThrowIfCancellationRequested();
+                groups.Add(rows.GetInt64(0), new CameraGroup { Name = DecodeName((byte[])rows.GetValue(1)) });
+            }
+        }
+        var skipped = 0;
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT GroupID, ChannelGUID FROM Camera ORDER BY GroupID, Sequence, ID";
+            using var rows = command.ExecuteReader();
+            while (rows.Read())
+            {
+                token.ThrowIfCancellationRequested();
+                if (!groups.TryGetValue(rows.GetInt64(0), out var group) || rows.IsDBNull(1)
+                    || !channels.TryGetValue(rows.GetString(1), out var camera)) { skipped++; continue; }
+                if (!group.Cameras.Contains(camera)) group.Cameras.Add(camera);
+            }
+        }
+        if (skipped > 0) warnings.Add(ImportText.Format("IvmsSkippedGroupCameras", skipped));
+        return groups.Values.ToList();
     }
 
     private static (byte[] Secret, byte[] Key, byte[] Iv) ReadParameters(byte[] setup)

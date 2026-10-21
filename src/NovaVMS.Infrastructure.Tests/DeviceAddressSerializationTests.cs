@@ -11,7 +11,7 @@ public sealed class DeviceAddressSerializationTests
     public async Task SavesBothAddressesWithoutOverwritingPrimary()
     {
         var serializer = new JsonConfigurationSerializer();
-        var configuration = new AppConfiguration { Devices = [new Device { Host = "local", SecondaryHost = "remote" }] };
+        var configuration = new AppConfiguration { Devices = [new Device { Host = "local", SecondaryHost = "remote", SecondaryPort = 18000, SecondaryRtspPort = 18554 }] };
         using var stream = new MemoryStream();
         await serializer.SerializeAsync(stream, configuration);
         stream.Position = 0;
@@ -19,6 +19,9 @@ public sealed class DeviceAddressSerializationTests
         var device = Assert.Single(restored.Devices);
         Assert.Equal("local", device.Host);
         Assert.Equal("remote", device.SecondaryHost);
+        Assert.Equal(18000, device.SecondaryPort);
+        Assert.Equal(18554, device.SecondaryRtspPort);
+        Assert.Null(device.RtspPortOverride);
     }
 
     [Fact]
@@ -27,5 +30,7 @@ public sealed class DeviceAddressSerializationTests
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes("{\"Devices\":[{\"Host\":\"local\"}]}"));
         var configuration = await new JsonConfigurationSerializer().DeserializeAsync(stream);
         Assert.Empty(Assert.Single(configuration.Devices).SecondaryHost);
+        Assert.Null(configuration.Devices[0].SecondaryPort);
+        Assert.Null(configuration.Devices[0].SecondaryRtspPort);
     }
 }

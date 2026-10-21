@@ -15,7 +15,7 @@ internal static class Program
         }
         catch (Exception exception)
         {
-            UnhandledExceptionLogger.Log("Application startup or main loop failure", exception);
+            UnhandledExceptionLogger.LogStartupFailure(exception);
             Environment.ExitCode = 1;
         }
     }

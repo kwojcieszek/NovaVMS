@@ -45,6 +45,11 @@
         </ComboBox.ItemTemplate>
       </ComboBox>
 
+      <TextBlock Classes="muted" TextWrapping="Wrap" Text="{l:Tr General_MainStreamMinimumHeight}" />
+      <NumericUpDown Value="{Binding MainStreamMinimumHeight}" Minimum="1" Maximum="16384"
+                     Increment="10" FormatString="0" />
+      <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr General_MainStreamMinimumHeightHint}" />
+
       <TextBlock Classes="muted" Text="{l:Tr General_DefaultSplit}" />
       <ComboBox ItemsSource="{Binding Layouts}"
                 SelectedItem="{Binding DefaultLayout}"

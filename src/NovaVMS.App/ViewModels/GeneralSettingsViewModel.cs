@@ -49,6 +49,9 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     private decimal? _mainStreamCachingMs;
 
     [ObservableProperty]
+    private decimal? _mainStreamMinimumHeight;
+
+    [ObservableProperty]
     private decimal? _hiddenTileReleaseSeconds;
 
     [ObservableProperty]
@@ -81,6 +84,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         _defaultLayout = GridLayoutOption.Find(settings.DefaultLayoutId, settings.DefaultLayoutCount);
         _networkCachingMs = settings.NetworkCachingMs;
         _mainStreamCachingMs = settings.MainStreamCachingMs;
+        _mainStreamMinimumHeight = settings.MainStreamMinimumHeight;
         _hiddenTileReleaseSeconds = settings.HiddenTileReleaseSeconds;
         _autoCreateDeviceGroups = settings.AutoCreateDeviceGroups;
         _showTileTitles = settings.ShowTileTitles;
@@ -173,6 +177,8 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         ApplyChanges();
     }
 
+    partial void OnMainStreamMinimumHeightChanged(decimal? value) => ApplyChanges();
+
     partial void OnHiddenTileReleaseSecondsChanged(decimal? value)
     {
         ApplyChanges();
@@ -214,6 +220,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         settings.DefaultLayoutId = DefaultLayout.Id;
         settings.NetworkCachingMs = (int)Math.Clamp(NetworkCachingMs ?? settings.NetworkCachingMs, MinNetworkCachingMs, MaxNetworkCachingMs);
         settings.MainStreamCachingMs = (int)Math.Clamp(MainStreamCachingMs ?? settings.MainStreamCachingMs, MinNetworkCachingMs, MaxNetworkCachingMs);
+        settings.MainStreamMinimumHeight = (int)Math.Clamp(MainStreamMinimumHeight ?? settings.MainStreamMinimumHeight, 1, 16384);
         settings.HiddenTileReleaseSeconds = (int)Math.Clamp(HiddenTileReleaseSeconds ?? settings.HiddenTileReleaseSeconds, MinHiddenTileReleaseSeconds, MaxHiddenTileReleaseSeconds);
         settings.AutoCreateDeviceGroups = AutoCreateDeviceGroups;
         settings.ShowTileTitles = ShowTileTitles;
@@ -326,6 +333,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
             DefaultLayout = GridLayoutOption.Find(settings.DefaultLayoutId, settings.DefaultLayoutCount);
             NetworkCachingMs = settings.NetworkCachingMs;
             MainStreamCachingMs = settings.MainStreamCachingMs;
+            MainStreamMinimumHeight = settings.MainStreamMinimumHeight;
             HiddenTileReleaseSeconds = settings.HiddenTileReleaseSeconds;
             AutoCreateDeviceGroups = settings.AutoCreateDeviceGroups;
             ShowTileTitles = settings.ShowTileTitles;

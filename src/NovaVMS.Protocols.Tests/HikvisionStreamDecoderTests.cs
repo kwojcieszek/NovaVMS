@@ -54,10 +54,54 @@ public sealed class HikvisionStreamDecoderTests
         Assert.Equal(new[] { false, true, false }, selections);
     }
 
+    [Fact]
+    public async Task MainKeyFrameBurstCanQueueMoreThan128FragmentsDuringDecoderStartup()
+    {
+        using var gate = new ManualResetEventSlim();
+        var api = new FakePlayCtrl { OpenGate = gate };
+        var failed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var decoded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var decoder = new HikvisionStreamDecoder(api, "key", false,
+            _ => decoded.TrySetResult(), message => failed.TrySetResult(message));
+        try
+        {
+            decoder.Feed(HcNetSdkConstants.DataSystemHeader, [1, 2, 3]);
+            await api.OpenEntered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+            for (var index = 0; index < 1024; index++)
+                decoder.Feed(HcNetSdkConstants.DataStream, new byte[1024]);
+            Assert.False(failed.Task.IsCompleted);
+            gate.Set();
+            await decoded.Task.WaitAsync(TimeSpan.FromSeconds(3));
+            Assert.False(failed.Task.IsCompleted);
+        }
+        finally { gate.Set(); }
+    }
+
+    [Fact]
+    public async Task QueueStillRejectsExcessiveEncodedDataWithoutBlockingSdkCallback()
+    {
+        using var gate = new ManualResetEventSlim();
+        var api = new FakePlayCtrl { OpenGate = gate };
+        var failed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var decoder = new HikvisionStreamDecoder(api, "key", false, _ => { }, message => failed.TrySetResult(message));
+        try
+        {
+            decoder.Feed(HcNetSdkConstants.DataSystemHeader, [1, 2, 3]);
+            await api.OpenEntered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+            var packet = new byte[1024 * 1024];
+            for (var index = 0; index <= HikvisionStreamDecoder.MaximumQueuedPacketBytes / packet.Length; index++)
+                decoder.Feed(HcNetSdkConstants.DataStream, packet);
+            Assert.False(string.IsNullOrEmpty(await failed.Task.WaitAsync(TimeSpan.FromSeconds(3))));
+        }
+        finally { gate.Set(); }
+    }
+
     private sealed class FakePlayCtrl : IPlayCtrlApi
     {
         private static int _nextPort;
         private PlayCtrlDecodeCallback? _callback;
+        public ManualResetEventSlim? OpenGate { get; init; }
+        public TaskCompletionSource OpenEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public byte[] Key { get; private set; } = [];
         public int KeyCalls { get; private set; }
         public int KeyLengthBits { get; private set; }
@@ -67,7 +111,12 @@ public sealed class HikvisionStreamDecoderTests
         public bool Freed { get; private set; }
         public bool GetPort(out int port) { port = Interlocked.Increment(ref _nextPort); return true; }
         public bool SetMode(int port, uint mode) => mode == 0;
-        public bool OpenStream(int port, byte[] header, uint size, uint capacity) => true;
+        public bool OpenStream(int port, byte[] header, uint size, uint capacity)
+        {
+            OpenEntered.TrySetResult();
+            if (OpenGate is not null && !OpenGate.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
+            return true;
+        }
         public bool SetKey(int port, int type, byte[] key, int lengthBits)
         {
             KeyCalls++;

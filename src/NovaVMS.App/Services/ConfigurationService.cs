@@ -67,6 +67,23 @@ public sealed class ConfigurationService
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Replaces imported resources, retaining this application's general settings.</summary>
+    public async Task ReplaceDevicesAndGroupsAsync(IReadOnlyList<Device> devices, IReadOnlyList<CameraGroup> groups)
+    {
+        var replacement = new AppConfiguration
+        {
+            Settings = Current.CreateSnapshot().Settings,
+            Devices = devices.ToList(),
+            Groups = groups.ToList()
+        }.CreateSnapshot();
+        // A failed write must leave the current devices and groups available.
+        await _saves.RunAsync(() => _store.SaveAsync(replacement.CreateSnapshot()));
+        Current = replacement;
+        Replaced?.Invoke(this, EventArgs.Empty);
+        Changed?.Invoke(this, EventArgs.Empty);
+        Saved?.Invoke(this, EventArgs.Empty);
+    }
+
     public Device? FindDevice(Guid deviceId)
     {
         return Current.Devices.FirstOrDefault(device => device.Id == deviceId);
@@ -243,6 +260,12 @@ public sealed class ConfigurationService
         }
 
         Current.Settings = imported.Settings;
+        foreach (var view in imported.Views)
+        {
+            var index = Current.Views.FindIndex(existing => existing.Id == view.Id);
+            if (index < 0) Current.Views.Add(view.Copy());
+            else Current.Views[index] = view.Copy();
+        }
         await SaveAsync();
 
         return new ImportResult(devicesAdded, devicesUpdated, groupsAdded, groupsUpdated);
@@ -255,6 +278,13 @@ public sealed class ConfigurationService
         configuration.Groups ??= new List<CameraGroup>();
         configuration.Settings ??= new AppSettings();
         configuration.GroupLiveViews ??= new();
+        configuration.Views ??= new();
+        foreach (var view in configuration.Views)
+        {
+            view.Layout ??= new();
+            view.Layout.Cameras ??= new();
+            view.Layout.EmptySlots ??= new();
+        }
 
         foreach (var device in configuration.Devices)
         {

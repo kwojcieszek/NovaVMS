@@ -30,7 +30,8 @@ public sealed partial class GroupCameraPreviewViewModel : ViewModelBase, ITileHo
 
     public void Select(CameraDescriptor? camera)
     {
-        if (_disposed || Equals(camera?.Reference, _camera?.Reference)) return;
+        // The same camera is opened again only when its previous attempt failed or was closed.
+        if (_disposed || (Equals(camera?.Reference, _camera?.Reference) && Tile.Status is TileStatus.Playing or TileStatus.Connecting)) return;
         _camera = camera;
         Restart();
     }
@@ -51,6 +52,7 @@ public sealed partial class GroupCameraPreviewViewModel : ViewModelBase, ITileHo
         Tile.Close();
         Message = string.Empty;
         if (!_active || _camera is null) return;
+        Tile.ShowLoading();
         _opening = new CancellationTokenSource();
         _ = OpenAsync(_camera, version, _opening.Token);
     }

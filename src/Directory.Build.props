@@ -4,7 +4,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <Version>0.1.0</Version>
+    <!-- Set ReleaseDate explicitly for each release; rebuilding it keeps the same version. -->
+    <ReleaseDate Condition="'$(ReleaseDate)' == ''">2026.10.21</ReleaseDate>
+    <Version>$(ReleaseDate)</Version>
+    <AssemblyVersion>$(ReleaseDate).0</AssemblyVersion>
+    <FileVersion>$(ReleaseDate).0</FileVersion>
+    <InformationalVersion>$(ReleaseDate)</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>NovaVMS</Company>
     <Product>NovaVMS</Product>
   </PropertyGroup>

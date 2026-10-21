@@ -62,6 +62,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
     [NotifyPropertyChangedFor(nameof(HasError))]
     [NotifyPropertyChangedFor(nameof(OverlayText))]
     [NotifyPropertyChangedFor(nameof(IsOverlayTextVisible))]
+    [NotifyPropertyChangedFor(nameof(IsLoading))]
     private TileStatus _status = TileStatus.Idle;
 
     [ObservableProperty]
@@ -114,6 +115,15 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
 
     public int Index { get; }
 
+    public double VideoHeight { get; private set; }
+
+    public void SetVideoHeight(double height)
+    {
+        if (_isDisposed || !double.IsFinite(height) || height <= 0 || Math.Abs(VideoHeight - height) < 0.5) return;
+        VideoHeight = height;
+        _host.ReportVideoHeight(this);
+    }
+
     /// <summary>
     /// A hidden tile keeps its stream for this time, so restoring the split or returning to the page is instant;
     /// after that the connection is released and reopened when the tile is shown again.
@@ -150,6 +160,13 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
 
     public bool HasError => Status == TileStatus.Error;
 
+    public bool IsLoading => Status == TileStatus.Connecting;
+
+    public void ShowLoading()
+    {
+        if (!_isDisposed && Status != TileStatus.Playing) Status = TileStatus.Connecting;
+    }
+
     public StreamType? ActiveStreamType => (_switchRequest ?? _request)?.StreamType;
 
     /// <summary>
@@ -169,10 +186,6 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
                 {
                     return $"{ErrorDetails}\n{StatusText}";
                 }
-                case TileStatus.Idle:
-                {
-                    return Localizer.Text("Tile_DragHere");
-                }
                 default:
                 {
                     return string.Empty;
@@ -181,7 +194,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public bool IsOverlayTextVisible => Status is TileStatus.Idle or TileStatus.Error;
+    public bool IsOverlayTextVisible => Status == TileStatus.Error;
 
     public void Play(CameraReference camera, string cameraName, TilePlayRequest request)
     {

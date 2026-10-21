@@ -13,8 +13,21 @@ public sealed class Device
 
     public string Host { get; set; } = string.Empty;
 
-    /// <summary>Optional alternative host. Uses the same protocol, ports and credentials.</summary>
+    /// <summary>Optional alternative host. Uses the same protocol and credentials.</summary>
     public string SecondaryHost { get; set; } = string.Empty;
+
+    /// <summary>Alternative SDK/HTTP port; null keeps the primary protocol port for older configurations.</summary>
+    public int? SecondaryPort { get; set; }
+
+    /// <summary>RTSP port of the secondary address; null preserves the existing stream port.</summary>
+    public int? SecondaryRtspPort { get; set; }
+
+    /// <summary>Explicit RTSP override of a connection snapshot, never persisted.</summary>
+    [JsonIgnore]
+    public int? RtspPortOverride { get; private set; }
+
+    [JsonIgnore]
+    public int ConnectionPort => Protocol == DeviceProtocol.HikvisionSdk ? SdkPort : HttpPort;
 
     /// <summary>Connection snapshot; the configured primary address is never overwritten.</summary>
     /// <summary>
@@ -23,7 +36,7 @@ public sealed class Device
     /// </summary>
     public string GetConnectionSignature()
     {
-        return string.Join("|", Id, Protocol, Host, SecondaryHost, HttpPort, RtspPort, SdkPort, UseHttps, Username, Password);
+        return string.Join("|", Id, Protocol, Host, SecondaryHost, SecondaryPort, SecondaryRtspPort, HttpPort, RtspPort, SdkPort, UseHttps, Username, Password);
     }
 
     public Device ForHost(string host)
@@ -32,6 +45,18 @@ public sealed class Device
         copy.Host = host;
         return copy;
     }
+
+    public Device ForConnection(string host, int port, int? rtspPort = null)
+    {
+        var copy = ForHost(host);
+        if (Protocol == DeviceProtocol.HikvisionSdk) copy.SdkPort = port;
+        else copy.HttpPort = port;
+        copy.RtspPortOverride = rtspPort;
+        copy.RtspPort = rtspPort ?? RtspPort;
+        return copy;
+    }
+
+    public Device ForSecondaryAddress() => ForConnection(SecondaryHost.Trim(), SecondaryPort ?? ConnectionPort, SecondaryRtspPort);
 
     public int HttpPort { get; set; } = 80;
 

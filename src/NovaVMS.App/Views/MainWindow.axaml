@@ -4,9 +4,10 @@
         xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         xmlns:vm="using:NovaVMS.App.ViewModels"
         xmlns:views="using:NovaVMS.App.Views"
+        xmlns:models="using:NovaVMS.App.Models"
         x:Class="NovaVMS.App.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="NovaVMS"
+        Title="{x:Static models:ApplicationVersion.DisplayName}"
         Width="1440" Height="900"
         MinWidth="1000" MinHeight="640"
         Icon="/Assets/novavms.ico"
@@ -34,6 +35,7 @@
           <StackPanel Orientation="Horizontal" Spacing="8" Margin="14,0,18,0" VerticalAlignment="Center">
             <Image Source="/Assets/novavms.png" Width="28" Height="28" Stretch="Uniform" />
             <TextBlock Text="NovaVMS" FontSize="15" FontWeight="Bold" VerticalAlignment="Center" />
+            <TextBlock Text="{x:Static models:ApplicationVersion.Number}" Classes="muted" FontSize="11" VerticalAlignment="Center" />
           </StackPanel>
           <Button Classes="tab"
                   Classes.active="{Binding IsLivePage}"
@@ -110,13 +112,17 @@
           <TreeView.DataTemplates>
             <TreeDataTemplate DataType="vm:ResourceGroupNodeViewModel"
                               x:DataType="vm:ResourceGroupNodeViewModel"
-                              ItemsSource="{Binding Cameras}">
+                              ItemsSource="{Binding Children}">
               <StackPanel Orientation="Horizontal" Spacing="8" Background="Transparent">
                 <StackPanel.ContextMenu>
                   <ContextMenu>
-                    <MenuItem Header="{l:Tr Tree_OpenAll}"
+                    <MenuItem Header="{l:Tr Tree_OpenAll}" IsVisible="{Binding !IsViewsFolder}"
                               Icon="{mi:MaterialIconExt Kind=ViewGridOutline}"
                               Command="{Binding Owner.OpenNodeCommand}"
+                              CommandParameter="{Binding}" />
+                    <MenuItem Header="{l:Tr Tree_ResetGroupView}" IsVisible="{Binding IsCameraGroup}"
+                              Icon="{mi:MaterialIconExt Kind=Restore}"
+                              Command="{Binding Owner.ResetGroupViewCommand}"
                               CommandParameter="{Binding}" />
                     <MenuItem Header="{l:Tr Tree_Rename}"
                               Icon="{mi:MaterialIconExt Kind=PencilOutline}"
@@ -125,15 +131,23 @@
                               CommandParameter="{Binding}" />
                     <MenuItem Header="{l:Tr Tree_DeleteGroup}"
                               Icon="{mi:MaterialIconExt Kind=DeleteOutline}"
-                              IsVisible="{Binding CanEdit}"
+                              IsVisible="{Binding CanEditGroup}"
                               Command="{Binding Owner.DeleteGroupCommand}"
                               CommandParameter="{Binding}" />
+                    <MenuItem Header="{l:Tr Views_SaveNew}" IsVisible="{Binding IsViewsFolder}"
+                              Icon="{mi:MaterialIconExt Kind=ContentSavePlusOutline}"
+                              Command="{Binding Owner.RequestSaveViewCommand}" />
+                    <MenuItem Header="{l:Tr Views_Delete}" IsVisible="{Binding IsSavedView}"
+                              Icon="{mi:MaterialIconExt Kind=DeleteOutline}"
+                              Command="{Binding Owner.DeleteGroupCommand}" CommandParameter="{Binding}" />
                     <Separator />
                     <MenuItem Header="{l:Tr Tree_NewCustomGroupMenu}"
                               Icon="{mi:MaterialIconExt Kind=FolderPlusOutline}"
                               Command="{Binding Owner.AddCustomGroupCommand}" />
                   </ContextMenu>
                 </StackPanel.ContextMenu>
+                <mi:MaterialIcon Kind="ViewDashboardOutline" Foreground="{DynamicResource NovaAccent}" IsVisible="{Binding IsViewsFolder}" />
+                <mi:MaterialIcon Kind="ViewGridOutline" IsVisible="{Binding IsSavedView}" />
                 <mi:MaterialIcon Kind="FolderStar" Foreground="{DynamicResource NovaAccent}" IsVisible="{Binding IsCustom}" />
                 <mi:MaterialIcon Kind="Server" IsVisible="{Binding IsDeviceGroup}" />
                 <mi:MaterialIcon Kind="FolderOutline" IsVisible="{Binding IsUnassigned}" />
@@ -175,6 +189,11 @@
                               IsVisible="{Binding CanRemoveFromGroup}"
                               Command="{Binding Owner.RemoveFromGroupCommand}"
                               CommandParameter="{Binding}" />
+                    <MenuItem Header="{l:Tr Views_RemoveCamera}"
+                              Icon="{mi:MaterialIconExt Kind=Close}"
+                              IsVisible="{Binding CanRemoveFromView}"
+                              Command="{Binding Owner.RemoveFromViewCommand}"
+                              CommandParameter="{Binding}" />
                   </ContextMenu>
                 </StackPanel.ContextMenu>
                 <Button Classes="icon"
@@ -214,4 +233,3 @@
     </Grid>
   </DockPanel>
 </Window>
-

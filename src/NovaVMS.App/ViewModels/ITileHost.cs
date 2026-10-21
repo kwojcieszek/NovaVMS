@@ -17,4 +17,6 @@ public interface ITileHost
     /// Reports the picture proportions ("width:height") of a camera's main stream.
     /// </summary>
     void ReportMainAspectRatio(CameraReference camera, string aspectRatio);
+
+    void ReportVideoHeight(VideoTileViewModel tile) { }
 }

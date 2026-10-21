@@ -37,6 +37,10 @@ public sealed partial class CameraNodeViewModel : ResourceNodeViewModel
 
     public bool CanRemoveFromGroup { get; }
 
+    public Guid? ParentViewId { get; init; }
+    public int ViewSlotIndex { get; init; }
+    public bool CanRemoveFromView => ParentViewId.HasValue;
+
     public bool IsFavorite { get; init; }
 
     public string FavoriteActionText => Localizer.Text(IsFavorite ? "Tree_RemoveFavorite" : "Tree_AddFavorite");

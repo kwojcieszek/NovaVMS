@@ -115,7 +115,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
         }
 
         // Cached ONVIF addresses can have been discovered using the other network address.
-        uri = new UriBuilder(uri) { Host = _device.Host }.Uri;
+        uri = new UriBuilder(uri) { Host = _device.Host, Port = _device.RtspPortOverride ?? uri.Port }.Uri;
         return string.IsNullOrEmpty(_device.StreamEncryptionKey) ? VideoSource.FromUri(uri)
             : NovaVMS.Protocols.HcNetSdk.HikvisionRtspVideoStream.CreateSource(uri, _device, playback: false);
     }
@@ -359,6 +359,6 @@ public sealed class OnvifDeviceClient : IDeviceClient
         }
 
         // The RTSP port may differ from the HTTP port; only the host is replaced for devices behind NAT.
-        return new UriBuilder(streamUri) { Host = _device.Host }.Uri.ToString();
+        return new UriBuilder(streamUri) { Host = _device.Host, Port = _device.RtspPortOverride ?? streamUri.Port }.Uri.ToString();
     }
 }

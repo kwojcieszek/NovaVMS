@@ -157,6 +157,7 @@ public partial class VideoTileView : UserControl
         // Set the full tile bounds before the first Show. Keep this same window mapped across
         // SUB/MAIN handovers instead of letting each VideoView open a SizeToContent window.
         var size = VideoHost.Bounds.Size;
+        _tile?.SetVideoHeight(size.Height * owner.RenderScaling);
         if (size != _overlaySize)
         {
             overlay.Width = size.Width;

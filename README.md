@@ -6,15 +6,19 @@ and control of IP cameras and network video recorders (NVR/DVR). The user interf
 
 ## Features
 
-- **Live view** – grid layouts from 1×1 to 5×5, drag and drop cameras from the resource tree onto tiles,
+- **Live view** – standard and widescreen layouts with up to 64 cameras, drag and drop cameras from the resource tree onto tiles,
   stream selection (main / sub / automatic).
+- **Saved views** – create views from the live preview; camera placement, empty tiles and layout changes
+  save automatically. The first saved view opens at startup. Right-click a view to rename or delete it,
+  or a camera inside it to remove that camera from the view.
 - **Playback** – recording segment search with a timeline.
   Uses the recorder's selected protocol: native HCNetSDK search and playback, ISAPI search with RTSP,
   or ONVIF Profile G search and replay. ONVIF playback requires the device to expose Profile G services
   and identify the recordings belonging to the selected camera.
 - **PTZ** – camera movement control and presets.
 - **Device management** – add, edit, synchronize channels, check reachability.
-- **Secondary device address** – optionally configure another host using the same ports and credentials.
+- **Secondary device address** – optionally configure another host with separate control and RTSP ports,
+  using the same credentials.
   The first camera use checks the primary control port and then the secondary if needed. The chosen host
   is shared by all recorder channels until the application closes or connection settings change.
   If neither responds, the primary host is selected. Synchronization can try both before the first camera use
@@ -24,7 +28,8 @@ and control of IP cameras and network video recorders (NVR/DVR). The user interf
 - **Favorite cameras** – star cameras for quick access in the Favorites section at the top of the tree.
 - **Device import**:
   - from CSV files (automatic delimiter detection, English and Polish column headers),
-  - from iVMS-4200 backups (no vendor libraries required).
+  - devices and camera groups from iVMS-4200 backups (no vendor libraries required), replacing the
+    existing devices and groups after confirmation.
 - **Settings in a database** – share devices, groups and settings between computers through PostgreSQL
   or MySQL/MariaDB, with automatic checking, automatic or manual sending and a version history
   (see [Settings database](#settings-database)).
@@ -79,6 +84,12 @@ dotnet run --project NovaVMS.App
 ```
 
 ### Publishing
+
+The application version is its release date in `yyyy.MM.dd` format (for example,
+`2026.10.21`). Set `ReleaseDate` in `src/Directory.Build.props` for each release,
+or pass `-p:ReleaseDate=2026.10.22` to `dotnet publish`. The same date appears in
+the application header, window title and product version metadata. Rebuilding a
+release preserves its version; file and assembly versions add a trailing `.0`.
 
 ```bash
 # Windows
