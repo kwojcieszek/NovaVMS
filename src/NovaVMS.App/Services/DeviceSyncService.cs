@@ -74,14 +74,8 @@ public sealed class DeviceSyncService
                 device.Name = info.DeviceName;
             }
 
-            // Prefer the encoder dimensions reported by the device; retain learned values as a fallback.
-            foreach (var channel in channels)
-            {
-                var previous = device.Channels.FirstOrDefault(old => old.Number == channel.Number);
-                channel.MainAspectRatio ??= previous?.MainAspectRatio;
-                channel.IsFavorite = previous?.IsFavorite ?? channel.IsFavorite;
-            }
-
+            // Known cameras keep their identity, so views and groups still show the same cameras.
+            ChannelIdentity.Keep(device.Channels, channels);
             device.Channels = channels.ToList();
             SetOnline(device.Id, true);
             return new DeviceSyncResult(true, info, null);

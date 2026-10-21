@@ -31,15 +31,18 @@ internal static class ImportedCameraGroups
             foreach (var camera in source.Cameras)
             {
                 if (!remapped.TryGetValue(camera.DeviceId, out var device)) continue;
-                // Existing offline devices may not have discovered their channels yet.
-                if (!device.Channels.Any(channel => channel.Number == camera.ChannelNumber))
+                var imported = import.Devices.First(candidate => candidate.Id == camera.DeviceId).Channels
+                    .FirstOrDefault(channel => camera.IsLegacy ? channel.Number == camera.ChannelNumber : channel.Id == camera.ChannelId);
+                if (imported is null) continue;
+                // The import numbers channels like the device does; the existing channel keeps its identity.
+                var channel = device.Channels.FirstOrDefault(candidate => candidate.Number == imported.Number);
+                if (channel is null)
                 {
-                    var imported = import.Devices.First(candidate => candidate.Id == camera.DeviceId)
-                        .Channels.FirstOrDefault(channel => channel.Number == camera.ChannelNumber);
-                    if (imported is null) continue;
-                    device.Channels.Add(new Channel { Number = imported.Number, Name = imported.Name, Enabled = imported.Enabled });
+                    // Existing offline devices may not have discovered their channels yet.
+                    channel = new Channel { Number = imported.Number, Name = imported.Name, Enabled = imported.Enabled };
+                    device.Channels.Add(channel);
                 }
-                var reference = new CameraReference { DeviceId = device.Id, ChannelNumber = camera.ChannelNumber };
+                var reference = CameraReference.For(device, channel);
                 if (!target.Cameras.Contains(reference)) target.Cameras.Add(reference);
             }
             processed++;

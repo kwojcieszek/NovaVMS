@@ -121,7 +121,9 @@ public sealed class ConfigurationService
             Settings = Current.CreateSnapshot().Settings,
             Devices = devices.ToList(),
             Groups = groups.ToList(),
-            Users = Current.Users.Select(user => user.Copy()).ToList()
+            Users = Current.Users.Select(user => user.Copy()).ToList(),
+            // Views stay; their cameras show again when the imported devices contain them.
+            Views = Current.Views.Select(view => view.Copy()).ToList()
         }.CreateSnapshot();
         // A failed write must leave the current devices and groups available.
         await _saves.RunAsync(() => _store.SaveAsync(replacement.CreateSnapshot()));
@@ -149,7 +151,9 @@ public sealed class ConfigurationService
             return null;
         }
 
-        var channel = device.Channels.FirstOrDefault(candidate => candidate.Number == reference.ChannelNumber);
+        var channel = reference.IsLegacy
+            ? device.Channels.FirstOrDefault(candidate => candidate.Number == reference.ChannelNumber)
+            : device.Channels.FirstOrDefault(candidate => candidate.Id == reference.ChannelId);
         if (channel is null)
         {
             return null;
@@ -182,7 +186,7 @@ public sealed class ConfigurationService
 
         foreach (var channel in device.Channels)
         {
-            group.Cameras.Add(new CameraReference { DeviceId = device.Id, ChannelNumber = channel.Number });
+            group.Cameras.Add(CameraReference.For(device, channel));
         }
 
         Current.Groups.Add(group);
@@ -224,7 +228,7 @@ public sealed class ConfigurationService
             return;
         }
 
-        AddCamerasToGroup(group, device.Channels.Select(channel => new CameraReference { DeviceId = device.Id, ChannelNumber = channel.Number }));
+        AddCamerasToGroup(group, device.Channels.Select(channel => CameraReference.For(device, channel)));
     }
 
     public void RemoveDevice(Guid deviceId)
@@ -405,6 +409,47 @@ public sealed class ConfigurationService
             group.Cameras ??= new List<CameraReference>();
         }
 
+        AssignCameraIdentities(configuration);
         return configuration;
+    }
+
+    /// <summary>
+    /// Gives every channel a unique identity and converts references written with channel numbers to identities.
+    /// Afterwards views, groups and remembered layouts no longer depend on how a device numbers its channels.
+    /// </summary>
+    private static void AssignCameraIdentities(AppConfiguration configuration)
+    {
+        var used = new HashSet<Guid>();
+        foreach (var channel in configuration.Devices.SelectMany(device => device.Channels))
+        {
+            if (channel.Id == Guid.Empty || !used.Add(channel.Id))
+            {
+                channel.Id = Guid.NewGuid();
+                used.Add(channel.Id);
+            }
+        }
+
+        var devices = configuration.Devices.GroupBy(device => device.Id).ToDictionary(group => group.Key, group => group.First());
+        CameraReference? Convert(CameraReference? reference)
+        {
+            if (reference is not { IsLegacy: true } || !devices.TryGetValue(reference.DeviceId, out var device))
+            {
+                return reference;
+            }
+
+            var channel = device.Channels.FirstOrDefault(candidate => candidate.Number == reference.ChannelNumber);
+            return channel is null ? reference : CameraReference.For(device, channel);
+        }
+
+        foreach (var group in configuration.Groups)
+        {
+            group.Cameras = group.Cameras.Select(camera => Convert(camera)!).Distinct().ToList();
+        }
+
+        foreach (var layout in configuration.Views.Select(view => view.Layout).Concat(configuration.GroupLiveViews.Values.OfType<GroupLiveView>()))
+        {
+            layout.Cameras ??= new();
+            layout.Cameras = layout.Cameras.Select(Convert).ToList();
+        }
     }
 }

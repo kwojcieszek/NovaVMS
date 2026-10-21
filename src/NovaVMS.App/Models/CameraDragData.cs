@@ -5,7 +5,7 @@ using NovaVMS.Core.Models;
 namespace NovaVMS.App.Models;
 
 /// <summary>
-/// Drag-and-drop payload carrying a list of cameras as text ("deviceId:channel;deviceId:channel").
+/// Drag-and-drop payload carrying a list of cameras as text ("deviceId:channelId;deviceId:channelId").
 /// </summary>
 public static class CameraDragData
 {
@@ -37,7 +37,9 @@ public static class CameraDragData
     public static string Encode(IEnumerable<CameraReference> cameras)
     {
         return string.Join(ItemSeparator, cameras.Select(camera =>
-            $"{camera.DeviceId:D}{PartSeparator}{camera.ChannelNumber.ToString(CultureInfo.InvariantCulture)}"));
+            camera.IsLegacy
+                ? $"{camera.DeviceId:D}{PartSeparator}{camera.ChannelNumber.ToString(CultureInfo.InvariantCulture)}"
+                : $"{camera.DeviceId:D}{PartSeparator}{camera.ChannelId:D}"));
     }
 
     public static IReadOnlyList<CameraReference> Decode(string? text)
@@ -58,6 +60,12 @@ public static class CameraDragData
 
             if (!Guid.TryParse(parts[0], out var deviceId))
             {
+                continue;
+            }
+
+            if (Guid.TryParse(parts[1], out var channelId))
+            {
+                cameras.Add(new CameraReference { DeviceId = deviceId, ChannelId = channelId });
                 continue;
             }
 

@@ -26,8 +26,11 @@ public sealed class ImportedCameraGroupsTests
         Assert.Equal(2, existingGroup.Cameras.Count);
         Assert.Equal(manual, existingGroup.Cameras[0]);
         Assert.Equal(existing.Id, existingGroup.Cameras[1].DeviceId);
-        Assert.Equal(3, existingGroup.Cameras[1].ChannelNumber);
-        Assert.Equal("Entrance", Assert.Single(existing.Channels).Name);
+        var channel = Assert.Single(existing.Channels);
+        Assert.Equal(3, channel.Number);
+        Assert.Equal("Entrance", channel.Name);
+        // Members point at the channel's identity, not its number.
+        Assert.Equal(channel.Id, existingGroup.Cameras[1].ChannelId);
     }
 
     [Fact]

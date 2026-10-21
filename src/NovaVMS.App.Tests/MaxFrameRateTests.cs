@@ -23,13 +23,30 @@ public sealed class MaxFrameRateTests
         var configuration = new ConfigurationService(store, new JsonConfigurationSerializer());
         using (var page = new GeneralSettingsViewModel(configuration, new LocalSettingsService(new MemoryLocalSettingsStore()), null!, null!))
         {
-            page.SubStreamMaxFrameRate = 10;
-            page.MainStreamMaxFrameRate = 500;
-            await configuration.FlushAsync();
+            // Each change is saved and announced before the next, as on the UI thread; the announcement
+            // reloads the page and would otherwise race with setting the next value.
+            await SetAndWaitAsync(configuration, () => page.SubStreamMaxFrameRate = 10);
+            await SetAndWaitAsync(configuration, () => page.MainStreamMaxFrameRate = 500);
         }
 
         var settings = store.Stored.Settings;
         Assert.Equal(10, settings.GetMaxFrameRate(StreamType.Sub));
         Assert.Equal(60, settings.GetMaxFrameRate(StreamType.Main));
+    }
+
+    private static async Task SetAndWaitAsync(ConfigurationService configuration, Action change)
+    {
+        var changed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnChanged(object? sender, EventArgs e) => changed.TrySetResult();
+        configuration.Changed += OnChanged;
+        try
+        {
+            change();
+            await changed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally
+        {
+            configuration.Changed -= OnChanged;
+        }
     }
 }

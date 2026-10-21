@@ -451,5 +451,7 @@
   "Live_VideoOnlyTip": "Show only the camera view in the window (Esc returns)",
   "General_AspectMode": "Picture proportions",
   "Aspect_Original": "Original (camera proportions)",
-  "Aspect_Fit": "Fit (fill the tile)"
+  "Aspect_Fit": "Fit (fill the tile)",
+  "Shutdown_Title": "Closing NovaVMS",
+  "Shutdown_Message": "Please wait, stopping video and releasing resources…"
 }

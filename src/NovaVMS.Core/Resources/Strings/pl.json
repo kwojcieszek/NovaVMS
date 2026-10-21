@@ -451,5 +451,7 @@
   "Live_VideoOnlyTip": "Pokaż w oknie tylko widok kamer (Esc wraca)",
   "General_AspectMode": "Proporcje obrazu",
   "Aspect_Original": "Oryginalne (proporcje kamery)",
-  "Aspect_Fit": "Dopasuj (wypełnij kafelek)"
+  "Aspect_Fit": "Dopasuj (wypełnij kafelek)",
+  "Shutdown_Title": "Zamykanie programu",
+  "Shutdown_Message": "Proszę czekać, trwa zatrzymywanie podglądu i zwalnianie zasobów…"
 }

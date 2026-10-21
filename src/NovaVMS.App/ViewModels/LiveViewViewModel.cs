@@ -786,7 +786,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         try
         {
             var source = await LiveSourceLoader.OpenAsync(_clientFactory, device,
-                reference.ChannelNumber, streamType, _lifetime.Token);
+                camera.Channel.Number, streamType, _lifetime.Token);
             if (_isShutDown || tile.PlayRequestVersion != requestVersion || !Tiles.Contains(tile)
                 || !ReferenceEquals(_configuration.FindCamera(reference)?.Device, camera.Device)) return;
             if (streamType != ResolveStreamType(tile))

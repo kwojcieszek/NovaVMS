@@ -62,7 +62,7 @@ public sealed partial class GroupCameraPreviewViewModel : ViewModelBase, ITileHo
         try
         {
             var device = camera.Device.ForHost(camera.Device.Host);
-            var source = await LiveSourceLoader.OpenAsync(_factory, device, camera.Reference.ChannelNumber, StreamType.Sub, token);
+            var source = await LiveSourceLoader.OpenAsync(_factory, device, camera.Channel.Number, StreamType.Sub, token);
             if (_disposed || version != _version || token.IsCancellationRequested) return;
             Tile.Play(camera.Reference, camera.FullName, new TilePlayRequest(source, StreamType.Sub,
                 device.Username, device.Password, _configuration.Current.Settings.NetworkCachingMs, camera.Channel.MainAspectRatio,

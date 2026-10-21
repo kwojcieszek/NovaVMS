@@ -120,8 +120,9 @@ public sealed class IvmsDeviceReader
                         : sdkNumber - item.DigitalStart + item.AnalogCount + 1;
                     if (number <= 0 || item.Device.Channels.Any(channel => channel.Number == number))
                         throw new FormatException(ImportText.Get("IvmsDamaged"));
-                    item.Device.Channels.Add(new Channel { Number = number, Name = DecodeName((byte[])rows.GetValue(1)) });
-                    channels.Add(rows.GetString(4), new CameraReference { DeviceId = item.Device.Id, ChannelNumber = number });
+                    var channel = new Channel { Number = number, Name = DecodeName((byte[])rows.GetValue(1)) };
+                    item.Device.Channels.Add(channel);
+                    channels.Add(rows.GetString(4), CameraReference.For(item.Device, channel));
                 }
             }
 

@@ -15,6 +15,14 @@ internal static class Program
             var updateLock = Path.Combine(AppContext.BaseDirectory, ".novavms-update.lock");
             if (File.Exists(updateLock))
                 using (new FileStream(updateLock, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) { }
+            // Two instances would compete for device connections and overwrite each other's configuration.
+            using var instance = SingleInstance.TryAcquire();
+            if (instance is null)
+            {
+                SingleInstance.ActivateRunningInstance();
+                return;
+            }
+
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
         catch (Exception exception)

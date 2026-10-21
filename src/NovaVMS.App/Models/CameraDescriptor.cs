@@ -11,11 +11,7 @@ public sealed class CameraDescriptor
     {
         Device = device;
         Channel = channel;
-        Reference = new CameraReference
-        {
-            DeviceId = device.Id,
-            ChannelNumber = channel.Number
-        };
+        Reference = CameraReference.For(device, channel);
     }
 
     public Device Device { get; }

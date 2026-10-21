@@ -212,9 +212,15 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         device.UseHttps = EditUseHttps;
         if (device.Protocol != EditProtocol.Value)
         {
-            // Stream addresses and profiles belong to the previous protocol; channels are read again.
+            // Stream addresses and profiles belong to the previous protocol. The channels themselves are kept,
+            // so the cameras keep their identity in views and groups when they are read again.
             device.Protocol = EditProtocol.Value;
-            device.Channels = new List<Channel>();
+            foreach (var channel in device.Channels)
+            {
+                channel.MainStreamUri = null;
+                channel.SubStreamUri = null;
+                channel.ProfileToken = null;
+            }
         }
         device.Username = EditUsername.Trim();
         device.Password = EditPassword;

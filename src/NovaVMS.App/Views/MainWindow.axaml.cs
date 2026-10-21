@@ -40,6 +40,9 @@ public partial class MainWindow : Window
         base.OnClosing(e);
         if (_shutdownStarted) return;
         _shutdownStarted = true;
+        // Releasing streams and devices can take several seconds; tell the user the application is closing.
+        var progress = new ShutdownWindow();
+        progress.Show(this);
         try
         {
             // Await stops while surfaces and the dispatcher are still alive. Closing
@@ -55,6 +58,8 @@ public partial class MainWindow : Window
         }
         finally
         {
+            progress.CanClose = true;
+            progress.Close();
             _canClose = true;
             Close();
         }

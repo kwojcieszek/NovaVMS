@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using NovaVMS.App.Services;
 using NovaVMS.App.ViewModels;
@@ -68,6 +69,12 @@ public partial class App : Application
                 desktop.MainWindow.WindowState = WindowState.FullScreen;
             }
             desktop.Exit += OnDesktopExit;
+            SingleInstance.Current?.ListenForActivation(() => Dispatcher.UIThread.Post(() =>
+            {
+                if (desktop.MainWindow is not { } window) return;
+                if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
+                window.Activate();
+            }));
             // The main window starts the initialization once it is shown: the login window needs it as its owner.
         }
 
