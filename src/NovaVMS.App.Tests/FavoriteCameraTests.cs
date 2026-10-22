@@ -38,17 +38,16 @@ public sealed class FavoriteCameraTests
     }
 
     [Fact]
-    public async Task FavoritesDoNotRemoveUnassignedCamerasOrShareExpansionWithThem()
+    public async Task CamerasWithoutAGroupRemainAvailableInSettingsAndFavorites()
     {
         var (configuration, tree, _) = await CreateAsync();
-        var unassigned = tree.Groups.Single(group => group.IsUnassigned);
-        var camera = unassigned.Cameras[0];
+        var descriptor = configuration.GetAllCameras().Single(camera => camera.Channel.Number == 2);
+        Assert.DoesNotContain(tree.Groups.SelectMany(group => group.Cameras), camera => camera.Reference == descriptor.Reference);
+        var camera = new CameraNodeViewModel(tree, descriptor.Reference, descriptor.DisplayName, descriptor.FullName, null);
         tree.Groups[0].IsExpanded = false;
-        unassigned.IsExpanded = true;
         await tree.ToggleFavoriteCommand.ExecuteAsync(camera);
         Assert.False(tree.Groups[0].IsExpanded);
-        Assert.True(tree.Groups.Single(group => group.IsUnassigned).IsExpanded);
-        Assert.Contains(tree.Groups.Single(group => group.IsUnassigned).Cameras, node => node.Reference == camera.Reference);
+        Assert.NotNull(configuration.FindCamera(camera.Reference));
         Assert.Single(tree.GetCameras(tree.Groups[0]));
 
         tree.SearchText = "Office";

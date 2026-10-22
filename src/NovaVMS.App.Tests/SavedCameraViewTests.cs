@@ -20,7 +20,8 @@ public sealed class SavedCameraViewTests
         Assert.True(view.IsSavedView);
         Assert.Equal(configuration.Current.Views[0].Id, view.Id);
         Assert.Equal(configuration.Current.Views[0].Layout.Cameras.OfType<CameraReference>(), view.Cameras.Select(camera => camera.Reference));
-        Assert.Single(tree.Groups.Single(group => group.IsUnassigned).Cameras);
+        Assert.Equal(2, tree.Groups.Count);
+        Assert.Single(configuration.GetAllCameras());
         Assert.Empty(configuration.Current.Groups);
         Assert.Single(folder.Children);
     }

@@ -114,6 +114,9 @@
 
       <CheckBox Content="{l:Tr General_ShowTitles}" IsChecked="{Binding ShowTileTitles}" />
       <CheckBox Content="{l:Tr General_ShowSearch}" IsChecked="{Binding ShowCameraSearch}" />
+      <CheckBox IsChecked="{Binding WarnWhenGroupExceedsLayout}">
+        <TextBlock Text="{l:Tr General_WarnWhenGroupExceedsLayout}" TextWrapping="Wrap" />
+      </CheckBox>
 
       <TextBlock Classes="sectionTitle" FontSize="18" Margin="0,16,0,6" Text="{l:Tr General_SdkTitle}" />
       <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr General_SdkHint}" />

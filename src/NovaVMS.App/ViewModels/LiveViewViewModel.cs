@@ -30,7 +30,9 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     private readonly Dictionary<VideoTileViewModel, int> _pendingPlayRequests = new();
     private Task _layoutChange = Task.CompletedTask;
     private int _layoutVersion;
+    [ObservableProperty]
     private string? _activeGroup;
+    private bool _checkingGroupLayout;
     private IReadOnlyList<CameraReference> _groupCameras = Array.Empty<CameraReference>();
     private HashSet<int> _emptySlots = new();
     private bool _restoringGroup;
@@ -129,19 +131,27 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
 
     public async void ShowGroup(string key, IReadOnlyList<CameraReference> cameras)
     {
+        try { await ShowGroupAsync(key, cameras); }
+        catch (Exception exception) { DeviceOperationErrors.Report("Opening camera group", exception); }
+    }
+
+    internal async Task ShowGroupAsync(string key, IReadOnlyList<CameraReference> cameras)
+    {
         RememberSavedView();
         ActiveSavedViewId = null;
-        if (_isShutDown || (_activeGroup == key && _restoringGroup)) return;
-        if (_activeGroup == key)
+        if (_isShutDown || (ActiveGroup == key && _restoringGroup)) return;
+        if (ActiveGroup == key)
         {
             _groupCameras = cameras.ToArray();
+            await CheckGroupLayoutAsync();
+            if (_isShutDown || ActiveGroup != key) return;
             FillGroupSlots();
             return;
         }
         RememberGroup();
         var version = ++_groupVersion;
         _restoringGroup = true;
-        _activeGroup = key;
+        ActiveGroup = key;
         _groupCameras = cameras.ToArray();
         var saved = _configuration.Current.GroupLiveViews.GetValueOrDefault(key)?.Copy();
         try
@@ -150,6 +160,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
             _emptySlots = saved?.EmptySlots.ToHashSet() ?? new();
             MaximizedTile = null;
             if (saved is not null) SelectedLayout = GridLayoutOption.Find(saved.LayoutId, saved.LayoutCount);
+            await CheckGroupLayoutAsync();
             await _layoutChange;
             if (_isShutDown || version != _groupVersion) return;
             var slots = saved?.Cameras ?? cameras.Cast<CameraReference?>().ToList();
@@ -179,7 +190,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         }
 
         var removed = _configuration.Current.GroupLiveViews.Remove(key);
-        if (_activeGroup == key && !_restoringGroup)
+        if (ActiveGroup == key && !_restoringGroup)
         {
             _groupCameras = cameras.ToArray();
             _emptySlots = new();
@@ -188,6 +199,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
             AssignTiles(Tiles.Select((_, index) => index < available.Length ? available[index] : null).ToList());
             SelectedTile = Tiles.FirstOrDefault();
             OnPropertyChanged(nameof(SelectedCamera));
+            CheckCurrentGroupLayout();
         }
 
         if (removed)
@@ -198,8 +210,8 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
 
     private void RememberGroup()
     {
-        if (_activeGroup is null || _restoringGroup) return;
-        _configuration.Current.GroupLiveViews[_activeGroup] = new GroupLiveView
+        if (ActiveGroup is null || _restoringGroup) return;
+        _configuration.Current.GroupLiveViews[ActiveGroup] = new GroupLiveView
         {
             LayoutId = SelectedLayout.Id,
             LayoutCount = SelectedLayout.Count,
@@ -263,7 +275,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         if (view is null || _isShutDown) return;
         RememberGroup();
         var version = ++_groupVersion;
-        _activeGroup = null;
+        ActiveGroup = null;
         _groupCameras = Array.Empty<CameraReference>();
         ActiveSavedViewId = null;
         _restoringGroup = true;
@@ -297,13 +309,48 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
 
     private void FillGroupSlots()
     {
-        if (_isShutDown || _activeGroup is null) return;
+        if (_isShutDown || ActiveGroup is null) return;
         var current = Tiles.Select(tile => _assignments.GetValueOrDefault(tile) ?? tile.Camera).ToArray();
         var cameras = _groupCameras.Where(camera => _configuration.FindCamera(camera) is not null).ToArray();
         var filled = GroupCameraPlacement.Fill(current, cameras, _emptySlots);
         for (var index = 0; index < filled.Length; index++)
             if (current[index] is null && filled[index] is { } camera)
                 PlayOnTile(Tiles[index], camera);
+    }
+
+    private async Task CheckGroupLayoutAsync()
+    {
+        if (_isShutDown || ActiveGroup is null || _checkingGroupLayout) return;
+        var cameraCount = _groupCameras.Distinct().Count(camera => _configuration.FindCamera(camera) is not null);
+        var layout = SelectedLayout;
+        var suggested = GroupLayoutCapacity.Suggest(_configuration.Current.Settings, layout, cameraCount);
+        if (suggested is null) return;
+        if (suggested.Count <= layout.Count)
+        {
+            _statusBar.Message = Localizer.Format("Live_GroupLayoutCapacityMaximum", cameraCount, layout.Count);
+            return;
+        }
+        var version = _groupVersion;
+        var key = ActiveGroup;
+        _checkingGroupLayout = true;
+        try
+        {
+            var accepted = await _dialogs.ConfirmAsync(Localizer.Text("Live_GroupLayoutCapacityTitle"),
+                Localizer.Format("Live_GroupLayoutCapacityConfirm", cameraCount, layout.Count, suggested.Count));
+            if (accepted && !_isShutDown && version == _groupVersion && key == ActiveGroup
+                && ReferenceEquals(layout, SelectedLayout) && _configuration.Current.Settings.WarnWhenGroupExceedsLayout)
+            {
+                SelectedLayout = suggested;
+                await _layoutChange;
+            }
+        }
+        finally { _checkingGroupLayout = false; }
+    }
+
+    private async void CheckCurrentGroupLayout()
+    {
+        try { await CheckGroupLayoutAsync(); }
+        catch (Exception exception) { DeviceOperationErrors.Report("Checking group layout capacity", exception); }
     }
 
     /// <summary>
@@ -435,7 +482,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     /// A group's tiles follow its configured cameras (edited in the settings); only views and
     /// free layouts accept cameras dragged from the tree. A saved view also needs the permission to change views.
     /// </summary>
-    public bool CanDropCameras => _activeGroup is null && (ActiveSavedViewId is null || Session.CanEditViews);
+    public bool CanDropCameras => ActiveGroup is null && (ActiveSavedViewId is null || Session.CanEditViews);
 
     public void DropCameras(VideoTileViewModel tile, IReadOnlyList<CameraReference> cameras)
     {
@@ -633,6 +680,27 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         MaximizedTile = null;
         ApplyLayout(value);
         RememberSavedView();
+        if (!_restoringGroup)
+        {
+            RememberDefaultLayout(value);
+            CheckCurrentGroupLayout();
+        }
+    }
+
+    private void RememberDefaultLayout(GridLayoutOption layout)
+    {
+        if (_isShutDown) return;
+        var settings = _configuration.Current.Settings;
+        if (settings.DefaultLayoutId == layout.Id && settings.DefaultLayoutCount == layout.Count) return;
+        settings.DefaultLayoutId = layout.Id;
+        settings.DefaultLayoutCount = layout.Count;
+        _ = SaveDefaultLayoutAsync();
+    }
+
+    private async Task SaveDefaultLayoutAsync()
+    {
+        try { await _configuration.SaveAsync(); }
+        catch (Exception exception) { DeviceOperationErrors.Report("Saving default camera layout", exception); }
     }
 
     partial void OnSelectedTileChanged(VideoTileViewModel? oldValue, VideoTileViewModel? newValue)

@@ -11,6 +11,9 @@ public abstract partial class ResourceNodeViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isExpanded;
 
+    [ObservableProperty]
+    private bool _isActive;
+
     protected ResourceNodeViewModel(ResourceTreeViewModel owner, string name)
     {
         Owner = owner;

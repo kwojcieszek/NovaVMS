@@ -70,6 +70,9 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     private bool _autoCreateDeviceGroups;
 
     [ObservableProperty]
+    private bool _warnWhenGroupExceedsLayout;
+
+    [ObservableProperty]
     private bool _showTileTitles;
 
     [ObservableProperty]
@@ -119,6 +122,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         _subStreamMaxFrameRate = settings.SubStreamMaxFrameRate;
         _mainStreamMaxFrameRate = settings.MainStreamMaxFrameRate;
         _autoCreateDeviceGroups = settings.AutoCreateDeviceGroups;
+        _warnWhenGroupExceedsLayout = settings.WarnWhenGroupExceedsLayout;
         _showTileTitles = settings.ShowTileTitles;
         _showCameraSearch = settings.ShowCameraSearch;
         _hcNetSdkDirectory = settings.HcNetSdkDirectory;
@@ -238,6 +242,8 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         ApplyChanges();
     }
 
+    partial void OnWarnWhenGroupExceedsLayoutChanged(bool value) => ApplyChanges();
+
     partial void OnShowTileTitlesChanged(bool value)
     {
         ApplyChanges();
@@ -297,6 +303,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         settings.SubStreamMaxFrameRate = (int)Math.Clamp(SubStreamMaxFrameRate ?? settings.SubStreamMaxFrameRate, MinFrameRate, MaxFrameRate);
         settings.MainStreamMaxFrameRate = (int)Math.Clamp(MainStreamMaxFrameRate ?? settings.MainStreamMaxFrameRate, MinFrameRate, MaxFrameRate);
         settings.AutoCreateDeviceGroups = AutoCreateDeviceGroups;
+        settings.WarnWhenGroupExceedsLayout = WarnWhenGroupExceedsLayout;
         settings.ShowTileTitles = ShowTileTitles;
         settings.ShowCameraSearch = ShowCameraSearch;
         settings.HcNetSdkDirectory = HcNetSdkDirectory.Trim();
@@ -415,6 +422,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
             SubStreamMaxFrameRate = settings.SubStreamMaxFrameRate;
             MainStreamMaxFrameRate = settings.MainStreamMaxFrameRate;
             AutoCreateDeviceGroups = settings.AutoCreateDeviceGroups;
+            WarnWhenGroupExceedsLayout = settings.WarnWhenGroupExceedsLayout;
             ShowTileTitles = settings.ShowTileTitles;
             ShowCameraSearch = settings.ShowCameraSearch;
             HcNetSdkDirectory = settings.HcNetSdkDirectory;

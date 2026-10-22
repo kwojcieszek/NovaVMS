@@ -153,7 +153,7 @@ public partial class MainWindow : Window
             DataContext = settingsViewModel
         };
 
-        await settingsWindow.ShowDialog(this);
+        await ModalDialog.ShowAsync<object?>(settingsWindow, this);
         settingsViewModel.Dispose();
     }
 

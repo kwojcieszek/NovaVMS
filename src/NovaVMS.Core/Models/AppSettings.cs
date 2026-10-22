@@ -57,6 +57,9 @@ public sealed class AppSettings
 
     public bool AutoCreateDeviceGroups { get; set; } = true;
 
+    /// <summary>Ask to enlarge the live grid when a camera group exceeds its capacity.</summary>
+    public bool WarnWhenGroupExceedsLayout { get; set; } = true;
+
     public string? DefaultLayoutId { get; set; }
     public int DefaultLayoutCount { get; set; } = 4;
 

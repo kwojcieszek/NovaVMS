@@ -93,7 +93,7 @@ public partial class VideoTileView : UserControl
         _ownerWindow = owner;
         _overlayPosition = null;
         _overlaySize = default;
-        _overlayWindow = new Window
+        _overlayWindow = new VideoOverlayWindow
         {
             SystemDecorations = SystemDecorations.None,
             TransparencyLevelHint = [WindowTransparencyLevel.Transparent],
@@ -136,13 +136,14 @@ public partial class VideoTileView : UserControl
 
     private void OnOwnerLayoutUpdated(object? sender, EventArgs e)
     {
-        UpdateSurfaceOrder();
+        if (_ownerWindow?.GetValue(ModalDialog.DepthProperty) == 0) UpdateSurfaceOrder();
         UpdateOverlayWindow();
     }
     private void OnOwnerPositionChanged(object? sender, PixelPointEventArgs e) => UpdateOverlayWindow();
     private void OnOwnerPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
-        if (e.Property == Window.WindowStateProperty || e.Property == IsVisibleProperty || e.Property == OpacityProperty)
+        if (e.Property == Window.WindowStateProperty || e.Property == IsVisibleProperty || e.Property == OpacityProperty
+            || e.Property == ModalDialog.DepthProperty)
             UpdateOverlayWindow();
     }
 
@@ -152,6 +153,7 @@ public partial class VideoTileView : UserControl
         if (!this.IsAttachedToVisualTree() || !VideoHost.IsAttachedToVisualTree()
             || !ReferenceEquals(TopLevel.GetTopLevel(VideoHost), owner)
             || !IsEffectivelyVisible || _tile?.IsVisibleInGrid == false
+            || owner.GetValue(ModalDialog.DepthProperty) > 0
             || !owner.IsVisible || owner.WindowState == WindowState.Minimized
             || VideoHost.Bounds.Width <= 0 || VideoHost.Bounds.Height <= 0)
         {

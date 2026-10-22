@@ -1,4 +1,8 @@
 {
+  "General_WarnWhenGroupExceedsLayout": "Ostrzegaj, gdy grupa ma więcej kamer niż okien w układzie",
+  "Live_GroupLayoutCapacityTitle": "Za mało okien dla grupy",
+  "Live_GroupLayoutCapacityConfirm": "Grupa zawiera {0} kamer, a wybrany układ ma {1} okien. Część kamer nie będzie widoczna. Czy zmienić układ na {2} okien?",
+  "Live_GroupLayoutCapacityMaximum": "Grupa zawiera {0} kamer, a układ ma {1} okien. Osiągnięto maksymalny rozmiar układu. Nie wszystkie kamery będą widoczne.",
   "Updates_Title": "Aktualizacje aplikacji",
   "Updates_Automatic": "Automatycznie sprawdzaj, czy jest nowa wersja",
   "Updates_Server": "Adres URL serwera aktualizacji",
@@ -64,7 +68,6 @@
   "Tree_Rename": "Zmień nazwę...",
   "Tree_OpenInLiveView": "Otwórz w podglądzie",
   "Tree_AddToGroup": "Dodaj do grupy",
-  "Tree_Unassigned": "Kamery nieprzypisane",
   "Tree_Favorites": "Ulubione",
   "Tile_SwitchFailed": "Nie udało się zmienić strumienia. Poprzedni podgląd pozostaje aktywny.",
   "Tree_AddFavorite": "Dodaj do ulubionych",

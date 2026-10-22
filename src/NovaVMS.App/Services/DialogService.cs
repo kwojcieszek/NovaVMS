@@ -28,7 +28,7 @@ public sealed class DialogService : IDialogService
         }
 
         var dialog = new TextInputDialog(title, message, initialValue);
-        return await dialog.ShowDialog<string?>(owner);
+        return await ModalDialog.ShowAsync<string?>(dialog, owner);
     }
 
     public async Task<bool> ConfirmAsync(string title, string message)
@@ -40,7 +40,7 @@ public sealed class DialogService : IDialogService
         }
 
         var dialog = new ConfirmDialog(title, message);
-        return await dialog.ShowDialog<bool>(owner);
+        return await ModalDialog.ShowAsync<bool>(dialog, owner);
     }
 
     public async Task<bool> LoginAsync(UserSessionService session, string userName)
@@ -52,7 +52,7 @@ public sealed class DialogService : IDialogService
         }
 
         var dialog = new LoginWindow(session, userName);
-        return await dialog.ShowDialog<bool>(owner);
+        return await ModalDialog.ShowAsync<bool>(dialog, owner);
     }
 
     private static FilePickerFileType CsvFileType => new(Localizer.Text("FileType_Csv"))
@@ -191,6 +191,9 @@ public sealed class DialogService : IDialogService
             return null;
         }
 
-        return desktop.Windows.FirstOrDefault(window => window.IsActive) ?? desktop.MainWindow;
+        return FindOwner(desktop.Windows, desktop.MainWindow);
     }
+
+    internal static Window? FindOwner(IEnumerable<Window> windows, Window? mainWindow)
+        => windows.FirstOrDefault(window => window.IsActive && window is not VideoOverlayWindow) ?? mainWindow;
 }

@@ -399,6 +399,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     private void OnLivePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName is nameof(LiveViewViewModel.ActiveGroup) or nameof(LiveViewViewModel.ActiveSavedViewId))
+        {
+            Tree.SetActiveLiveView(Live.ActiveGroup, Live.ActiveSavedViewId);
+        }
         if (e.PropertyName == nameof(LiveViewViewModel.SelectedCamera))
         {
             Ptz.SetTarget(Session.CanControlPtz ? Live.SelectedCamera : null);
