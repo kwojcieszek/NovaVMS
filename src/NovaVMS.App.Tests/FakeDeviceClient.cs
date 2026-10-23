@@ -15,6 +15,7 @@ internal sealed class FakeDeviceClient(Device device) : IDeviceClient
     public bool IsDisposed { get; private set; }
     public Func<Task>? Move { get; set; }
     public Func<CancellationToken, Task<DeviceInfo>>? ReadInfo { get; set; }
+    public Func<int, DateTime, DateTime, VideoSource>? OpenRecording { get; set; }
 
     public Task PtzMoveAsync(int channelNumber, int pan, int tilt, int zoom, CancellationToken cancellationToken = default)
     {
@@ -46,7 +47,7 @@ internal sealed class FakeDeviceClient(Device device) : IDeviceClient
 
     public VideoSource GetPlaybackSource(int channelNumber, DateTime start, DateTime end)
     {
-        throw new NotSupportedException();
+        return OpenRecording?.Invoke(channelNumber, start, end) ?? throw new NotSupportedException();
     }
 
     public Task<DeviceInfo> GetDeviceInfoAsync(CancellationToken cancellationToken = default)

@@ -6,6 +6,7 @@ namespace NovaVMS.Core.Models;
 public sealed class AppSettings
 {
     public bool AutoCheckForUpdates { get; set; }
+    public bool AutoDownloadUpdates { get; set; }
     public string UpdateServerUrl { get; set; } = string.Empty;
 
     internal AppSettings Copy() => (AppSettings)MemberwiseClone();

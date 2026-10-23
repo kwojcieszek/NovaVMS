@@ -5,3 +5,5 @@ obj/
 *.user
 *.suo
 .DS_Store
+/build/out/
+out/

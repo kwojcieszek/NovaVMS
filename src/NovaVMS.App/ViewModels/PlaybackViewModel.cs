@@ -26,7 +26,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     private static readonly TimeSpan DefaultFromTime = TimeSpan.Zero;
     private static readonly TimeSpan DefaultToTime = new(23, 59, 0);
 
-    private readonly AsyncWorkQueue _operations = new();
+    private readonly RecordingPlaybackBuffer _buffer;
     private readonly List<Task> _openings = new();
     private readonly CancellationTokenSource _lifetime = new();
     private Task? _disposal;
@@ -35,7 +35,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     private readonly ConfigurationService _configuration;
     private readonly IDeviceClientFactory _clientFactory;
     private readonly DispatcherTimer _positionTimer;
-    private readonly MediaPlayer _player;
+    private MediaPlayer _player => _buffer.ActivePlayer;
     private readonly IDialogService _dialogs;
     private readonly RecordingExporter _exporter;
     private CancellationTokenSource? _exportCancellation;
@@ -47,7 +47,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     private long _shuttleStarted;
     private long _previewStarted;
     private long _previewVisibleStarted;
-    private VideoMedia? _media;
+    private VideoMedia? _media => _buffer.ActiveMedia;
     private CameraReference? _camera;
     private DateTime _playbackStart;
     private bool _isShutDown;
@@ -163,9 +163,14 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         _dialogs = dialogs;
         _exporter = exporter;
 
-        _player = VideoPlayerFactory.Create(libVlc);
-        _player.EncounteredError += OnPlayerError;
-        _player.EndReached += OnPlayerEndReached;
+        _buffer = new RecordingPlaybackBuffer(libVlc);
+        _buffer.ActivePlayerChanged += OnActivePlayerChanged;
+        _buffer.PrimaryPlayer.EncounteredError += OnPrimaryPlayerError;
+        _buffer.SecondaryPlayer.EncounteredError += OnSecondaryPlayerError;
+        _buffer.PrimaryPlayer.EndReached += OnPrimaryPlayerEndReached;
+        _buffer.SecondaryPlayer.EndReached += OnSecondaryPlayerEndReached;
+        PrimaryPlayer = _buffer.PrimaryPlayer;
+        SecondaryPlayer = _buffer.SecondaryPlayer;
         VideoPlayer = _player;
 
         _positionTimer = new DispatcherTimer
@@ -181,6 +186,17 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     /// detaches from a live native player instead of a released one.
     /// </summary>
     public MediaPlayer? VideoPlayer { get; private set; }
+
+    public MediaPlayer? PrimaryPlayer { get; private set; }
+    public MediaPlayer? SecondaryPlayer { get; private set; }
+    public bool IsPrimaryPlayerActive => ReferenceEquals(_player, _buffer.PrimaryPlayer);
+
+    private void OnActivePlayerChanged(object? sender, EventArgs e)
+    {
+        VideoPlayer = _player;
+        OnPropertyChanged(nameof(VideoPlayer));
+        OnPropertyChanged(nameof(IsPrimaryPlayerActive));
+    }
 
     public ObservableCollection<RecordingSegment> Segments { get; } = new();
 
@@ -245,14 +261,21 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         try { await Task.WhenAll(_openings); }
         catch (Exception exception) { UnhandledExceptionLogger.Log("Finishing recording operations", exception); }
         if (_exportTask is not null) await _exportTask;
-        await _operations.WhenIdle;
+        await _buffer.WhenIdle;
         VideoPlayer = null;
+        PrimaryPlayer = null;
+        SecondaryPlayer = null;
         OnPropertyChanged(nameof(VideoPlayer));
+        OnPropertyChanged(nameof(PrimaryPlayer));
+        OnPropertyChanged(nameof(SecondaryPlayer));
         _positionTimer.Tick -= OnPositionTimerTick;
-        _player.EncounteredError -= OnPlayerError;
-        _player.EndReached -= OnPlayerEndReached;
+        _buffer.PrimaryPlayer.EncounteredError -= OnPrimaryPlayerError;
+        _buffer.SecondaryPlayer.EncounteredError -= OnSecondaryPlayerError;
+        _buffer.PrimaryPlayer.EndReached -= OnPrimaryPlayerEndReached;
+        _buffer.SecondaryPlayer.EndReached -= OnSecondaryPlayerEndReached;
+        _buffer.ActivePlayerChanged -= OnActivePlayerChanged;
         Localizer.Instance.LanguageChanged -= OnLanguageChanged;
-        await _operations.RunAsync(_player.Dispose);
+        await _buffer.DisposeAsync();
         _lifetime.Dispose();
     }
 
@@ -345,9 +368,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         if (_isShutDown) return;
         IsPaused = !IsPaused;
         ResetShuttle(Day.AddSeconds(TimelinePosition));
-        var paused = IsPaused;
-        var version = _playbackVersion;
-        _ = _operations.RunAsync(() => { if (!_isShutDown && version == _playbackVersion) _player.SetPause(paused); });
+        _ = _buffer.SetPauseAsync(IsPaused);
         StatusText = Localizer.Text(IsPaused ? "Playback_Paused" : "Playback_Playing");
     }
 
@@ -448,8 +469,8 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        StopPlayer();
-        var version = _playbackVersion;
+        var version = ++_playbackVersion;
+        _buffer.CancelPending();
         _isOpening = true;
 
         try
@@ -457,25 +478,18 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
             using var client = await _clientFactory.CreateAsync(camera.Device, cancellationToken: _lifetime.Token);
             var end = Segments.FirstOrDefault(segment => segment.Start <= start && segment.End > start)?.End
                 ?? start.Date.AddSeconds(LastSecondOfDay);
-            _playbackEnd = end;
             var source = await client.GetPlaybackSourceAsync(camera.Channel.Number, start, end, _lifetime.Token);
             if (_isShutDown || version != _playbackVersion) return;
             var caching = _configuration.Current.Settings.GetNetworkCachingMs(StreamType.Main);
-            var media = await _operations.RunAsync(() => VideoMedia.Create(_libVlc, source, camera.Device.Username, camera.Device.Password, caching, paceStream: true));
-            if (_isShutDown || version != _playbackVersion)
-            {
-                await _operations.RunAsync(media.Dispose);
-                return;
-            }
-            _media = media;
+            var started = await _buffer.SwitchAsync(() => VideoMedia.Create(_libVlc, source,
+                camera.Device.Username, camera.Device.Password, caching,
+                withAudio: SelectedSpeed.Rate == 1, paceStream: true), _lifetime.Token);
+            if (_isShutDown || version != _playbackVersion) return;
+            if (!started) { StatusText = Localizer.Text("Playback_Failed"); return; }
 
             _playbackStart = start;
-            var started = await _operations.RunAsync(() => !_isShutDown && version == _playbackVersion && _player.Play(media.Media));
-            if (_isShutDown || version != _playbackVersion) return;
-            if (!started) { StopPlayer(); StatusText = Localizer.Text("Playback_Failed"); return; }
-
+            _playbackEnd = end;
             IsPlaying = true;
-            IsPaused = false;
             TimelinePosition = (start - Day).TotalSeconds;
             CurrentTimeText = start.ToString("HH:mm:ss");
             StatusText = Localizer.Format("Playback_PlayingFrom", start.ToString("HH:mm:ss"));
@@ -491,7 +505,11 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         }
         finally
         {
-            if (version == _playbackVersion) _isOpening = false;
+            if (version == _playbackVersion)
+            {
+                _isOpening = false;
+                if (_media is not null) _positionTimer.Start();
+            }
         }
     }
 
@@ -500,9 +518,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         _playbackVersion++;
         _isOpening = false;
         _positionTimer.Stop();
-        var media = _media;
-        _media = null;
-        _ = _operations.RunAsync(() => VideoMedia.Stop(_player, media));
+        _buffer.Stop();
 
         IsPlaying = false;
         IsPaused = false;
@@ -560,11 +576,17 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     }
 
     // LibVLC raises events on its own threads - marshal them to the UI thread.
-    private void OnPlayerError(object? sender, EventArgs e)
+    private void OnPrimaryPlayerError(object? sender, EventArgs e) => OnPlayerError(_buffer.PrimaryPlayer);
+    private void OnSecondaryPlayerError(object? sender, EventArgs e) => OnPlayerError(_buffer.SecondaryPlayer);
+    private void OnPrimaryPlayerEndReached(object? sender, EventArgs e) => OnPlayerEndReached(_buffer.PrimaryPlayer);
+    private void OnSecondaryPlayerEndReached(object? sender, EventArgs e) => OnPlayerEndReached(_buffer.SecondaryPlayer);
+
+    private void OnPlayerError(MediaPlayer player)
     {
+        var version = _playbackVersion;
         Dispatcher.UIThread.Post(() =>
         {
-            if (_isShutDown || _media is null)
+            if (_isShutDown || _media is null || _isOpening || version != _playbackVersion || !ReferenceEquals(player, _player))
             {
                 return;
             }
@@ -576,12 +598,12 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         });
     }
 
-    private void OnPlayerEndReached(object? sender, EventArgs e)
+    private void OnPlayerEndReached(MediaPlayer player)
     {
         var version = _playbackVersion;
         Dispatcher.UIThread.Post(async () =>
         {
-            if (_isShutDown || _media is null || version != _playbackVersion || _isOpening)
+            if (_isShutDown || _media is null || version != _playbackVersion || _isOpening || !ReferenceEquals(player, _player))
             {
                 return;
             }

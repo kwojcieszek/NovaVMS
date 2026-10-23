@@ -66,7 +66,7 @@ public sealed class NativePlaybackLifecycleTests
         }
     }
 
-    private static byte[] CreateVideo(int frames = 50)
+    internal static byte[] CreateVideo(int frames = 50)
     {
         using var video = new MemoryStream();
         video.Write(Encoding.ASCII.GetBytes("YUV4MPEG2 W64 H48 F25:1 Ip A1:1 C420jpeg\n"));

@@ -133,7 +133,10 @@
     </Border>
 
     <Border Background="{DynamicResource NovaTileBackground}" Margin="1">
-      <vlc:VideoView MediaPlayer="{Binding VideoPlayer}" />
+      <Panel x:Name="VideoHost">
+        <vlc:VideoView x:Name="PrimaryVideo" MediaPlayer="{Binding PrimaryPlayer}" />
+        <vlc:VideoView x:Name="SecondaryVideo" MediaPlayer="{Binding SecondaryPlayer}" />
+      </Panel>
     </Border>
 
   </DockPanel>

@@ -48,24 +48,37 @@ and control of IP cameras and network video recorders (NVR/DVR). The user interf
 
 In Settings → General → Application updates, enter the URL of your release directory and optionally
 enable automatic checks. Installation is started explicitly with **Download and install**.
+The separate **Automatically download new versions** option checks at startup and every six hours,
+then downloads and validates a new package in the background. The downloaded package is reused for
+installation, including after an application restart. A confirmation dialog appears as soon as the
+package is ready. Declining keeps the package for **Install downloaded version** and suppresses
+repeated automatic prompts for the same package until the next application start.
 
-Create a complete Windows release (including its `updater` folder):
+Build a Windows update package (including its `updater` folder):
 
 ```powershell
-./scripts/Publish-Release.ps1 -Version 2026.10.22
+./build/Build-Update.ps1 -Version 2026.10.24
 ```
 
-Upload the generated `novavms_2026_10_22.zip` and `latest.json` from `artifacts/releases` to the same
-server directory. Keep separate server directories for x64 and ARM64 releases. The script publishes a
-self-contained build, so the temporary installer also has its required .NET runtime. The release date
-sets both the application version and the package filename.
+The script produces one `novavms_2026_10_24.zip` and `latest.json` in `build/out`.
+Upload both files to the same server directory. The version defaults to `ReleaseDate` from
+`src/Directory.Build.props` and must be
+newer than the installed version. It performs one framework-dependent Release publish with
+`PlatformTarget=AnyCPU`, without a runtime identifier or separate processor builds.
+Files are placed directly at the ZIP root, including the `updater` folder.
+The script excludes `hcnetsdk`, `libvlc`, and `runtimes` directories at every level, along with
+debug symbols, logs and user settings. These existing dependencies remain in place during updates.
+The target computer needs .NET 10 and native dependencies matching its process architecture;
+AnyCPU applies to managed assemblies. Native executable launchers follow the build host.
+The release date sets the application version and package filename.
+`-OutputDirectory` changes the output directory.
 
 Example `latest.json`:
 
 ```json
 {
-  "version": "2026.10.22",
-  "file": "novavms_2026_10_22.zip"
+  "version": "2026.10.24",
+  "file": "novavms_2026_10_24.zip"
 }
 ```
 
@@ -74,8 +87,8 @@ closing. A server directory listing can be used instead of `latest.json` if dire
 Without either a manifest or a directory listing, a static server cannot tell the application which ZIP
 is newest. A direct `latest.json` URL or a versioned ZIP URL can also be configured.
 
-The ZIP must contain the complete published application at its root (one enclosing directory is also
-accepted), with no user configuration or logs. Installation does not kill a process forcibly: if an instance
+The ZIP contains the application at its root (one enclosing directory
+is also accepted), with no user configuration or logs. Installation does not kill a process forcibly: if an instance
 does not exit within 90 seconds, application files are left untouched. Updates require write access to
 the installation directory. Download, backup and installer logs are retained in `%TEMP%/NovaVMS-updates`.
 

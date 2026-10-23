@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.IO.Compression;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -17,13 +16,19 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
 {
     private readonly ConfigurationService _configuration;
     private readonly IDialogService _dialogs;
-    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromMinutes(15) };
+    private readonly HttpClient _http;
+    private readonly UpdateDownloadCache _downloads;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromHours(6) };
     private bool _started;
     private string _lastUrl = "";
     private bool _lastAutomatic;
+    private bool _lastAutoDownload;
+    private ApplicationUpdate? _promptedUpdate;
     private CancellationTokenSource? _operation;
+
+    [ObservableProperty]
+    private bool _isDownloaded;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CheckCommand))]
@@ -52,9 +57,17 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
     public string CurrentVersion => ApplicationVersion.Number;
 
     public ApplicationUpdateService(ConfigurationService configuration, IDialogService dialogs)
+        : this(configuration, dialogs, new HttpClient { Timeout = TimeSpan.FromMinutes(15) },
+            Path.Combine(Path.GetTempPath(), "NovaVMS-updates", "cache"))
+    {
+    }
+
+    internal ApplicationUpdateService(ConfigurationService configuration, IDialogService dialogs, HttpClient http, string cacheDirectory)
     {
         _configuration = configuration;
         _dialogs = dialogs;
+        _http = http;
+        _downloads = new UpdateDownloadCache(http, cacheDirectory);
         _configuration.Changed += OnConfigurationChanged;
         _timer.Tick += OnTimer;
     }
@@ -70,10 +83,18 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
         if (!_started) return;
         var settings = _configuration.Current.Settings;
         var url = (settings.UpdateServerUrl ?? "").Trim();
-        if (url == _lastUrl && settings.AutoCheckForUpdates == _lastAutomatic) return;
-        if (url != _lastUrl) Available = null;
+        var automatic = settings.AutoCheckForUpdates || settings.AutoDownloadUpdates;
+        if (url == _lastUrl && automatic == _lastAutomatic && settings.AutoDownloadUpdates == _lastAutoDownload) return;
+        if (url != _lastUrl)
+        {
+            _operation?.Cancel();
+            Available = null;
+            IsDownloaded = false;
+            _promptedUpdate = null;
+        }
         _lastUrl = url;
-        _lastAutomatic = settings.AutoCheckForUpdates;
+        _lastAutomatic = automatic;
+        _lastAutoDownload = settings.AutoDownloadUpdates;
         _timer.Stop();
         if (_lastAutomatic && url.Length > 0)
         {
@@ -94,7 +115,7 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
 
     private void OnTimer(object? sender, EventArgs e)
     {
-        if (!IsBusy && _configuration.Current.Settings.AutoCheckForUpdates) _ = CheckAsync();
+        if (!IsBusy && (_configuration.Current.Settings.AutoCheckForUpdates || _configuration.Current.Settings.AutoDownloadUpdates)) _ = CheckAsync();
     }
 
     private bool CanCheck() => !IsBusy && !_lifetime.IsCancellationRequested;
@@ -116,7 +137,23 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
             var found = await UpdateCatalog.CheckAsync(_http, url, CurrentVersion, timeout.Token);
             if (url != _configuration.Current.Settings.UpdateServerUrl) return;
             Available = found;
+            IsDownloaded = false;
             StatusText = found is null ? Localizer.Text("Updates_Current") : AvailableText;
+            if (found is not null)
+            {
+                var cached = await _downloads.TryGetAsync(found, timeout.Token);
+                timeout.Token.ThrowIfCancellationRequested();
+                if (url != _configuration.Current.Settings.UpdateServerUrl) return;
+                if (cached is not null)
+                {
+                    IsDownloaded = true;
+                    StatusText = Localizer.Format("Updates_Downloaded", found.VersionText);
+                }
+                else if (_configuration.Current.Settings.AutoDownloadUpdates)
+                    await DownloadAsync(found);
+                if (IsDownloaded && _configuration.Current.Settings.AutoDownloadUpdates)
+                    await PromptForDownloadedUpdateAsync(found);
+            }
         }
         catch (OperationCanceledException) { StatusText = Localizer.Text("Updates_Cancelled"); }
         catch (Exception exception) { StatusText = Localizer.Format("Updates_Failed", exception.Message); }
@@ -130,10 +167,50 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
 
     private bool CanInstall() => HasUpdate && !IsBusy && !_lifetime.IsCancellationRequested;
 
+    private async Task PromptForDownloadedUpdateAsync(ApplicationUpdate update)
+    {
+        if (_lifetime.IsCancellationRequested || Available != update || _promptedUpdate == update) return;
+        // A declined package stays available; do not repeat the prompt on every periodic check.
+        _promptedUpdate = update;
+        var accepted = await _dialogs.ConfirmAsync(Localizer.Text("Updates_Title"),
+            Localizer.Format("Updates_InstallConfirm", update.VersionText));
+        if (accepted && !_lifetime.IsCancellationRequested && Available == update)
+            await InstallCoreAsync(update, confirmed: true);
+    }
+
+    private async Task<DownloadedUpdate> DownloadAsync(ApplicationUpdate update)
+    {
+        Progress = 0;
+        StatusText = Localizer.Text("Updates_Downloading");
+        using var download = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        download.CancelAfter(TimeSpan.FromMinutes(15));
+        _operation = download;
+        try
+        {
+            var progress = new Progress<double>(value =>
+            {
+                if (ReferenceEquals(_operation, download) && !download.IsCancellationRequested)
+                    Progress = Math.Min(99, value);
+            });
+            var package = await _downloads.GetAsync(update, progress, download.Token);
+            download.Token.ThrowIfCancellationRequested();
+            IsDownloaded = true;
+            Progress = 100;
+            StatusText = Localizer.Format("Updates_Downloaded", update.VersionText);
+            return package;
+        }
+        finally { if (ReferenceEquals(_operation, download)) _operation = null; }
+    }
+
     [RelayCommand(CanExecute = nameof(CanInstall))]
     private async Task InstallAsync()
     {
         if (Available is not { } update || !CanInstall()) return;
+        await InstallCoreAsync(update, confirmed: false);
+    }
+
+    private async Task InstallCoreAsync(ApplicationUpdate update, bool confirmed)
+    {
         IsBusy = true;
         Progress = 0;
         StatusText = Localizer.Text("Updates_Downloading");
@@ -154,31 +231,21 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
             var writeTest = Path.Combine(install, ".novavms-write-test-" + Guid.NewGuid().ToString("N"));
             using (new FileStream(writeTest, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose)) { }
 
-            using (var response = await _http.GetAsync(update.PackageUri, HttpCompletionOption.ResponseHeadersRead, download.Token))
-            {
-                response.EnsureSuccessStatusCode();
-                var size = response.Content.Headers.ContentLength;
-                await using var input = await response.Content.ReadAsStreamAsync(download.Token);
-                await using var output = new FileStream(package, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true);
-                await UpdateCatalog.CopyLimitedAsync(input, output, 4L * 1024 * 1024 * 1024, downloaded =>
-                {
-                    if (size is > 0) Dispatcher.UIThread.Post(() => Progress = Math.Min(99, downloaded * 100d / size.Value));
-                }, download.Token);
-            }
+            var cached = await DownloadAsync(update);
+            _operation = download;
             var hash = await Task.Run(() =>
             {
+                File.Copy(cached.PackagePath, package);
                 var actual = UpdatePackage.Sha256(package);
-                if (update.Sha256 is not null && !actual.Equals(update.Sha256, StringComparison.OrdinalIgnoreCase))
+                if (!actual.Equals(cached.Sha256, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException(Localizer.Text("Updates_ChecksumFailed"));
-                using var archive = ZipFile.OpenRead(package);
-                UpdatePackage.Validate(archive);
                 return actual;
             });
             Progress = 100;
             download.Token.ThrowIfCancellationRequested();
-            if (!await _dialogs.ConfirmAsync(Localizer.Text("Updates_Title"), Localizer.Format("Updates_InstallConfirm", update.VersionText)))
+            if (!confirmed && !await _dialogs.ConfirmAsync(Localizer.Text("Updates_Title"), Localizer.Format("Updates_InstallConfirm", update.VersionText)))
             {
-                StatusText = AvailableText;
+                StatusText = Localizer.Format("Updates_Downloaded", update.VersionText);
                 return;
             }
             // Copy the installer out of the application directory so it can replace its own files.

@@ -81,7 +81,12 @@
         </MultiBinding>
       </Border.IsVisible>
       <DockPanel>
-        <Button DockPanel.Dock="Right" Classes="accent" Command="{Binding Updates.InstallCommand}" Content="{l:Tr Updates_Install}" />
+        <Button DockPanel.Dock="Right" Classes="accent" Command="{Binding Updates.InstallCommand}">
+          <Panel>
+            <TextBlock Text="{l:Tr Updates_Install}" IsVisible="{Binding !Updates.IsDownloaded}" />
+            <TextBlock Text="{l:Tr Updates_InstallDownloaded}" IsVisible="{Binding Updates.IsDownloaded}" />
+          </Panel>
+        </Button>
         <StackPanel Spacing="2" VerticalAlignment="Center">
           <TextBlock Text="{Binding Updates.AvailableText}" />
           <TextBlock Classes="muted" Text="{Binding Updates.StatusText}" FontSize="11" />

@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <!-- Set ReleaseDate explicitly for each release; rebuilding it keeps the same version. -->
-    <ReleaseDate Condition="'$(ReleaseDate)' == ''">2026.10.21</ReleaseDate>
+    <ReleaseDate Condition="'$(ReleaseDate)' == ''">2026.10.23</ReleaseDate>
     <Version>$(ReleaseDate)</Version>
     <AssemblyVersion>$(ReleaseDate).0</AssemblyVersion>
     <FileVersion>$(ReleaseDate).0</FileVersion>

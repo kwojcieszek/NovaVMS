@@ -91,6 +91,9 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     private bool _autoCheckForUpdates;
 
     [ObservableProperty]
+    private bool _autoDownloadUpdates;
+
+    [ObservableProperty]
     private string _updateServerUrl = string.Empty;
 
     /// <summary>
@@ -127,6 +130,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         _showCameraSearch = settings.ShowCameraSearch;
         _hcNetSdkDirectory = settings.HcNetSdkDirectory;
         _autoCheckForUpdates = settings.AutoCheckForUpdates;
+        _autoDownloadUpdates = settings.AutoDownloadUpdates;
         _updateServerUrl = settings.UpdateServerUrl ?? "";
 
         // Settings can also change outside this page (e.g. the theme button in the header).
@@ -261,6 +265,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     }
 
     partial void OnAutoCheckForUpdatesChanged(bool value) => ApplyChanges();
+    partial void OnAutoDownloadUpdatesChanged(bool value) => ApplyChanges();
     partial void OnUpdateServerUrlChanged(string value) => ApplyChanges();
 
     partial void OnStartFullScreenChanged(bool value)
@@ -308,6 +313,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         settings.ShowCameraSearch = ShowCameraSearch;
         settings.HcNetSdkDirectory = HcNetSdkDirectory.Trim();
         settings.AutoCheckForUpdates = AutoCheckForUpdates;
+        settings.AutoDownloadUpdates = AutoDownloadUpdates;
         settings.UpdateServerUrl = UpdateServerUrl.Trim();
 
         _ = SaveAsync();
@@ -427,6 +433,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
             ShowCameraSearch = settings.ShowCameraSearch;
             HcNetSdkDirectory = settings.HcNetSdkDirectory;
             AutoCheckForUpdates = settings.AutoCheckForUpdates;
+            AutoDownloadUpdates = settings.AutoDownloadUpdates;
             UpdateServerUrl = settings.UpdateServerUrl ?? "";
         }
         finally

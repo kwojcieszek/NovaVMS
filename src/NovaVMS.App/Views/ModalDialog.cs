@@ -24,8 +24,13 @@ internal sealed class ModalDialog
         try { return await dialog.ShowDialog<T>(owner); }
         finally
         {
-            foreach (var window in owners)
-                window.SetValue(DepthProperty, window.GetValue(DepthProperty) - 1);
+            // ShowDialog completes from inside Closed, before native teardown and owner
+            // re-enabling finish. Do not restore video input windows on that call stack.
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                foreach (var window in owners)
+                    window.SetValue(DepthProperty, window.GetValue(DepthProperty) - 1);
+            }, DispatcherPriority.Background);
         }
     }
 }

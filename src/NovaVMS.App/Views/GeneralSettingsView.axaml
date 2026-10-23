@@ -142,12 +142,19 @@
       <TextBlock Classes="sectionTitle" FontSize="18" Margin="0,24,0,6" Text="{l:Tr Updates_Title}" />
       <TextBlock Classes="muted" Text="{Binding Updates.CurrentVersion}" />
       <CheckBox Content="{l:Tr Updates_Automatic}" IsChecked="{Binding AutoCheckForUpdates}" IsEnabled="{Binding !Updates.IsBusy}" />
+      <CheckBox Content="{l:Tr Updates_AutoDownload}" IsChecked="{Binding AutoDownloadUpdates}" IsEnabled="{Binding !Updates.IsBusy}" />
+      <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Updates_AutoDownloadHint}" />
       <TextBlock Classes="muted" Text="{l:Tr Updates_Server}" />
       <TextBox Text="{Binding UpdateServerUrl}" Watermark="https://example.com/novavms/" IsEnabled="{Binding !Updates.IsBusy}" />
       <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Updates_ServerHint}" />
       <StackPanel Orientation="Horizontal" Spacing="8">
         <Button Command="{Binding Updates.CheckCommand}" Content="{l:Tr Updates_Check}" />
-        <Button Classes="accent" Command="{Binding Updates.InstallCommand}" IsVisible="{Binding Updates.HasUpdate}" Content="{l:Tr Updates_Install}" />
+        <Button Classes="accent" Command="{Binding Updates.InstallCommand}" IsVisible="{Binding Updates.HasUpdate}">
+          <Panel>
+            <TextBlock Text="{l:Tr Updates_Install}" IsVisible="{Binding !Updates.IsDownloaded}" />
+            <TextBlock Text="{l:Tr Updates_InstallDownloaded}" IsVisible="{Binding Updates.IsDownloaded}" />
+          </Panel>
+        </Button>
         <Button Command="{Binding Updates.CancelCommand}" IsVisible="{Binding Updates.IsBusy}" Content="{l:Tr Updates_Cancel}" />
       </StackPanel>
       <ProgressBar IsVisible="{Binding Updates.IsBusy}" IsIndeterminate="{Binding Updates.IsIndeterminate}" Minimum="0" Maximum="100" Value="{Binding Updates.Progress}" />

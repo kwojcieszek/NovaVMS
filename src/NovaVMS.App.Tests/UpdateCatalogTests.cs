@@ -72,6 +72,7 @@ public sealed class UpdateCatalogTests
     {
         var config = new AppConfiguration();
         config.Settings.AutoCheckForUpdates = true;
+        config.Settings.AutoDownloadUpdates = true;
         config.Settings.UpdateServerUrl = "https://example.invalid/releases/";
         var snapshot = config.CreateSnapshot();
         config.Settings.UpdateServerUrl = "changed";
@@ -81,6 +82,7 @@ public sealed class UpdateCatalogTests
         stream.Position = 0;
         var restored = await serializer.DeserializeAsync(stream);
         Assert.True(restored.Settings.AutoCheckForUpdates);
+        Assert.True(restored.Settings.AutoDownloadUpdates);
         Assert.Equal("https://example.invalid/releases/", restored.Settings.UpdateServerUrl);
     }
 

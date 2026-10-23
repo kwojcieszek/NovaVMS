@@ -46,6 +46,9 @@ public sealed class ModalDialogTests
                 button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Assert.Equal(answer, await result);
                 Dispatcher.UIThread.RunJobs();
+                var restored = Assert.IsType<VideoOverlayWindow>(Assert.Single(owner.OwnedWindows));
+                Assert.NotSame(overlay, restored);
+                overlay = restored;
                 Assert.True(overlay.IsVisible);
                 Assert.Same(owner, overlay.Owner);
                 Assert.Equal(0, owner.GetValue(ModalDialog.DepthProperty));
