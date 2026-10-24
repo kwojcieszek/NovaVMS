@@ -63,6 +63,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
     [NotifyPropertyChangedFor(nameof(OverlayText))]
     [NotifyPropertyChangedFor(nameof(IsOverlayTextVisible))]
     [NotifyPropertyChangedFor(nameof(IsLoading))]
+    [NotifyPropertyChangedFor(nameof(IsVideoCovered))]
     private TileStatus _status = TileStatus.Idle;
 
     [ObservableProperty]
@@ -191,6 +192,9 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
     public bool HasError => Status == TileStatus.Error;
 
     public bool IsLoading => Status == TileStatus.Connecting;
+
+    // Native players stop asynchronously and can retain the previous camera's last frame.
+    public bool IsVideoCovered => Status != TileStatus.Playing;
 
     public void ShowLoading()
     {

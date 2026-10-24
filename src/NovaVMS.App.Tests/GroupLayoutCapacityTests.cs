@@ -83,6 +83,70 @@ public sealed class GroupLayoutCapacityTests
         finally { answer.TrySetResult(false); live.Dispose(); await live.Disposal; }
     }
 
+    [AvaloniaFact]
+    public async Task SwitchingGroupClearsOldCamerasBeforeApplyingNewSplit()
+    {
+        using var vlc = new LibVLC("--vout=dummy", "--aout=dummy", "--avcodec-hw=none");
+        var (configuration, session) = await CreateAsync(6);
+        var live = new LiveViewViewModel(vlc, configuration, new FakeDeviceClientFactory(), new StatusBarService(),
+            new Dialogs(), session);
+        try
+        {
+            await live.ShowGroupAsync("old-group", []);
+            var camera = configuration.Current.Groups[0].Cameras[0];
+            var tile = live.Tiles[0];
+            tile.Play(camera, "Old camera", new NovaVMS.App.Models.TilePlayRequest(
+                VideoSource.FromUri(new Uri("rtsp://unused/stream")), StreamType.Sub, "", "", 100));
+            var oldVersion = tile.PlayRequestVersion;
+            configuration.Current.GroupLiveViews["new-group"] = new() { LayoutId = "standard-6", LayoutCount = 6 };
+            var checkedBeforeLayout = false;
+            live.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName != nameof(LiveViewViewModel.SelectedLayout)) return;
+                Assert.All(live.Tiles, current =>
+                {
+                    Assert.Null(current.Camera);
+                    Assert.True(current.IsVideoCovered);
+                });
+                Assert.True(tile.PlayRequestVersion > oldVersion);
+                checkedBeforeLayout = true;
+            };
+            await live.ShowGroupAsync("new-group", []);
+            Assert.True(checkedBeforeLayout);
+            Assert.Equal(camera, configuration.Current.GroupLiveViews["old-group"].Cameras[0]);
+        }
+        finally { live.Dispose(); await live.Disposal; }
+    }
+
+    [AvaloniaFact]
+    public async Task GroupPreviewRemovesForeignCamerasOnRestoreAndWhenMembershipChanges()
+    {
+        using var vlc = new LibVLC("--vout=dummy", "--aout=dummy", "--avcodec-hw=none");
+        var (configuration, session) = await CreateAsync(6);
+        var members = configuration.Current.Groups[0].Cameras.Take(4).ToArray();
+        var foreign = configuration.Current.Groups[0].Cameras.Skip(4).ToArray();
+        configuration.Current.GroupLiveViews["test-group"] = new()
+        {
+            LayoutId = "standard-4", LayoutCount = 4,
+            Cameras = [foreign[0], foreign[1], foreign[0], foreign[1]]
+        };
+        var live = new LiveViewViewModel(vlc, configuration, new FakeDeviceClientFactory(), new StatusBarService(),
+            new Dialogs(), session);
+        try
+        {
+            await live.ShowGroupAsync("test-group", members);
+            await live.ShowGroupAsync("other-group", []);
+            Assert.Equal(members, configuration.Current.GroupLiveViews["test-group"].Cameras);
+
+            await live.ShowGroupAsync("test-group", members);
+            await live.ShowGroupAsync("test-group", foreign);
+            await live.ShowGroupAsync("other-group", []);
+            Assert.Equal(new CameraReference?[] { foreign[0], foreign[1], null, null },
+                configuration.Current.GroupLiveViews["test-group"].Cameras);
+        }
+        finally { live.Dispose(); await live.Disposal; }
+    }
+
     private static async Task<(ConfigurationService, UserSessionService)> CreateAsync(int count)
     {
         var device = new Device { Name = "Recorder", Channels = Enumerable.Range(1, count)

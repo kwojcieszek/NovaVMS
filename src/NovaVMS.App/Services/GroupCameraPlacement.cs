@@ -7,8 +7,11 @@ internal static class GroupCameraPlacement
     public static CameraReference?[] Fill(IReadOnlyList<CameraReference?> current,
         IReadOnlyList<CameraReference> cameras, IReadOnlySet<int> emptySlots)
     {
-        var result = current.ToArray();
-        var used = current.OfType<CameraReference>().ToHashSet();
+        var members = cameras.ToHashSet();
+        var used = new HashSet<CameraReference>();
+        // Remember placement only for cameras still belonging to this group.
+        var result = current.Select(camera => camera is not null && members.Contains(camera)
+            && used.Add(camera) ? camera : null).ToArray();
         using var next = cameras.Where(camera => !used.Contains(camera)).Distinct().GetEnumerator();
         for (var index = 0; index < result.Length; index++)
         {

@@ -8,7 +8,7 @@ namespace NovaVMS.Protocols.HcNetSdk;
 
 /// <summary>
 /// Client for Hikvision devices over the device network protocol (port 8000) using the vendor's HCNetSDK library.
-/// Video and recording search use native SDK calls; configuration and PTZ use ISAPI requests
+/// Video, recording search and PTZ movement use native SDK calls; configuration uses ISAPI requests
 /// tunnelled through the same connection. Devices without ISAPI fall back to the data reported at login.
 /// </summary>
 public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClient
@@ -21,7 +21,7 @@ public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClien
     private readonly IsapiDeviceService _deviceService;
     private readonly IsapiPtzService _ptz;
     private readonly HcNetSdkRecordingService _recordings = new(new HcNetSdkRecordingApi());
-    private readonly Dictionary<int, uint> _activePtzCommands = new();
+    private readonly HcNetSdkPtzService _sdkPtz = new(new HcNetSdkPtzApi());
 
     public HcNetSdkDeviceClient(Device device)
     {
@@ -118,35 +118,14 @@ public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClien
 
     public async Task PtzMoveAsync(int channelNumber, int pan, int tilt, int zoom, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            await _ptz.MoveAsync(channelNumber, pan, tilt, zoom, cancellationToken).ConfigureAwait(false);
-        }
-        catch (DeviceCommunicationException exception) when (IsIsapiUnavailable(exception))
-        {
-            await SendPtzCommandAsync(channelNumber, pan, tilt, zoom, cancellationToken).ConfigureAwait(false);
-        }
+        var session = await HcNetSdkSessionPool.AcquireAsync(_device, cancellationToken).ConfigureAwait(false);
+        await _sdkPtz.MoveAsync(session, channelNumber, pan, tilt, zoom, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task PtzStopAsync(int channelNumber, CancellationToken cancellationToken = default)
     {
-        uint command;
-        lock (_activePtzCommands)
-        {
-            if (!_activePtzCommands.Remove(channelNumber, out command))
-            {
-                command = 0;
-            }
-        }
-
-        if (command == 0)
-        {
-            await _ptz.StopAsync(channelNumber, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
         var session = await HcNetSdkSessionPool.AcquireAsync(_device, cancellationToken).ConfigureAwait(false);
-        await Task.Run(() => HcNetSdkNative.PtzControlWithSpeed(session.UserId, session.ToSdkChannel(channelNumber), command, 1, HcNetSdkConstants.PtzMinSpeed), cancellationToken).ConfigureAwait(false);
+        await _sdkPtz.StopAsync(session, channelNumber, cancellationToken).ConfigureAwait(false);
     }
 
     public Task<IReadOnlyList<PtzPreset>> GetPtzPresetsAsync(int channelNumber, CancellationToken cancellationToken = default)
@@ -197,57 +176,6 @@ public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClien
     private static bool IsIsapiUnavailable(DeviceCommunicationException exception)
     {
         return exception.StatusCode == HttpStatusCode.NotFound;
-    }
-
-    private async Task SendPtzCommandAsync(int channelNumber, int pan, int tilt, int zoom, CancellationToken cancellationToken)
-    {
-        var command = SelectPtzCommand(pan, tilt, zoom);
-        if (command == 0)
-        {
-            await PtzStopAsync(channelNumber, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        var magnitude = Math.Max(Math.Abs(pan), Math.Max(Math.Abs(tilt), Math.Abs(zoom)));
-        var speed = (uint)Math.Clamp((int)Math.Ceiling(magnitude / 100.0 * HcNetSdkConstants.PtzMaxSpeed), (int)HcNetSdkConstants.PtzMinSpeed, (int)HcNetSdkConstants.PtzMaxSpeed);
-        var session = await HcNetSdkSessionPool.AcquireAsync(_device, cancellationToken).ConfigureAwait(false);
-        var sdkChannel = session.ToSdkChannel(channelNumber);
-
-        var succeeded = await Task.Run(() => HcNetSdkNative.PtzControlWithSpeed(session.UserId, sdkChannel, command, 0, speed), cancellationToken).ConfigureAwait(false);
-        if (!succeeded)
-        {
-            throw HcNetSdkErrors.LastError(_device.Host, _device.SdkPort);
-        }
-
-        lock (_activePtzCommands)
-        {
-            _activePtzCommands[channelNumber] = command;
-        }
-    }
-
-    private static uint SelectPtzCommand(int pan, int tilt, int zoom)
-    {
-        if (zoom != 0)
-        {
-            return zoom > 0 ? HcNetSdkConstants.PtzZoomIn : HcNetSdkConstants.PtzZoomOut;
-        }
-
-        if (tilt > 0)
-        {
-            return pan < 0 ? HcNetSdkConstants.PtzUpLeft : pan > 0 ? HcNetSdkConstants.PtzUpRight : HcNetSdkConstants.PtzTiltUp;
-        }
-
-        if (tilt < 0)
-        {
-            return pan < 0 ? HcNetSdkConstants.PtzDownLeft : pan > 0 ? HcNetSdkConstants.PtzDownRight : HcNetSdkConstants.PtzTiltDown;
-        }
-
-        if (pan != 0)
-        {
-            return pan < 0 ? HcNetSdkConstants.PtzPanLeft : HcNetSdkConstants.PtzPanRight;
-        }
-
-        return 0;
     }
 
     private static DeviceType GuessDeviceType(HcNetSdkSession session)
