@@ -33,6 +33,7 @@
         <vlc:VideoView x:Name="SecondaryVideo" MediaPlayer="{Binding SecondaryPlayer}" IsVisible="{Binding IsSecondaryViewVisible}" />
         <!-- Moved into the tile's owned overlay window by the view constructor. -->
         <Panel x:Name="VideoOverlay" Background="#01000000" DragDrop.AllowDrop="True">
+          <Border Background="Black" IsVisible="{Binding IsVideoCovered}" IsHitTestVisible="False" />
           <Path Classes="loadingSpinner" Data="M 12,2 A 10,10 0 1 1 2,12"
                 Width="24" Height="24" Stretch="Uniform" Stroke="#BFFFFFFF" StrokeThickness="2"
                 StrokeLineCap="Round" HorizontalAlignment="Center" VerticalAlignment="Center"

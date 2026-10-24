@@ -173,7 +173,8 @@ public sealed partial class PtzViewModel : ViewModelBase, IDisposable
                 return;
             }
 
-            var client = GetClient(camera.Device);
+            var client = await GetClientAsync(camera.Device);
+            if (_isDisposed) return;
             if (client is IDeviceConnectionClient connectionClient)
             {
                 var connection = await connectionClient.TryConnectAsync();
@@ -200,7 +201,7 @@ public sealed partial class PtzViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private IDeviceClient GetClient(Device device)
+    private async Task<IDeviceClient> GetClientAsync(Device device)
     {
         // Applying settings replaces the Device object and editing a device changes it in place;
         // either way a client with outdated connection settings must not be reused.
@@ -211,7 +212,7 @@ public sealed partial class PtzViewModel : ViewModelBase, IDisposable
         }
 
         ReleaseClient();
-        _client = _clientFactory.Create(device);
+        _client = await _clientFactory.CreateAsync(device);
         _clientDevice = device;
         _clientSettings = settings;
         return _client;

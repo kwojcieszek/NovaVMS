@@ -1,6 +1,7 @@
 using NovaVMS.App.Services;
 using NovaVMS.App.ViewModels;
 using NovaVMS.Core.Models;
+using NovaVMS.Core.Abstractions;
 using NovaVMS.Infrastructure.Storage;
 using Xunit;
 
@@ -75,6 +76,34 @@ public sealed class PtzViewModelTests
         var ptz = new PtzViewModel(_configuration, _factory, new StatusBarService());
         ptz.SetTarget(new CameraReference { DeviceId = _device.Id, ChannelNumber = 1 });
         return ptz;
+    }
+
+    [Fact]
+    public async Task PtzResolvesReachableEndpointBeforeCreatingAndReusingClient()
+    {
+        await _configuration.LoadAsync();
+        var device = _configuration.Current.Devices[0];
+        device.SecondaryHost = "backup-recorder";
+        device.SecondaryPort = 9000;
+        var factory = new ResolvingFactory(_factory);
+        using var ptz = new PtzViewModel(_configuration, factory, new StatusBarService());
+        ptz.SetTarget(CameraReference.For(device, device.Channels[0]));
+        await ptz.StartMoveAsync(PtzDirection.Up);
+        await ptz.StopMoveAsync();
+        var client = Assert.Single(_factory.Created);
+        Assert.Equal("backup-recorder", client.Device.Host);
+        Assert.Equal(9000, client.Device.ConnectionPort);
+        Assert.Equal(["move", "stop"], client.Commands);
+    }
+
+    private sealed class ResolvingFactory(FakeDeviceClientFactory inner) : IDeviceClientFactory
+    {
+        public IDeviceClient Create(Device device) => throw new InvalidOperationException("Resolve the endpoint asynchronously first.");
+        public async Task<IDeviceClient> CreateAsync(Device device, bool rememberAddress = true, CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            return inner.Create(device.ForSecondaryAddress());
+        }
     }
 
     [Fact]

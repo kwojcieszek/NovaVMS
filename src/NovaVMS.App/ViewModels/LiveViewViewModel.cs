@@ -156,7 +156,8 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         var saved = _configuration.Current.GroupLiveViews.GetValueOrDefault(key)?.Copy();
         try
         {
-            _assignments.Clear();
+            // Invalidate old openings and clear their pictures before changing the grid geometry.
+            ClearTiles();
             _emptySlots = saved?.EmptySlots.ToHashSet() ?? new();
             MaximizedTile = null;
             if (saved is not null) SelectedLayout = GridLayoutOption.Find(saved.LayoutId, saved.LayoutCount);
@@ -164,9 +165,9 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
             await _layoutChange;
             if (_isShutDown || version != _groupVersion) return;
             var slots = saved?.Cameras ?? cameras.Cast<CameraReference?>().ToList();
-            var targets = Tiles.Select((_, index) => index < slots.Count && slots[index] is { } camera
-                && _configuration.FindCamera(camera) is not null ? camera : null).ToList();
-            AssignTiles(targets);
+            var targets = Tiles.Select((_, index) => index < slots.Count ? slots[index] : null).ToList();
+            var available = _groupCameras.Where(camera => _configuration.FindCamera(camera) is not null).ToArray();
+            AssignTiles(GroupCameraPlacement.Fill(targets, available, _emptySlots));
             OnPropertyChanged(nameof(SelectedCamera));
             FillGroupSlots();
             SelectedTile = Tiles.FirstOrDefault();
@@ -281,8 +282,8 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         _restoringGroup = true;
         try
         {
+            ClearTiles();
             MaximizedTile = null;
-            _assignments.Clear();
             _emptySlots = view.Layout.EmptySlots.ToHashSet();
             SelectedLayout = GridLayoutOption.Find(view.Layout.LayoutId, view.Layout.LayoutCount);
             await _layoutChange;
@@ -313,9 +314,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         var current = Tiles.Select(tile => _assignments.GetValueOrDefault(tile) ?? tile.Camera).ToArray();
         var cameras = _groupCameras.Where(camera => _configuration.FindCamera(camera) is not null).ToArray();
         var filled = GroupCameraPlacement.Fill(current, cameras, _emptySlots);
-        for (var index = 0; index < filled.Length; index++)
-            if (current[index] is null && filled[index] is { } camera)
-                PlayOnTile(Tiles[index], camera);
+        if (!current.SequenceEqual(filled)) AssignTiles(filled);
     }
 
     private async Task CheckGroupLayoutAsync()
