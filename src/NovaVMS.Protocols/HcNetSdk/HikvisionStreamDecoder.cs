@@ -25,9 +25,13 @@ internal sealed class HikvisionStreamDecoder : IDisposable
     // SDK callbacks fragment high-resolution key frames into hundreds of small packets.
     // Limit their total bytes as well as count; 128 fragments could reject a valid MAIN key frame.
     internal const int MaximumQueuedPacketBytes = 16 * 1024 * 1024;
+    private const uint InputBufferFull = 11;
+    private static readonly TimeSpan QueueRetryDelay = TimeSpan.FromMilliseconds(5);
+    private static readonly TimeSpan LiveInputTimeout = TimeSpan.FromSeconds(5);
     private readonly Channel<(uint Type, byte[] Bytes)> _packets = Channel.CreateBounded<(uint, byte[])>(8192);
     private long _queuedPacketBytes;
     private readonly CancellationTokenSource _stop = new();
+    private readonly object _stopGate = new();
     private readonly Task _worker;
     private int _port = -1;
     private int _disposed;
@@ -59,11 +63,30 @@ internal sealed class HikvisionStreamDecoder : IDisposable
 
     public void Feed(uint type, byte[] bytes)
     {
-        if (Volatile.Read(ref _disposed) != 0 || _stop.IsCancellationRequested || bytes.Length == 0) return;
-        var queuedBytes = Interlocked.Add(ref _queuedPacketBytes, bytes.Length);
-        if (queuedBytes <= MaximumQueuedPacketBytes && _packets.Writer.TryWrite((type, bytes))) return;
-        Interlocked.Add(ref _queuedPacketBytes, -bytes.Length);
-        Fail(ProtocolText.Get("StreamDecoderBufferFull"));
+        if (bytes.Length == 0) return;
+        while (Volatile.Read(ref _disposed) == 0 && !_stop.IsCancellationRequested)
+        {
+            var queuedBytes = Interlocked.Add(ref _queuedPacketBytes, bytes.Length);
+            if ((queuedBytes <= MaximumQueuedPacketBytes || queuedBytes == bytes.Length)
+                && _packets.Writer.TryWrite((type, bytes))) return;
+            Interlocked.Add(ref _queuedPacketBytes, -bytes.Length);
+            if (!_playback) break;
+            // Recorders send recordings faster than real time. Hold the SDK callback until the
+            // decoder catches up instead of failing; live video must never block the callback.
+            Thread.Sleep(QueueRetryDelay);
+        }
+        if (!_playback) Fail(ProtocolText.Get("StreamDecoderBufferFull"));
+    }
+
+    /// <summary>Releases an SDK callback held by <see cref="Feed"/> before the native transfer is stopped.</summary>
+    public void Stop()
+    {
+        lock (_stopGate)
+        {
+            if (_disposed != 0) return;
+            _stop.Cancel();
+            _packets.Writer.TryComplete();
+        }
     }
 
     private async Task RunAsync()
@@ -102,9 +125,10 @@ internal sealed class HikvisionStreamDecoder : IDisposable
                     var wait = Stopwatch.StartNew();
                     while (!_api.Input(_port, packet.Bytes, (uint)packet.Bytes.Length))
                     {
-                        if (_api.Error(_port) != 11 || wait.Elapsed > TimeSpan.FromSeconds(5))
+                        // A paused recording legitimately keeps PlayCtrl's input buffer full.
+                        if (_api.Error(_port) != InputBufferFull || (!_playback && wait.Elapsed > LiveInputTimeout))
                             Require(false, "PlayM4_InputData");
-                        await Task.Delay(5, _stop.Token);
+                        await Task.Delay(QueueRetryDelay, _stop.Token);
                     }
                 }
             }
@@ -188,9 +212,13 @@ internal sealed class HikvisionStreamDecoder : IDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _stop.Cancel();
-        _packets.Writer.TryComplete();
+        lock (_stopGate)
+        {
+            if (_disposed != 0) return;
+            Volatile.Write(ref _disposed, 1);
+            _stop.Cancel();
+            _packets.Writer.TryComplete();
+        }
         // The owning pipe is completed before disposal, releasing blocked frame callbacks.
         _worker.GetAwaiter().GetResult();
         _stop.Dispose();

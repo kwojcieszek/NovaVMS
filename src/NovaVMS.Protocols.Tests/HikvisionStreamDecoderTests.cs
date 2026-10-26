@@ -96,6 +96,33 @@ public sealed class HikvisionStreamDecoderTests
         finally { gate.Set(); }
     }
 
+    [Fact]
+    public async Task RecordingQueueHoldsSdkCallbackUntilDecoderCatchesUpOrStops()
+    {
+        using var gate = new ManualResetEventSlim();
+        var api = new FakePlayCtrl { OpenGate = gate };
+        var failed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var decoder = new HikvisionStreamDecoder(api, "key", true, _ => { }, message => failed.TrySetResult(message));
+        try
+        {
+            decoder.Feed(HcNetSdkConstants.DataSystemHeader, [1, 2, 3]);
+            await api.OpenEntered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+            var packet = new byte[1024 * 1024];
+            var feeding = Task.Run(() =>
+            {
+                for (var index = 0; index <= HikvisionStreamDecoder.MaximumQueuedPacketBytes / packet.Length; index++)
+                    decoder.Feed(HcNetSdkConstants.DataStream, packet);
+            });
+            await Task.Delay(300);
+            Assert.False(feeding.IsCompleted);
+            Assert.False(failed.Task.IsCompleted);
+            decoder.Stop();
+            await feeding.WaitAsync(TimeSpan.FromSeconds(3));
+            Assert.False(failed.Task.IsCompleted);
+        }
+        finally { gate.Set(); }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
