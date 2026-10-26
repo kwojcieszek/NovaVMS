@@ -273,6 +273,7 @@ internal sealed class HikvisionRtspVideoStream : BlockingPipeStream, IVideoStrea
         {
             Complete();
             _stop.Cancel();
+            _decoder?.Stop();
         }
         base.Dispose(disposing);
     }

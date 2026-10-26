@@ -35,6 +35,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     private readonly ConfigurationService _configuration;
     private readonly IDeviceClientFactory _clientFactory;
     private readonly DispatcherTimer _positionTimer;
+    private readonly Stopwatch _playbackClock = new();
     private MediaPlayer _player => _buffer.ActivePlayer;
     private readonly IDialogService _dialogs;
     private readonly RecordingExporter _exporter;
@@ -368,6 +369,8 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         if (_isShutDown) return;
         IsPaused = !IsPaused;
         ResetShuttle(Day.AddSeconds(TimelinePosition));
+        if (IsPaused) _playbackClock.Stop();
+        else _playbackClock.Start();
         _ = _buffer.SetPauseAsync(IsPaused);
         StatusText = Localizer.Text(IsPaused ? "Playback_Paused" : "Playback_Playing");
     }
@@ -489,6 +492,8 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
             _playbackStart = start;
             _playbackEnd = end;
+            _playbackClock.Restart();
+            if (IsPaused) _playbackClock.Stop();
             IsPlaying = true;
             TimelinePosition = (start - Day).TotalSeconds;
             CurrentTimeText = start.ToString("HH:mm:ss");
@@ -518,6 +523,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         _playbackVersion++;
         _isOpening = false;
         _positionTimer.Stop();
+        _playbackClock.Reset();
         _buffer.Stop();
 
         IsPlaying = false;
@@ -563,13 +569,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var elapsed = _player.Time;
-        if (elapsed < 0)
-        {
-            return;
-        }
-
-        var current = _playbackStart.AddMilliseconds(elapsed);
+        var current = _playbackStart.AddMilliseconds(PlaybackElapsedMilliseconds);
         TimelinePosition = Math.Clamp((current - Day).TotalSeconds, 0, LastSecondOfDay);
         CurrentTimeText = current.ToString("HH:mm:ss");
         if (current >= _playbackEnd) await ContinuePlaybackAsync(_playbackEnd);
@@ -609,7 +609,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
             }
 
             var message = _media?.ErrorMessage;
-            var current = _playbackStart.AddMilliseconds(Math.Max(0, _player.Time));
+            var current = _playbackStart.AddMilliseconds(PlaybackElapsedMilliseconds);
             if (message is null && SelectedSpeed.Rate == 1 && current > _playbackStart.AddSeconds(1))
             {
                 await ContinuePlaybackAsync(current >= _playbackEnd.AddSeconds(-2) ? _playbackEnd : current.AddSeconds(1));
@@ -619,6 +619,19 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
             StatusText = message ?? Localizer.Text("Playback_End");
             if (message is not null) DeviceOperationErrors.Report("Recording stream ended", new DeviceCommunicationException(message));
         });
+    }
+
+    /// <summary>
+    /// Media time of the active recording. Hikvision RTSP playback sessions report no media time,
+    /// so the wall clock since the first displayed frame (excluding pauses) is used instead.
+    /// </summary>
+    private long PlaybackElapsedMilliseconds
+    {
+        get
+        {
+            var time = _player.Time;
+            return time > 0 ? time : _playbackClock.ElapsedMilliseconds;
+        }
     }
 
     private async Task ContinuePlaybackAsync(DateTime time)

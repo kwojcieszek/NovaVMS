@@ -94,13 +94,20 @@ internal sealed class HcNetSdkVideoStream : BlockingPipeStream, IVideoStreamStat
 
     private void BeginStart(Device device, Func<HcNetSdkSession, int> start)
     {
-        _lifetime = new NativeStreamLifetime(token => StartAsync(device, start, token), StopHandle, Complete, () =>
+        _lifetime = new NativeStreamLifetime(token => StartAsync(device, start, token), StopHandle, CompleteTransfer, () =>
         {
             try { _decoder?.Dispose(); }
             finally { ActiveStreams.TryRemove(_id, out _); }
         }, startImmediately: false);
         ActiveStreams[_id] = this;
         _lifetime.Start();
+    }
+
+    private void CompleteTransfer()
+    {
+        Complete();
+        // A recording callback may be held until the decoder has room; release it before native Stop.
+        _decoder?.Stop();
     }
 
     private async Task<int> StartAsync(Device device, Func<HcNetSdkSession, int> start, CancellationToken token)
