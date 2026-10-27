@@ -196,6 +196,20 @@ public sealed partial class PlaybackWorkspaceViewModel : ViewModelBase, IDisposa
         foreach (var camera in cameras.Distinct().Take(8)) SetCamera(camera);
     }
 
+    [RelayCommand]
+    private void ResetWindows()
+    {
+        if (_shutdown) return;
+        Stop();
+        foreach (var tile in Tiles) ClearCamera(tile);
+        _search = Task.CompletedTask;
+        SelectedCameraCount = 1;
+        SelectedTile = Tiles[0];
+        _explicitSelection = false;
+        TimelinePosition = RangeStartSeconds;
+        StatusText = string.Empty;
+    }
+
     private async Task JoinCameraAsync(PlaybackTileViewModel tile, CameraReference camera, Task search)
     {
         await search;

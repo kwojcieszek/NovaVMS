@@ -133,6 +133,7 @@
   "Playback_NormalSpeed": "Odtwarzaj normalnie (1×)",
   "Playback_Export": "Eksport nagrań",
   "Playback_CameraCount": "Liczba kamer",
+  "Playback_ResetWindows": "Resetuj okna",
   "Playback_MultipleHint": "Wybierz okno i kamerę z drzewa. Dwuklik grupy otwiera do 8 kamer. Wyszukiwanie jest automatyczne; oś czasu pokazuje wybraną kamerę.",
   "Playback_ExportCameras": "Kamery do eksportu",
   "Playback_ExportCamera": "Eksport: {0}, plik {1}…",
