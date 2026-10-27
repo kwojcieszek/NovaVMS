@@ -133,6 +133,7 @@
   "Playback_NormalSpeed": "Play normally (1×)",
   "Playback_Export": "Export recordings",
   "Playback_CameraCount": "Camera count",
+  "Playback_ResetWindows": "Reset windows",
   "Playback_MultipleHint": "Select a tile and a camera from the tree. Double-click a group to open up to 8 cameras. Search is automatic; the timeline follows the selected camera.",
   "Playback_ExportCameras": "Cameras to export",
   "Playback_ExportCamera": "Exporting: {0}, file {1}…",

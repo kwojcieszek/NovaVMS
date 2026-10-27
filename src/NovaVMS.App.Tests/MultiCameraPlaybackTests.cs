@@ -21,6 +21,46 @@ namespace NovaVMS.App.Tests;
 public sealed class MultiCameraPlaybackTests
 {
     [AvaloniaFact]
+    public async Task ResetWindowsRestoresOneEmptyTileAndPreventsPendingRecordingsFromReappearing()
+    {
+        await using var scene = await Scene.CreateAsync(8);
+        var workspace = scene.Workspace;
+        var previousTiles = workspace.Tiles.ToArray();
+        var firstCamera = previousTiles[0].Camera!;
+        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        workspace.RecordingOpening += (_, args) => args.WaitFor(ready.Task);
+        var seek = workspace.SeekCommand.ExecuteAsync(3600d);
+        try
+        {
+            await WaitForAsync(() => previousTiles.All(tile => tile.Playback.IsPaused));
+            workspace.ResetWindowsCommand.Execute(null);
+            ready.SetResult();
+            await seek;
+            foreach (var tile in previousTiles.Skip(1)) await tile.Playback.Disposal;
+
+            var initial = Assert.Single(workspace.Tiles);
+            Assert.Equal(1, workspace.SelectedCameraCount);
+            Assert.Same(initial, workspace.SelectedTile);
+            Assert.True(initial.IsSelected);
+            Assert.Null(initial.Camera);
+            Assert.False(workspace.HasCamera);
+            Assert.False(workspace.IsPlaying);
+            Assert.False(workspace.IsPaused);
+            Assert.Empty(workspace.Segments);
+            Assert.Empty(workspace.GetExportTargets());
+            Assert.Empty(scene.Opened);
+            Assert.False(workspace.SeekCommand.CanExecute(0d));
+            Assert.False(workspace.ExportCommand.CanExecute(null));
+
+            workspace.SetCamera(firstCamera);
+            await workspace.SeekCommand.ExecuteAsync(7200d);
+            Assert.True(initial.Playback.IsPlaying);
+            Assert.Equal(workspace.Day.AddHours(2), Assert.Single(scene.Opened).Start);
+        }
+        finally { ready.TrySetResult(); await seek; }
+    }
+
+    [AvaloniaFact]
     public async Task TheViewCanSwitchBetweenOneAndEightTilesAndCollapseExportWithoutLosingItsRestoreButton()
     {
         await using var scene = await Scene.CreateAsync(8);

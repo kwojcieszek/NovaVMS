@@ -342,14 +342,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         // Live streams behind the playback page are released after the tiles' grace period.
         Live.SetPageActive(value == AppPage.Live);
-        if (value == AppPage.Playback)
-        {
-            if (Tree.SelectedNode is CameraNodeViewModel camera)
-            {
-                Playback.SetCamera(camera.Reference);
-            }
-        }
-        else if (Playback.StopCommand.CanExecute(null))
+        if (value != AppPage.Playback && Playback.StopCommand.CanExecute(null))
         {
             Playback.StopCommand.Execute(null);
         }
