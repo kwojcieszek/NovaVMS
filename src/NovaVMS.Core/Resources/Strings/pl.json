@@ -126,7 +126,7 @@
   "Playback_Search": "Szukaj",
   "Playback_PauseTip": "Pauza / wznów",
   "Playback_StopTip": "Zatrzymaj",
-  "Playback_TimelineHint": "Kliknij lub przeciągnij na osi czasu, aby odtworzyć nagranie od tego momentu. Niebieskie pola to nagrania, zaciemnione części są poza wyszukiwanymi godzinami.",
+  "Playback_TimelineHint": "Kliknij lub przeciągnij na osi czasu, aby wybrać moment. Kółko myszy przybliża i oddala oś czasu. Niebieskie pola to nagrania, zaciemnione części są poza wyszukiwanymi godzinami.",
   "Playback_Recordings": "Nagrania",
   "Playback_Shuttle": "Przewijanie",
   "Playback_ShuttleTip": "Podgląd kolejnych momentów nagrania z wybraną prędkością, do przodu lub wstecz.",

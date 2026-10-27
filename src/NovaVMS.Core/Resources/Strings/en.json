@@ -126,7 +126,7 @@
   "Playback_Search": "Search",
   "Playback_PauseTip": "Pause / resume",
   "Playback_StopTip": "Stop",
-  "Playback_TimelineHint": "Click or drag on the timeline to play from that moment. Blue bars are recordings; shaded parts are outside the searched hours.",
+  "Playback_TimelineHint": "Click or drag on the timeline to choose a moment. Use the mouse wheel to zoom in or out. Blue bars are recordings; shaded parts are outside the searched hours.",
   "Playback_Recordings": "Recordings",
   "Playback_Shuttle": "Shuttle",
   "Playback_ShuttleTip": "Preview successive recording positions at the selected speed, forwards or backwards.",

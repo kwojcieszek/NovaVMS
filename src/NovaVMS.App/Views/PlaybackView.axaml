@@ -3,7 +3,6 @@
              xmlns:l="using:NovaVMS.App.Localization"
              xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:vm="using:NovaVMS.App.ViewModels"
-             xmlns:core="using:NovaVMS.Core.Models"
              xmlns:models="using:NovaVMS.App.Models"
              xmlns:controls="using:NovaVMS.App.Controls"
              xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
@@ -86,11 +85,24 @@
       </StackPanel>
     </Border>
 
-    <!-- Recorded segments -->
-    <Border DockPanel.Dock="Right" Width="290" Background="{DynamicResource NovaPanelBackground}">
+    <!-- Recording export -->
+    <Border DockPanel.Dock="Right"
+            Background="{DynamicResource NovaPanelBackground}">
       <DockPanel>
-        <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="12">
-          <TextBlock Classes="sectionTitle" Text="{l:Tr Playback_Export}" Margin="0,8" />
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="8">
+          <TextBlock Classes="sectionTitle" Text="{l:Tr Playback_Export}" Margin="4,0,8,0"
+                     VerticalAlignment="Center" IsVisible="{Binding IsExportPanelExpanded}" />
+          <ToggleButton Grid.Column="1" IsChecked="{Binding IsExportPanelExpanded, Mode=TwoWay}"
+                        ToolTip.Tip="{l:Tr Playback_Export}"
+                        AutomationProperties.Name="{l:Tr Playback_Export}">
+            <Panel>
+              <mi:MaterialIcon Kind="ChevronRight" IsVisible="{Binding IsExportPanelExpanded}" />
+              <mi:MaterialIcon Kind="ChevronLeft" IsVisible="{Binding !IsExportPanelExpanded}" />
+            </Panel>
+          </ToggleButton>
+        </Grid>
+        <StackPanel VerticalAlignment="Top" Width="266" Spacing="8" Margin="12"
+                    IsVisible="{Binding IsExportPanelExpanded}">
           <TextBlock Classes="muted" Text="{l:Tr Playback_ExportFrom}" />
           <StackPanel Orientation="Horizontal" Spacing="4">
             <CalendarDatePicker SelectedDate="{Binding ExportFromDate}" Width="145" />
@@ -111,24 +123,6 @@
           <Button Command="{Binding CancelExportCommand}" IsVisible="{Binding IsExporting}" Content="{l:Tr Playback_CancelExport}" />
           <TextBlock Text="{Binding ExportStatus}" TextWrapping="Wrap" FontSize="11" />
         </StackPanel>
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="12,8">
-          <mi:MaterialIcon Kind="FilmstripBox" />
-          <TextBlock Classes="sectionTitle" Margin="0" Text="{l:Tr Playback_Recordings}" />
-        </StackPanel>
-        <ListBox ItemsSource="{Binding Segments}" SelectedItem="{Binding SelectedSegment}">
-          <ListBox.ItemTemplate>
-            <DataTemplate x:DataType="core:RecordingSegment">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <mi:MaterialIcon Kind="PlayCircleOutline" />
-                <TextBlock>
-                  <Run Text="{Binding Start, StringFormat='{}{0:HH:mm:ss}'}" />
-                  <Run Text=" – " />
-                  <Run Text="{Binding End, StringFormat='{}{0:HH:mm:ss}'}" />
-                </TextBlock>
-              </StackPanel>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
       </DockPanel>
     </Border>
 

@@ -330,6 +330,26 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         }
     }
 
+    /// <summary>
+    /// Releases the stream of a hidden tile at once instead of after the grace period.
+    /// </summary>
+    public void ReleaseHiddenStream()
+    {
+        if (!IsVisibleInGrid)
+        {
+            OnHiddenTick(this, EventArgs.Empty);
+        }
+    }
+
+    internal async Task ReleaseHiddenStreamAsync()
+    {
+        if (IsVisibleInGrid) return;
+        ReleaseHiddenStream();
+        // An opening already in flight must also finish its stale-source cleanup.
+        await Task.WhenAll(_openings.ToArray());
+        await _operations.WhenIdle;
+    }
+
     private void OnHiddenTick(object? sender, EventArgs e)
     {
         _hiddenTimer.Stop();

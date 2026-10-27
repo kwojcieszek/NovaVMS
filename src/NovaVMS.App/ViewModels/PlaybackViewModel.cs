@@ -53,6 +53,8 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     private DateTime _playbackStart;
     private bool _isShutDown;
     private int _playbackVersion;
+    private long? _mediaTimeOrigin;
+    private long _mediaTimeOffset;
 
     [ObservableProperty]
     private string _cameraName = Localizer.Text(NoCameraKey);
@@ -71,9 +73,6 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     [NotifyPropertyChangedFor(nameof(RangeEndSeconds))]
     [NotifyCanExecuteChangedFor(nameof(SearchCommand))]
     private TimeSpan? _toTime = DefaultToTime;
-
-    [ObservableProperty]
-    private RecordingSegment? _selectedSegment;
 
     [ObservableProperty]
     private double _timelinePosition;
@@ -104,6 +103,9 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private PlaybackSpeedOption _selectedSpeed = PlaybackSpeedOption.All.Single(option => option.Rate == 1);
+
+    [ObservableProperty]
+    private bool _isExportPanelExpanded = true;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
@@ -201,6 +203,11 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<RecordingSegment> Segments { get; } = new();
 
+    /// <summary>
+    /// Raised before a recording is opened, so other streams from the recorder can be released.
+    /// </summary>
+    public event EventHandler<RecordingOpeningEventArgs>? RecordingOpening;
+
     public DateTime Day => (SelectedDate ?? DateTime.Today).Date;
 
     /// <summary>
@@ -226,6 +233,8 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         Segments.Clear();
 
         var descriptor = camera is null ? null : _configuration.FindCamera(camera);
+        TimelinePosition = RangeStartSeconds;
+        CurrentTimeText = Day.AddSeconds(TimelinePosition).ToString("HH:mm:ss");
         CameraName = descriptor?.FullName ?? Localizer.Text(NoCameraKey);
         HasCamera = descriptor is not null;
         ExportCommand.NotifyCanExecuteChanged();
@@ -280,7 +289,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         _lifetime.Dispose();
     }
 
-    [RelayCommand(CanExecute = nameof(CanSearch))]
+    [RelayCommand(CanExecute = nameof(CanSearch), AllowConcurrentExecutions = true)]
     private Task SearchAsync()
     {
         _openings.RemoveAll(task => task.IsCompleted);
@@ -310,6 +319,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
                 var connection = await connectionClient.TryConnectAsync(_lifetime.Token);
                 if (!connection.Success)
                 {
+                    if (_isShutDown || searchVersion != _searchVersion) return;
                     StatusText = DeviceOperationErrors.Report("Searching recordings", connection.Error!);
                     return;
                 }
@@ -349,9 +359,10 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         ToTime = DefaultToTime;
     }
 
-    [RelayCommand(CanExecute = nameof(HasCamera))]
+    [RelayCommand(CanExecute = nameof(HasCamera), AllowConcurrentExecutions = true)]
     private async Task SeekAsync(double seconds)
     {
+        if (!double.IsFinite(seconds) || _isShutDown) return;
         var start = Day.AddSeconds(Math.Clamp(seconds, 0, LastSecondOfDay));
         if (Segments.Count > 0)
         {
@@ -418,6 +429,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         _searchVersion++;
         Segments.Clear();
         TimelinePosition = RangeStartSeconds;
+        CurrentTimeText = Day.AddSeconds(TimelinePosition).ToString("HH:mm:ss");
 
         if (CanSearch())
         {
@@ -435,25 +447,17 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         ValidateRange();
     }
 
-    partial void OnSelectedSegmentChanged(RecordingSegment? value)
-    {
-        if (value is null)
-        {
-            return;
-        }
-
-        var (from, _) = GetSearchRange();
-        var start = value.Start < from ? from : value.Start;
-        ResetShuttle(start);
-        _ = PlayFromAsync(start);
-    }
-
     private void ValidateRange()
     {
+        if (_isShutDown) return;
+        StopPlayer();
+        _searchVersion++;
+        Segments.Clear();
         if (FromTime is not null && ToTime is not null && FromTime >= ToTime)
         {
             StatusText = Localizer.Text("Playback_InvalidRange");
         }
+        else if (CanSearch()) SearchCommand.Execute(null);
     }
 
     private Task PlayFromAsync(DateTime start)
@@ -475,23 +479,44 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         var version = ++_playbackVersion;
         _buffer.CancelPending();
         _isOpening = true;
-
+        _playbackClock.Stop();
         try
         {
+            var preparation = new RecordingOpeningEventArgs();
+            RecordingOpening?.Invoke(this, preparation);
+            await preparation.WhenReady;
+            if (_isShutDown || version != _playbackVersion) return;
             using var client = await _clientFactory.CreateAsync(camera.Device, cancellationToken: _lifetime.Token);
             var end = Segments.FirstOrDefault(segment => segment.Start <= start && segment.End > start)?.End
                 ?? start.Date.AddSeconds(LastSecondOfDay);
             var source = await client.GetPlaybackSourceAsync(camera.Channel.Number, start, end, _lifetime.Token);
             if (_isShutDown || version != _playbackVersion) return;
             var caching = _configuration.Current.Settings.GetNetworkCachingMs(StreamType.Main);
-            var started = await _buffer.SwitchAsync(() => VideoMedia.Create(_libVlc, source,
+            var withAudio = SelectedSpeed.Rate == 1;
+            Task<bool> OpenAsync() => _buffer.SwitchAsync(() => VideoMedia.Create(_libVlc, source,
                 camera.Device.Username, camera.Device.Password, caching,
-                withAudio: SelectedSpeed.Rate == 1, paceStream: true), _lifetime.Token);
+                withAudio, paceStream: true), _lifetime.Token);
+            bool started;
+            try
+            {
+                started = await OpenAsync();
+            }
+            catch (Exception exception) when (_media is not null && DeviceFailure.IsExpected(exception)
+                && !_isShutDown && version == _playbackVersion)
+            {
+                // The outgoing recording keeps its session open until the new one shows a frame.
+                // A recorder at its bandwidth limit (SDK error 800) rejects that second session,
+                // so release the outgoing recording and open the requested time again.
+                _buffer.Release();
+                started = await OpenAsync();
+            }
             if (_isShutDown || version != _playbackVersion) return;
             if (!started) { StatusText = Localizer.Text("Playback_Failed"); return; }
 
             _playbackStart = start;
             _playbackEnd = end;
+            _mediaTimeOrigin = _player.Time > 0 ? _player.Time : null;
+            _mediaTimeOffset = 0;
             _playbackClock.Restart();
             if (IsPaused) _playbackClock.Stop();
             IsPlaying = true;
@@ -501,6 +526,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
             _positionTimer.Start();
             _previewStarted = Stopwatch.GetTimestamp();
             _previewVisibleStarted = 0;
+            ResetShuttle(start);
         }
         catch (OperationCanceledException) when (_isShutDown) { }
         catch (Exception exception)
@@ -513,7 +539,16 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
             if (version == _playbackVersion)
             {
                 _isOpening = false;
-                if (_media is not null) _positionTimer.Start();
+                if (_media is not null)
+                {
+                    if (!IsPaused) _playbackClock.Start();
+                    _positionTimer.Start();
+                }
+                else
+                {
+                    IsPlaying = false;
+                    IsPaused = false;
+                }
             }
         }
     }
@@ -630,7 +665,14 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         get
         {
             var time = _player.Time;
-            return time > 0 ? time : _playbackClock.ElapsedMilliseconds;
+            if (time <= 0) return _playbackClock.ElapsedMilliseconds;
+            if (_mediaTimeOrigin is null)
+            {
+                // Some demuxers publish their first timestamp after the first video frame.
+                _mediaTimeOrigin = time;
+                _mediaTimeOffset = _playbackClock.ElapsedMilliseconds;
+            }
+            return _mediaTimeOffset + Math.Max(0, time - _mediaTimeOrigin.Value);
         }
     }
 
@@ -649,7 +691,14 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedSpeedChanged(PlaybackSpeedOption value)
     {
-        ResetShuttle(Day.AddSeconds(TimelinePosition));
+        var position = Day.AddSeconds(TimelinePosition);
+        ResetShuttle(position);
+        if (IsPlaying && !_isShutDown) _ = PlayFromAsync(position);
+    }
+
+    partial void OnTimelinePositionChanged(double value)
+    {
+        if (double.IsFinite(value)) CurrentTimeText = Day.AddSeconds(Math.Clamp(value, 0, LastSecondOfDay)).ToString("HH:mm:ss");
     }
 
     [RelayCommand]
