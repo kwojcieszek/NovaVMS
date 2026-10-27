@@ -55,6 +55,60 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     private int _playbackVersion;
     private long? _mediaTimeOrigin;
     private long _mediaTimeOffset;
+    private bool _suspendAutomaticSearch;
+    private int _synchronizedRequestVersion;
+    internal bool IsExternallyControlled { get; set; }
+
+    internal void ConfigureSynchronizedRange(DateTime? date, TimeSpan? from, TimeSpan? to)
+    {
+        _suspendAutomaticSearch = true;
+        try { SelectedDate = date; FromTime = from; ToTime = to; }
+        finally { _suspendAutomaticSearch = false; }
+    }
+
+    internal bool HasRecordingAt(DateTime time) => Segments.Any(segment => segment.Start <= time && time < segment.End);
+    internal bool HasSourceAt(DateTime time) => IsPlaying && _media is not null && _playbackStart <= time && time < _playbackEnd;
+
+    internal async Task OpenSynchronizedAsync(double seconds)
+    {
+        var requestVersion = ++_synchronizedRequestVersion;
+        var start = Day.AddSeconds(Math.Clamp(seconds, 0, LastSecondOfDay));
+        if (!HasRecordingAt(start))
+        {
+            StopSynchronized(seconds);
+            return;
+        }
+        IsPaused = true;
+        await _buffer.SetPauseAsync(true);
+        if (_isShutDown || requestVersion != _synchronizedRequestVersion) return;
+        IsPlaying = false;
+        await PlayFromAsync(start);
+        if (!_isShutDown && requestVersion == _synchronizedRequestVersion && !IsPlaying)
+        {
+            var error = StatusText;
+            StopPlayer();
+            StatusText = error;
+        }
+    }
+
+    internal async Task SetSynchronizedPauseAsync(bool paused)
+    {
+        IsPaused = paused;
+        if (paused) _playbackClock.Stop(); else _playbackClock.Start();
+        await _buffer.SetPauseAsync(paused);
+    }
+
+    internal Task SetSynchronizedMuteAsync(bool muted) => _buffer.SetMuteAsync(muted);
+
+    internal void StopSynchronized(double? position = null)
+    {
+        StopPlayer();
+        if (position.HasValue)
+        {
+            TimelinePosition = position.Value;
+            StatusText = Localizer.Text("Playback_NoRecordingAtTime");
+        }
+    }
 
     [ObservableProperty]
     private string _cameraName = Localizer.Text(NoCameraKey);
@@ -240,7 +294,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         ExportCommand.NotifyCanExecuteChanged();
         StatusText = string.Empty;
 
-        if (CanSearch())
+        if (!_suspendAutomaticSearch && CanSearch())
         {
             SearchCommand.Execute(null);
         }
@@ -431,7 +485,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         TimelinePosition = RangeStartSeconds;
         CurrentTimeText = Day.AddSeconds(TimelinePosition).ToString("HH:mm:ss");
 
-        if (CanSearch())
+        if (!_suspendAutomaticSearch && CanSearch())
         {
             SearchCommand.Execute(null);
         }
@@ -457,7 +511,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         {
             StatusText = Localizer.Text("Playback_InvalidRange");
         }
-        else if (CanSearch()) SearchCommand.Execute(null);
+        else if (!_suspendAutomaticSearch && CanSearch()) SearchCommand.Execute(null);
     }
 
     private Task PlayFromAsync(DateTime start)
@@ -555,6 +609,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     private void StopPlayer()
     {
+        _synchronizedRequestVersion++;
         _playbackVersion++;
         _isOpening = false;
         _positionTimer.Stop();
@@ -572,7 +627,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     private async void OnPositionTimerTick(object? sender, EventArgs e)
     {
-        if (!IsPlaying || IsSeeking || IsPaused || _isOpening)
+        if (IsExternallyControlled || !IsPlaying || IsSeeking || IsPaused || _isOpening)
         {
             return;
         }
@@ -645,6 +700,12 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
             var message = _media?.ErrorMessage;
             var current = _playbackStart.AddMilliseconds(PlaybackElapsedMilliseconds);
+            if (IsExternallyControlled)
+            {
+                StopPlayer();
+                StatusText = message ?? Localizer.Text("Playback_End");
+                return;
+            }
             if (message is null && SelectedSpeed.Rate == 1 && current > _playbackStart.AddSeconds(1))
             {
                 await ContinuePlaybackAsync(current >= _playbackEnd.AddSeconds(-2) ? _playbackEnd : current.AddSeconds(1));
@@ -693,7 +754,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     {
         var position = Day.AddSeconds(TimelinePosition);
         ResetShuttle(position);
-        if (IsPlaying && !_isShutDown) _ = PlayFromAsync(position);
+        if (!IsExternallyControlled && IsPlaying && !_isShutDown) _ = PlayFromAsync(position);
     }
 
     partial void OnTimelinePositionChanged(double value)

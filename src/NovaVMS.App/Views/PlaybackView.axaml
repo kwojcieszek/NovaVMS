@@ -5,11 +5,20 @@
              xmlns:vm="using:NovaVMS.App.ViewModels"
              xmlns:models="using:NovaVMS.App.Models"
              xmlns:controls="using:NovaVMS.App.Controls"
-             xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
+             xmlns:views="using:NovaVMS.App.Views"
              x:Class="NovaVMS.App.Views.PlaybackView"
-             x:DataType="vm:PlaybackViewModel">
+             x:DataType="vm:PlaybackWorkspaceViewModel">
 
   <DockPanel>
+
+    <Border DockPanel.Dock="Top" Padding="12,6" Background="{DynamicResource NovaPanelBackground}">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <mi:MaterialIcon Kind="ViewGridOutline" VerticalAlignment="Center" />
+        <TextBlock Text="{l:Tr Playback_CameraCount}" VerticalAlignment="Center" />
+        <ComboBox ItemsSource="{Binding CameraCounts}" SelectedItem="{Binding SelectedCameraCount}" MinWidth="65" />
+        <TextBlock Text="{l:Tr Playback_MultipleHint}" Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
 
     <!-- Day and time range -->
     <Border DockPanel.Dock="Top" Padding="12,8" Background="{DynamicResource NovaPanelBackground}">
@@ -25,10 +34,6 @@
                   Command="{Binding ResetTimeRangeCommand}"
                   ToolTip.Tip="{l:Tr Playback_WholeDayTip}"
                   Content="{mi:MaterialIconExt Kind=Restore}" />
-          <Button Classes="accent"
-                  Command="{Binding SearchCommand}">
-            <mi:MaterialIconText Kind="Magnify" Text="{l:Tr Playback_Search}" />
-          </Button>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
           <mi:MaterialIcon Kind="Cctv" Width="18" Height="18" />
@@ -58,6 +63,9 @@
                      VerticalAlignment="Center"
                      Text="{Binding StatusText}" />
           <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Command="{Binding SeekCommand}" CommandParameter="{Binding TimelinePosition}"
+                    IsVisible="{Binding !IsPlaying}" ToolTip.Tip="{l:Tr Playback_Play}"
+                    Content="{mi:MaterialIconExt Kind=Play}" />
             <Button Command="{Binding TogglePauseCommand}" ToolTip.Tip="{l:Tr Playback_PauseTip}">
               <Panel>
                 <mi:MaterialIcon Kind="Pause" IsVisible="{Binding !IsPaused}" />
@@ -103,6 +111,17 @@
         </Grid>
         <StackPanel VerticalAlignment="Top" Width="266" Spacing="8" Margin="12"
                     IsVisible="{Binding IsExportPanelExpanded}">
+          <TextBlock Text="{l:Tr Playback_ExportCameras}" FontWeight="SemiBold" />
+          <ScrollViewer MaxHeight="180" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Tiles}" IsEnabled="{Binding !IsExporting}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:PlaybackTileViewModel">
+                  <CheckBox IsChecked="{Binding IsExportSelected, Mode=TwoWay}" IsVisible="{Binding Playback.HasCamera}"
+                            Content="{Binding Header}" ToolTip.Tip="{Binding Playback.CameraName}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
           <TextBlock Classes="muted" Text="{l:Tr Playback_ExportFrom}" />
           <StackPanel Orientation="Horizontal" Spacing="4">
             <CalendarDatePicker SelectedDate="{Binding ExportFromDate}" Width="145" />
@@ -127,10 +146,16 @@
     </Border>
 
     <Border Background="{DynamicResource NovaTileBackground}" Margin="1">
-      <Panel x:Name="VideoHost">
-        <vlc:VideoView x:Name="PrimaryVideo" MediaPlayer="{Binding PrimaryPlayer}" />
-        <vlc:VideoView x:Name="SecondaryVideo" MediaPlayer="{Binding SecondaryPlayer}" />
-      </Panel>
+      <ItemsControl x:Name="VideoHost" ItemsSource="{Binding Tiles}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <UniformGrid x:DataType="vm:PlaybackWorkspaceViewModel" Columns="{Binding Columns}" Rows="{Binding Rows}" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:PlaybackTileViewModel"><views:PlaybackTileView /></DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
     </Border>
 
   </DockPanel>

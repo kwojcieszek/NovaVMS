@@ -9,6 +9,19 @@ namespace NovaVMS.App.Services;
 /// <summary>Independent player writes a bounded MP4 without interrupting the displayed recording.</summary>
 public sealed class RecordingExporter([Microsoft.Extensions.DependencyInjection.FromKeyedServices(VideoPlayerFactory.Recordings)] LibVLC libVlc)
 {
+    internal static string CameraDirectoryName(string cameraName)
+    {
+        var invalid = Path.GetInvalidFileNameChars().Concat("<>:\"/\\|?*").ToHashSet();
+        var name = new string(cameraName.Where(character => !invalid.Contains(character) && !char.IsControl(character))
+            .Take(80).ToArray()).Trim(' ', '.');
+        if (name.Length == 0) return "Camera";
+        var stem = name.Split('.')[0].ToUpperInvariant();
+        if (stem is "CON" or "PRN" or "AUX" or "NUL" ||
+            (stem.Length == 4 && (stem.StartsWith("COM") || stem.StartsWith("LPT")) && stem[3] is >= '1' and <= '9'))
+            name = "_" + name;
+        return name;
+    }
+
     internal static string FileName(string cameraName, int channel, DateTime start, DateTime end)
     {
         var invalid = Path.GetInvalidFileNameChars().ToHashSet();

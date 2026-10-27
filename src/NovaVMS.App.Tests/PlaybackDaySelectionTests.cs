@@ -49,22 +49,22 @@ public sealed class PlaybackDaySelectionTests
                 };
             }
         };
-        var playback = new PlaybackViewModel(vlc, configuration, factory, null!, new RecordingExporter(vlc));
+        var workspace = new PlaybackWorkspaceViewModel(vlc, configuration, factory, null!, new RecordingExporter(vlc));
+        var playback = workspace.SelectedPlayback;
         Window? window = null;
         try
         {
-            var view = new PlaybackView { DataContext = playback };
-            view.FindControl<Panel>("VideoHost")!.Children.Clear();
+            var view = new PlaybackView { DataContext = workspace };
             window = new Window { Width = 1600, Height = 1000, Content = view };
             window.Show();
-            playback.SetCamera(new CameraReference { DeviceId = device.Id, ChannelNumber = 1 });
+            workspace.SetCamera(new CameraReference { DeviceId = device.Id, ChannelNumber = 1 });
             await (playback.SearchCommand.ExecutionTask ?? Task.CompletedTask);
             var calendar = view.GetLogicalDescendants().OfType<CalendarDatePicker>().First();
             var day = DateTime.Today.AddDays(-daysAgo);
             calendar.SetCurrentValue(CalendarDatePicker.SelectedDateProperty, day);
             Dispatcher.UIThread.RunJobs();
-            Assert.Equal(day, playback.SelectedDate);
-            await (playback.SearchCommand.ExecutionTask ?? Task.CompletedTask);
+            Assert.Equal(day, workspace.SelectedDate);
+            await (workspace.SearchCommand.ExecutionTask ?? Task.CompletedTask);
             await WaitForAsync(() => playback.Segments.Count > 0 && !playback.SearchCommand.IsRunning);
             // Realize the view bindings before verifying that displaying recording times
             // has not changed their dates or removed coverage from the timeline.
@@ -81,11 +81,11 @@ public sealed class PlaybackDaySelectionTests
             using (var context = drawing.Open()) timeline.Render(context);
             Assert.Contains(drawing.Children.OfType<GeometryDrawing>(), item => Equals(item.Brush, timeline.SegmentBrush));
 
-            await playback.SeekCommand.ExecuteAsync(12 * 3600d);
+            await workspace.SeekCommand.ExecuteAsync(12 * 3600d);
             Assert.Equal(day.AddHours(12), Assert.Single(openings));
             Assert.True(playback.IsPlaying);
         }
-        finally { window?.Close(); playback.Dispose(); await playback.Disposal; }
+        finally { window?.Close(); workspace.Dispose(); await workspace.Disposal; }
     }
 
     [AvaloniaFact]
