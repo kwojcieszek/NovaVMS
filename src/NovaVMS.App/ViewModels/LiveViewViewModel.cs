@@ -554,6 +554,24 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         UpdateTileVisibility();
     }
 
+    /// <summary>
+    /// Releases the streams of the hidden page at once, e.g. when a recording needs the recorder's bandwidth.
+    /// </summary>
+    public void ReleaseHiddenStreams()
+    {
+        if (_isShutDown || _isPageActive) return;
+        foreach (var tile in Tiles)
+        {
+            tile.ReleaseHiddenStream();
+        }
+    }
+
+    public Task ReleaseHiddenStreamsAsync()
+    {
+        if (_isShutDown || _isPageActive) return Task.CompletedTask;
+        return Task.WhenAll(Tiles.Select(tile => tile.ReleaseHiddenStreamAsync()));
+    }
+
     private void UpdateTileVisibility()
     {
         foreach (var tile in Tiles)

@@ -56,11 +56,11 @@ public sealed class TimelineBar : Control
         AvaloniaProperty.Register<TimelineBar, IBrush?>(nameof(OutOfRangeBrush));
 
     private const double SecondsPerDay = 86400;
-    private const double HoursPerDay = 24;
     private const double LabelAreaHeight = 16;
     private const double LabelFontSize = 10;
-    private const double NarrowWidth = 700;
     private const double CursorThickness = 2;
+    private double _visibleStart;
+    private double _visibleEnd = SecondsPerDay;
 
     private static readonly Typeface LabelTypeface = new(new FontFamily("fonts:Inter#Inter, $Default"));
 
@@ -189,7 +189,7 @@ public sealed class TimelineBar : Control
         RenderSegments(context, width, height);
         RenderOutOfRange(context, width, height);
 
-        if (CursorBrush is not null)
+        if (CursorBrush is not null && Position >= _visibleStart && Position <= _visibleEnd)
         {
             var cursorX = ToX(Position, width);
             context.DrawLine(new Pen(CursorBrush, CursorThickness), new Point(cursorX, 0), new Point(cursorX, height));
@@ -199,6 +199,12 @@ public sealed class TimelineBar : Control
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
+
+        if (change.Property == DayProperty)
+        {
+            _visibleStart = 0;
+            _visibleEnd = SecondsPerDay;
+        }
 
         if (change.Property != SegmentsProperty)
         {
@@ -226,7 +232,7 @@ public sealed class TimelineBar : Control
         }
 
         e.Pointer.Capture(this);
-        IsInteracting = true;
+        SetCurrentValue(IsInteractingProperty, true);
         UpdatePosition(e.GetPosition(this).X);
         e.Handled = true;
     }
@@ -239,6 +245,21 @@ public sealed class TimelineBar : Control
         {
             UpdatePosition(e.GetPosition(this).X);
         }
+        if (Bounds.Width > 0)
+            ToolTip.SetTip(this, Day.Date.AddSeconds(SecondsAt(e.GetPosition(this).X)).ToString("HH:mm:ss"));
+    }
+
+    protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+    {
+        base.OnPointerWheelChanged(e);
+        if (Bounds.Width <= 0 || IsInteracting || e.Delta.Y == 0) return;
+        var fraction = Math.Clamp(e.GetPosition(this).X / Bounds.Width, 0, 1);
+        var anchor = _visibleStart + fraction * (_visibleEnd - _visibleStart);
+        var span = Math.Clamp((_visibleEnd - _visibleStart) * (e.Delta.Y > 0 ? 0.5 : 2), 60, SecondsPerDay);
+        _visibleStart = Math.Clamp(anchor - fraction * span, 0, SecondsPerDay - span);
+        _visibleEnd = _visibleStart + span;
+        InvalidateVisual();
+        e.Handled = true;
     }
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
@@ -251,7 +272,7 @@ public sealed class TimelineBar : Control
         }
 
         UpdatePosition(e.GetPosition(this).X);
-        IsInteracting = false;
+        SetCurrentValue(IsInteractingProperty, false);
         e.Pointer.Capture(null);
         e.Handled = true;
 
@@ -265,13 +286,16 @@ public sealed class TimelineBar : Control
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
     {
         base.OnPointerCaptureLost(e);
-        IsInteracting = false;
+        SetCurrentValue(IsInteractingProperty, false);
     }
 
-    private static double ToX(double seconds, double width)
+    private double ToX(double seconds, double width)
     {
-        return Math.Clamp(seconds / SecondsPerDay, 0, 1) * width;
+        return Math.Clamp((seconds - _visibleStart) / (_visibleEnd - _visibleStart), 0, 1) * width;
     }
+
+    private double SecondsAt(double x) => Math.Min(SecondsPerDay - 1,
+        _visibleStart + Math.Clamp(x / Bounds.Width, 0, 1) * (_visibleEnd - _visibleStart));
 
     private void OnSegmentsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
@@ -286,7 +310,7 @@ public sealed class TimelineBar : Control
             return;
         }
 
-        Position = Math.Clamp(x / width, 0, 1) * SecondsPerDay;
+        SetCurrentValue(PositionProperty, SecondsAt(x));
     }
 
     private void RenderSegments(DrawingContext context, double width, double height)
@@ -314,7 +338,7 @@ public sealed class TimelineBar : Control
 
             var left = ToX((start - dayStart).TotalSeconds, width);
             var right = ToX((end - dayStart).TotalSeconds, width);
-            context.FillRectangle(brush, new Rect(left, top, Math.Max(1, right - left), barHeight));
+            if (right > left) context.FillRectangle(brush, new Rect(left, top, Math.Max(1, right - left), barHeight));
         }
     }
 
@@ -345,23 +369,26 @@ public sealed class TimelineBar : Control
         var tickBrush = TickBrush;
         var labelBrush = LabelBrush;
         var tickPen = tickBrush is null ? null : new Pen(tickBrush);
-        var labelStep = width < NarrowWidth ? 4 : 2;
+        var span = _visibleEnd - _visibleStart;
+        double[] steps = [10, 30, 60, 300, 900, 1800, 3600, 7200, 14400];
+        var step = steps.FirstOrDefault(value => span / value <= Math.Max(1, width / 75), steps[^1]);
 
-        for (var hour = 0; hour <= HoursPerDay; hour++)
+        for (var seconds = Math.Ceiling(_visibleStart / step) * step; seconds <= _visibleEnd; seconds += step)
         {
-            var x = hour / HoursPerDay * width;
+            var x = ToX(seconds, width);
             if (tickPen is not null)
             {
                 context.DrawLine(tickPen, new Point(x, LabelAreaHeight - 4), new Point(x, height));
             }
 
-            if (labelBrush is null || hour % labelStep != 0 || hour == HoursPerDay)
+            if (labelBrush is null || seconds >= SecondsPerDay)
             {
                 continue;
             }
 
-            var label = new FormattedText($"{hour:00}:00", CultureInfo.InvariantCulture, FlowDirection.LeftToRight, LabelTypeface, LabelFontSize, labelBrush);
-            context.DrawText(label, new Point(x + 3, 1));
+            var text = Day.Date.AddSeconds(seconds).ToString(step < 60 ? "HH:mm:ss" : "HH:mm", CultureInfo.InvariantCulture);
+            var label = new FormattedText(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, LabelTypeface, LabelFontSize, labelBrush);
+            context.DrawText(label, new Point(Math.Clamp(x + 3, 0, Math.Max(0, width - label.Width)), 1));
         }
     }
 }

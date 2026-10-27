@@ -106,8 +106,14 @@ internal sealed class RecordingPlaybackBuffer : IAsyncDisposable
 
     internal void Stop()
     {
-        CancelPending();
+        Release();
         _paused = false;
+    }
+
+    /// <summary>Stops every recording session but keeps the pause state for the next switch.</summary>
+    internal void Release()
+    {
+        CancelPending();
         _ = StopSlotAsync(_primary);
         _ = StopSlotAsync(_secondary);
     }

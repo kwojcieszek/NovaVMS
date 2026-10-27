@@ -63,6 +63,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Tree.ResetViewRequested += OnTreeResetViewRequested;
         Tree.GroupContentChanged += OnTreeGroupContentChanged;
         Live.PropertyChanged += OnLivePropertyChanged;
+        Playback.RecordingOpening += OnPlaybackRecordingOpening;
     }
 
     public ResourceTreeViewModel Tree { get; }
@@ -395,6 +396,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         {
             Playback.SetCamera(camera.Reference);
         }
+    }
+
+    private void OnPlaybackRecordingOpening(object? sender, RecordingOpeningEventArgs e)
+    {
+        // Live streams kept for a quick return to the live page would compete with the recording
+        // for the recorder's bandwidth limit.
+        e.WaitFor(Live.ReleaseHiddenStreamsAsync());
     }
 
     private void OnLivePropertyChanged(object? sender, PropertyChangedEventArgs e)
