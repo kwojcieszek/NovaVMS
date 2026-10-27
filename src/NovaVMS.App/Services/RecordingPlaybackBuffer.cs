@@ -19,6 +19,7 @@ internal sealed class RecordingPlaybackBuffer : IAsyncDisposable
     private Slot _active;
     private int _version;
     private bool _paused;
+    private bool _muted;
     private bool _disposed;
 
     internal RecordingPlaybackBuffer(LibVLC vlc)
@@ -82,7 +83,7 @@ internal sealed class RecordingPlaybackBuffer : IAsyncDisposable
             // Native stacking and painting must finish before the old surface is cleared.
             await Task.Delay(150, token);
             if (!ReferenceEquals(previous, target)) await StopSlotAsync(previous);
-            if (Current()) await _operations.RunAsync(() => target.Player.Mute = false);
+            if (Current()) await _operations.RunAsync(() => target.Player.Mute = _muted);
             return Current();
         }
         finally
@@ -102,6 +103,12 @@ internal sealed class RecordingPlaybackBuffer : IAsyncDisposable
         _paused = paused;
         var player = ActivePlayer;
         return _operations.RunAsync(() => player.SetPause(paused));
+    }
+
+    internal Task SetMuteAsync(bool muted)
+    {
+        _muted = muted;
+        return _operations.RunAsync(() => ActivePlayer.Mute = muted);
     }
 
     internal void Stop()

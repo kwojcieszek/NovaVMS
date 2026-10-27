@@ -48,7 +48,7 @@ internal static class ServiceConfiguration
 
         services.AddSingleton<ResourceTreeViewModel>();
         services.AddSingleton<LiveViewViewModel>();
-        services.AddSingleton<PlaybackViewModel>();
+        services.AddSingleton<PlaybackWorkspaceViewModel>();
         services.AddSingleton<RecordingExporter>();
         services.AddSingleton<PtzViewModel>();
         services.AddSingleton<MainWindowViewModel>();

@@ -35,7 +35,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Func<SettingsWindowViewModel> settingsFactory,
         ResourceTreeViewModel tree,
         LiveViewViewModel live,
-        PlaybackViewModel playback,
+        PlaybackWorkspaceViewModel playback,
         PtzViewModel ptz,
         StatusBarService statusBar,
         ApplicationUpdateService updates,
@@ -70,7 +70,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public LiveViewViewModel Live { get; }
 
-    public PlaybackViewModel Playback { get; }
+    public PlaybackWorkspaceViewModel Playback { get; }
 
     public PtzViewModel Ptz { get; }
 
@@ -292,7 +292,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private void ShowGroup(ResourceGroupNodeViewModel? group)
     {
-        if (group is not null && IsLivePage)
+        if (group is not null && (IsLivePage || IsPlaybackPage))
         {
             Open(group);
         }
@@ -314,6 +314,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             }
             case ResourceGroupNodeViewModel { IsViewsFolder: true }:
                 break;
+            case ResourceGroupNodeViewModel group when IsPlaybackPage:
+            {
+                Playback.SetCameras(Tree.GetCameras(group));
+                break;
+            }
             case ResourceGroupNodeViewModel { IsSavedView: true, Id: { } viewId } when IsLivePage:
                 _ = OpenSavedViewAsync(viewId);
                 break;
@@ -358,7 +363,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     private void OnTreeOpenRequested(object? sender, ResourceNodeViewModel node)
     {
-        CurrentPage = AppPage.Live;
+        if (!IsPlaybackPage) CurrentPage = AppPage.Live;
         Open(node);
     }
 
