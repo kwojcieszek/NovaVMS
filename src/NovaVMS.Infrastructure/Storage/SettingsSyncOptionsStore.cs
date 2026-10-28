@@ -91,25 +91,7 @@ public sealed class SettingsSyncOptionsStore : ISettingsSyncOptionsStore
                 CryptographicOperations.ZeroMemory(plaintext);
             }
 
-            var directory = Path.GetDirectoryName(_filePath);
-            if (!string.IsNullOrEmpty(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            var temporaryPath = _filePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            try
-            {
-                await File.WriteAllBytesAsync(temporaryPath, encrypted, cancellationToken).ConfigureAwait(false);
-                File.Move(temporaryPath, _filePath, overwrite: true);
-            }
-            finally
-            {
-                if (File.Exists(temporaryPath))
-                {
-                    File.Delete(temporaryPath);
-                }
-            }
+            await AtomicFile.WriteAsync(_filePath, encrypted, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
