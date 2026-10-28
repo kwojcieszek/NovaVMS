@@ -87,7 +87,21 @@ public sealed class DeviceSyncService
 
             // Known cameras keep their identity, so views and groups still show the same cameras.
             ChannelIdentity.Keep(device.Channels, channels);
-            device.Channels = channels.ToList();
+            if (_clientFactory.UsesOptionalProtocol(device) && device.OptionalConnection is { } optional)
+            {
+                optional.Channels = channels.ToList();
+                // Keep common camera identities but retain the primary protocol's media metadata.
+                device.Channels = channels.Select(channel => new Channel
+                {
+                    Id = channel.Id, Number = channel.Number, Name = channel.Name,
+                    Enabled = channel.Enabled, IsFavorite = channel.IsFavorite,
+                    MainAspectRatio = channel.MainAspectRatio,
+                    MainStreamUri = device.Channels.FirstOrDefault(old => old.Id == channel.Id)?.MainStreamUri,
+                    SubStreamUri = device.Channels.FirstOrDefault(old => old.Id == channel.Id)?.SubStreamUri,
+                    ProfileToken = device.Channels.FirstOrDefault(old => old.Id == channel.Id)?.ProfileToken
+                }).ToList();
+            }
+            else device.Channels = channels.ToList();
             SetOnline(device.Id, true);
             return new DeviceSyncResult(true, info, null);
         }

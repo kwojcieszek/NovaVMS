@@ -19,6 +19,10 @@ public sealed class Device
     /// <summary>Alternative SDK/HTTP port; null keeps the primary protocol port for older configurations.</summary>
     public int? SecondaryPort { get; set; }
 
+    public int? SecondarySdkPort { get; set; }
+
+    public int? SecondaryHttpPort { get; set; }
+
     /// <summary>RTSP port of the secondary address; null preserves the existing stream port.</summary>
     public int? SecondaryRtspPort { get; set; }
 
@@ -80,6 +84,31 @@ public sealed class Device
     public string StreamEncryptionKey { get; set; } = string.Empty;
 
     public DeviceType Type { get; set; } = DeviceType.Unknown;
+
+    public DeviceConnectionSettings? OptionalConnection { get; set; }
+
+    public Device ForProtocol(bool useOptional)
+    {
+        var copy = ForHost(Host);
+        if (useOptional && OptionalConnection is { } optional)
+        {
+            copy.Protocol = optional.Protocol;
+            copy.Host = optional.Host;
+            copy.SecondaryHost = optional.SecondaryHost;
+            copy.SecondaryPort = optional.SecondaryPort;
+            copy.SecondaryRtspPort = optional.SecondaryRtspPort;
+            copy.HttpPort = optional.HttpPort;
+            copy.RtspPort = optional.RtspPort;
+            copy.SdkPort = optional.SdkPort;
+            copy.UseHttps = optional.UseHttps;
+            copy.Username = optional.Username;
+            copy.Password = optional.Password;
+            copy.StreamEncryptionKey = optional.StreamEncryptionKey;
+            copy.Channels = optional.Channels.Select(channel => channel.Copy()).ToList();
+        }
+        copy.OptionalConnection = null;
+        return copy;
+    }
 
     public DeviceProtocol Protocol { get; set; } = DeviceProtocol.Isapi;
 

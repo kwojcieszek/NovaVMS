@@ -205,7 +205,7 @@ public sealed partial class PtzViewModel : ViewModelBase, IDisposable
     {
         // Applying settings replaces the Device object and editing a device changes it in place;
         // either way a client with outdated connection settings must not be reused.
-        var settings = device.GetConnectionSignature();
+        var settings = _clientFactory.GetConfiguredConnection(device).GetConnectionSignature();
         if (_client is not null && ReferenceEquals(_clientDevice, device) && _clientSettings == settings)
         {
             return _client;

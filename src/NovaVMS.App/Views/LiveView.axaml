@@ -43,10 +43,6 @@
           </Button>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="2">
-          <Button Classes="toolbar" Command="{Binding AddNewViewCommand}" ToolTip.Tip="{l:Tr Views_AddNew}"
-                  IsVisible="{Binding Session.CanEditViews}">
-            <mi:MaterialIconText Kind="ViewGridPlusOutline" Text="{l:Tr Views_AddNew}" />
-          </Button>
           <TextBlock Text="{Binding ActiveSavedViewName}" MaxWidth="110" TextTrimming="CharacterEllipsis"
                      VerticalAlignment="Center" ToolTip.Tip="{l:Tr Views_AutoSave}" />
           <Button Classes="toolbar"

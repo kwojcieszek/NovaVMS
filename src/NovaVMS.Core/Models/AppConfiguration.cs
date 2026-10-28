@@ -14,6 +14,7 @@ public sealed class AppConfiguration
         Devices = Devices.Select(device =>
         {
             var copy = device.ForHost(device.Host);
+            copy.OptionalConnection = device.OptionalConnection?.Copy();
             copy.Channels = device.Channels.Select(channel => channel.Copy()).ToList();
             return copy;
         }).ToList(),

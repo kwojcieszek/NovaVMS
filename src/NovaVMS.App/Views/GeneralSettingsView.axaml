@@ -36,6 +36,8 @@
       <TextBlock Classes="sectionTitle" FontSize="18" Margin="0,16,0,6" Text="{l:Tr General_ThisComputer}" />
       <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr General_ThisComputerHint}" />
       <CheckBox Content="{l:Tr General_StartFullScreen}" IsChecked="{Binding StartFullScreen}" />
+      <CheckBox Content="{l:Tr General_UseOptionalProtocol}" IsChecked="{Binding UseOptionalProtocol}" />
+      <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr General_UseOptionalProtocolHint}" />
 
       <TextBlock Classes="sectionTitle" FontSize="18" Margin="0,16,0,6" Text="{l:Tr App_LiveView}" />
       <TextBlock Classes="muted" Text="{l:Tr General_Stream}" />
