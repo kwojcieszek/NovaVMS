@@ -115,26 +115,6 @@ public sealed class JsonConfigurationStore : IConfigurationStore
     {
         // Native keychain calls can unlock a collection; keep them off the UI thread.
         var encrypted = await Task.Run(() => _protection.Protect(plaintext.Span), cancellationToken).ConfigureAwait(false);
-        var directory = Path.GetDirectoryName(_filePath);
-        if (!string.IsNullOrEmpty(directory))
-            Directory.CreateDirectory(directory);
-
-        var temporaryPath = _filePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try
-        {
-            await using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            {
-                await stream.WriteAsync(encrypted, cancellationToken).ConfigureAwait(false);
-                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-                stream.Flush(flushToDisk: true);
-            }
-            cancellationToken.ThrowIfCancellationRequested();
-            File.Move(temporaryPath, _filePath, overwrite: true);
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath))
-                File.Delete(temporaryPath);
-        }
+        await AtomicFile.WriteAsync(_filePath, encrypted, cancellationToken).ConfigureAwait(false);
     }
 }
