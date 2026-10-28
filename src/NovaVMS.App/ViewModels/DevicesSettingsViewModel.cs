@@ -59,7 +59,10 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     private string _editSecondaryHost = string.Empty;
 
     [ObservableProperty]
-    private int? _editSecondaryPort;
+    private int? _editSecondarySdkPort;
+
+    [ObservableProperty]
+    private int? _editSecondaryHttpPort;
 
     [ObservableProperty]
     private int? _editSecondaryRtspPort;
@@ -79,6 +82,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSdkProtocol))]
     [NotifyPropertyChangedFor(nameof(IsNetworkProtocol))]
+    [NotifyPropertyChangedFor(nameof(HasNetworkProtocol))]
     private ProtocolOption _editProtocol = ProtocolOption.Find(DeviceProtocol.Isapi);
 
     [ObservableProperty]
@@ -95,6 +99,33 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
 
     [ObservableProperty]
     private bool _isBusy;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNetworkProtocol))]
+    private bool _hasOptionalProtocol;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsOptionalSdkProtocol))]
+    [NotifyPropertyChangedFor(nameof(IsOptionalNetworkProtocol))]
+    [NotifyPropertyChangedFor(nameof(HasNetworkProtocol))]
+    private ProtocolOption _editOptionalProtocol = ProtocolOption.Find(DeviceProtocol.Isapi);
+
+    [ObservableProperty]
+    private bool _editOptionalUseHttps;
+
+    [ObservableProperty]
+    private string _editOptionalUsername = "admin";
+
+    [ObservableProperty]
+    private string _editOptionalPassword = string.Empty;
+
+    [ObservableProperty]
+    private string _editOptionalStreamEncryptionKey = string.Empty;
+
+    public bool HasNetworkProtocol => IsNetworkProtocol || (HasOptionalProtocol && IsOptionalNetworkProtocol);
+
+    public bool IsOptionalSdkProtocol => EditOptionalProtocol.Value == DeviceProtocol.HikvisionSdk;
+    public bool IsOptionalNetworkProtocol => !IsOptionalSdkProtocol;
 
     public DevicesSettingsViewModel(
         ConfigurationService configuration,
@@ -188,12 +219,17 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     [RelayCommand(CanExecute = nameof(CanSaveDevice))]
     private async Task SaveDeviceAsync()
     {
-        if (EditSecondaryPort is < 1 or > 65535 || EditSecondaryRtspPort is < 1 or > 65535)
+        if (EditSecondarySdkPort is < 1 or > 65535 || EditSecondaryHttpPort is < 1 or > 65535 || EditSecondaryRtspPort is < 1 or > 65535)
         {
             InfoText = Localizer.Text("Devices_InvalidSecondaryPort");
             return;
         }
         if (EditStreamEncryptionKey.Contains('\0') || Encoding.UTF8.GetByteCount(EditStreamEncryptionKey) > 128)
+        {
+            InfoText = Localizer.Text("Devices_StreamKeyInvalid");
+            return;
+        }
+        if (HasOptionalProtocol && (EditOptionalStreamEncryptionKey.Contains('\0') || Encoding.UTF8.GetByteCount(EditOptionalStreamEncryptionKey) > 128))
         {
             InfoText = Localizer.Text("Devices_StreamKeyInvalid");
             return;
@@ -204,7 +240,9 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         device.Name = EditName.Trim();
         device.Host = EditHost.Trim();
         device.SecondaryHost = EditSecondaryHost.Trim();
-        device.SecondaryPort = EditSecondaryPort;
+        device.SecondarySdkPort = EditSecondarySdkPort;
+        device.SecondaryHttpPort = EditSecondaryHttpPort;
+        device.SecondaryPort = IsSdkProtocol ? EditSecondarySdkPort : EditSecondaryHttpPort;
         device.SecondaryRtspPort = EditSecondaryRtspPort;
         device.HttpPort = EditHttpPort;
         device.RtspPort = EditRtspPort;
@@ -225,6 +263,21 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         device.Username = EditUsername.Trim();
         device.Password = EditPassword;
         device.StreamEncryptionKey = EditStreamEncryptionKey;
+        device.OptionalConnection = HasOptionalProtocol ? new DeviceConnectionSettings
+        {
+            Protocol = EditOptionalProtocol.Value,
+            Host = EditHost.Trim(),
+            SecondaryHost = EditSecondaryHost.Trim(),
+            SecondaryPort = IsOptionalSdkProtocol ? EditSecondarySdkPort : EditSecondaryHttpPort,
+            SecondaryRtspPort = EditSecondaryRtspPort,
+            HttpPort = EditHttpPort,
+            RtspPort = EditRtspPort,
+            SdkPort = EditSdkPort,
+            UseHttps = EditOptionalUseHttps,
+            Username = EditOptionalUsername.Trim(),
+            Password = EditOptionalPassword,
+            StreamEncryptionKey = EditOptionalStreamEncryptionKey,
+        } : null;
 
         if (row is null)
         {
@@ -509,13 +562,19 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         EditName = device.Name;
         EditHost = device.Host;
         EditSecondaryHost = device.SecondaryHost;
-        EditSecondaryPort = device.SecondaryPort;
+        EditSecondarySdkPort = device.SecondarySdkPort ?? (device.Protocol == DeviceProtocol.HikvisionSdk ? device.SecondaryPort
+            : device.OptionalConnection?.Protocol == DeviceProtocol.HikvisionSdk ? device.OptionalConnection.SecondaryPort : null);
+        EditSecondaryHttpPort = device.SecondaryHttpPort ?? (device.Protocol != DeviceProtocol.HikvisionSdk ? device.SecondaryPort
+            : device.OptionalConnection?.Protocol != DeviceProtocol.HikvisionSdk ? device.OptionalConnection?.SecondaryPort : null);
         EditSecondaryRtspPort = device.SecondaryRtspPort;
         EditHttpPort = device.HttpPort;
         EditRtspPort = device.RtspPort;
         EditSdkPort = device.SdkPort;
         EditUseHttps = device.UseHttps;
         EditProtocol = ProtocolOption.Find(device.Protocol);
+        HasOptionalProtocol = device.OptionalConnection is not null;
+        LoadOptionalConnection(device.OptionalConnection ?? new DeviceConnectionSettings());
+
         EditUsername = device.Username;
         EditPassword = device.Password;
         EditStreamEncryptionKey = device.StreamEncryptionKey;
@@ -599,8 +658,8 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     private async Task CheckStateAsync(DeviceRowViewModel row)
     {
         if (_isDisposed) return;
-        var signature = row.Device.GetConnectionSignature();
-        var snapshot = row.Device.ForHost(row.Device.Host);
+        var signature = _clientFactory.GetConfiguredConnection(row.Device).GetConnectionSignature();
+        var snapshot = _clientFactory.GetConfiguredConnection(row.Device);
         if (row.State != DeviceConnectionState.Online && row.State != DeviceConnectionState.Offline)
         {
             row.State = DeviceConnectionState.Checking;
@@ -614,7 +673,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
             reachable = false;
             DeviceOperationErrors.Report($"Device availability: {row.Device.DisplayName}", exception);
         }
-        if (!_isDisposed && Devices.Contains(row) && row.Device.GetConnectionSignature() == signature)
+        if (!_isDisposed && Devices.Contains(row) && _clientFactory.GetConfiguredConnection(row.Device).GetConnectionSignature() == signature)
         {
             row.State = reachable ? DeviceConnectionState.Online : DeviceConnectionState.Offline;
             row.Refresh();
@@ -634,13 +693,25 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         }
     }
 
+    private void LoadOptionalConnection(DeviceConnectionSettings connection)
+    {
+        EditOptionalProtocol = ProtocolOption.Find(connection.Protocol);
+        EditOptionalUseHttps = connection.UseHttps;
+        EditOptionalUsername = connection.Username;
+        EditOptionalPassword = connection.Password;
+        EditOptionalStreamEncryptionKey = connection.StreamEncryptionKey;
+    }
+
     private void ClearForm()
     {
+        HasOptionalProtocol = false;
+        LoadOptionalConnection(new DeviceConnectionSettings());
         FormTitle = Localizer.Text(NewDeviceTitleKey);
         EditName = string.Empty;
         EditHost = string.Empty;
         EditSecondaryHost = string.Empty;
-        EditSecondaryPort = null;
+        EditSecondarySdkPort = null;
+        EditSecondaryHttpPort = null;
         EditSecondaryRtspPort = null;
         EditHttpPort = 80;
         EditRtspPort = 554;

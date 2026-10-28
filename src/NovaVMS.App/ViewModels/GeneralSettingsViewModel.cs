@@ -102,6 +102,9 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     [ObservableProperty]
     private bool _startFullScreen;
 
+    [ObservableProperty]
+    private bool _useOptionalProtocol;
+
     public ApplicationUpdateService Updates { get; }
 
     public GeneralSettingsViewModel(ConfigurationService configuration, LocalSettingsService localSettings, IDialogService dialogs, ApplicationUpdateService updates)
@@ -111,6 +114,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         _dialogs = dialogs;
         Updates = updates;
         _startFullScreen = localSettings.Current.StartFullScreen;
+        _useOptionalProtocol = localSettings.Current.UseOptionalProtocol;
 
         var settings = configuration.Current.Settings;
         _selectedLanguage = LanguageOption.Find(settings.Language);
@@ -271,6 +275,12 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     partial void OnStartFullScreenChanged(bool value)
     {
         _localSettings.Current.StartFullScreen = value;
+        _ = SaveLocalAsync();
+    }
+
+    partial void OnUseOptionalProtocolChanged(bool value)
+    {
+        _localSettings.Current.UseOptionalProtocol = value;
         _ = SaveLocalAsync();
     }
 

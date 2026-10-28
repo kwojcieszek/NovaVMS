@@ -31,7 +31,7 @@ public sealed class DeviceConnectionCleanupService : IDisposable
     {
         // Snapshot on the UI thread; the configuration objects are not thread-safe.
         var devices = _configuration.Current.Devices.Select(device => device.ForHost(device.Host)).ToList();
-        var signature = string.Join("\n", devices.Select(device => device.GetConnectionSignature()));
+        var signature = string.Join("\n", devices.Select(device => _clientFactory.GetConfiguredConnection(device).GetConnectionSignature()));
         if (signature == _lastSignature)
         {
             // Most saves change only settings or groups; nothing to release.

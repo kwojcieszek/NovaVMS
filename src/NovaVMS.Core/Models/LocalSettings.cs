@@ -11,6 +11,8 @@ public sealed class LocalSettings
     /// <summary>
     /// Opens the main window in full screen when the application starts.
     /// </summary>
+    public bool UseOptionalProtocol { get; set; }
+
     public bool StartFullScreen { get; set; }
 
     /// <summary>

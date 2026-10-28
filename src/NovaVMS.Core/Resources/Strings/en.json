@@ -267,7 +267,7 @@
   "Language_System": "Automatic (system language)",
   "FileType_Settings": "NovaVMS settings",
   "FileType_Csv": "CSV device list",
-  "Devices_Protocol": "Protocol",
+  "Devices_Protocol": "Primary protocol",
   "Protocol_Hikvision": "Hikvision (ISAPI)",
   "Protocol_Onvif": "ONVIF (other manufacturers)",
   "Devices_ProtocolHint": "Hikvision (ISAPI) uses HTTP and RTSP video. Hikvision SDK uses port 8000 like iVMS-4200 and needs the HCNetSDK library (Settings → General). ONVIF is the standard protocol of other manufacturers' cameras; recording playback is available only for Hikvision devices.",
@@ -296,7 +296,7 @@
   "Devices_ColumnName": "Name",
   "Devices_ColumnAddress": "Address",
   "Devices_ColumnPort": "Port",
-  "Devices_ColumnProtocol": "Protocol",
+  "Devices_ColumnProtocol": "Primary protocol",
   "Devices_ColumnType": "Type",
   "Devices_ColumnModel": "Model",
   "Devices_ColumnSerial": "Serial number",
@@ -474,5 +474,12 @@
   "Error_FatalTitle": "NovaVMS — application error",
   "Error_FatalMessage": "NovaVMS encountered an error and must close. Error details are saved in:\n{0}\n\nIf this folder is unavailable, check:\n{1}",
   "Startup_Title": "Starting NovaVMS",
-  "Startup_Message": "Please wait, loading the configuration and preparing the video…"
+  "Startup_Message": "Please wait, loading the configuration and preparing the video…",
+  "Devices_OptionalProtocol": "Optional protocol",
+  "Devices_EnableOptionalProtocol": "Configure optional protocol",
+  "Devices_OptionalHostRequired": "Enter the device address for the optional protocol.",
+  "General_UseOptionalProtocol": "Use optional protocol",
+  "General_UseOptionalProtocolHint": "Local setting for this computer. Changes take effect after restarting the application. Devices without an optional configuration use the primary protocol.",
+  "Devices_SecondarySdkPort": "Secondary SDK port",
+  "Devices_SecondaryHttpPort": "Secondary HTTP port"
 }

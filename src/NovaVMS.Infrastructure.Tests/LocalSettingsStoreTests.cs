@@ -13,14 +13,16 @@ public sealed class LocalSettingsStoreTests : IDisposable
     public void MissingFileGivesDefaults()
     {
         Assert.False(new LocalSettingsStore(FilePath).Load().StartFullScreen);
+        Assert.False(new LocalSettingsStore(FilePath).Load().UseOptionalProtocol);
     }
 
     [Fact]
     public async Task SavedSettingsRoundTrip()
     {
-        await new LocalSettingsStore(FilePath).SaveAsync(new LocalSettings { StartFullScreen = true });
+        await new LocalSettingsStore(FilePath).SaveAsync(new LocalSettings { StartFullScreen = true, UseOptionalProtocol = true });
 
         Assert.True(new LocalSettingsStore(FilePath).Load().StartFullScreen);
+        Assert.True(new LocalSettingsStore(FilePath).Load().UseOptionalProtocol);
     }
 
     [Fact]
@@ -30,6 +32,7 @@ public sealed class LocalSettingsStoreTests : IDisposable
         File.WriteAllText(FilePath, "{ not json");
 
         Assert.False(new LocalSettingsStore(FilePath).Load().StartFullScreen);
+        Assert.False(new LocalSettingsStore(FilePath).Load().UseOptionalProtocol);
     }
 
     public void Dispose()

@@ -45,6 +45,9 @@ public sealed partial class DeviceRowViewModel : ViewModelBase
 
     public string Protocol => ProtocolOption.Find(Device.Protocol).Label;
 
+    public string OptionalProtocol => Device.OptionalConnection is { } optional
+        ? ProtocolOption.Find(optional.Protocol).Label : "—";
+
     public string Type => Localizer.Text($"DeviceType_{Device.Type}");
 
     public string Model => Device.Model;

@@ -267,7 +267,7 @@
   "Language_System": "Automatyczny (język systemu)",
   "FileType_Settings": "Ustawienia NovaVMS",
   "FileType_Csv": "Lista urządzeń CSV",
-  "Devices_Protocol": "Protokół",
+  "Devices_Protocol": "Protokół podstawowy",
   "Protocol_Hikvision": "Hikvision (ISAPI)",
   "Protocol_Onvif": "ONVIF (inni producenci)",
   "Devices_ProtocolHint": "Hikvision (ISAPI) korzysta z HTTP i obrazu RTSP. Hikvision SDK korzysta z portu 8000, tak jak iVMS-4200, i wymaga biblioteki HCNetSDK (Ustawienia → Ogólne). ONVIF to standardowy protokół kamer innych producentów; odtwarzanie nagrań jest dostępne tylko dla urządzeń Hikvision.",
@@ -296,7 +296,7 @@
   "Devices_ColumnName": "Nazwa",
   "Devices_ColumnAddress": "Adres",
   "Devices_ColumnPort": "Port",
-  "Devices_ColumnProtocol": "Protokół",
+  "Devices_ColumnProtocol": "Protokół podstawowy",
   "Devices_ColumnType": "Typ",
   "Devices_ColumnModel": "Model",
   "Devices_ColumnSerial": "Numer seryjny",
@@ -474,5 +474,12 @@
   "Error_FatalTitle": "NovaVMS — błąd aplikacji",
   "Error_FatalMessage": "Wystąpił błąd i NovaVMS musi zostać zamknięty. Szczegóły błędu zapisano w:\n{0}\n\nJeśli ten folder jest niedostępny, sprawdź:\n{1}",
   "Startup_Title": "Uruchamianie programu",
-  "Startup_Message": "Proszę czekać, trwa wczytywanie konfiguracji i przygotowanie podglądu…"
+  "Startup_Message": "Proszę czekać, trwa wczytywanie konfiguracji i przygotowanie podglądu…",
+  "Devices_OptionalProtocol": "Protokół opcjonalny",
+  "Devices_EnableOptionalProtocol": "Skonfiguruj protokół opcjonalny",
+  "Devices_OptionalHostRequired": "Podaj adres urządzenia dla protokołu opcjonalnego.",
+  "General_UseOptionalProtocol": "Korzystaj z protokołu opcjonalnego",
+  "General_UseOptionalProtocolHint": "Ustawienie lokalne tego komputera. Zmiana obowiązuje po ponownym uruchomieniu aplikacji. Urządzenia bez konfiguracji opcjonalnej korzystają z protokołu podstawowego.",
+  "Devices_SecondarySdkPort": "Drugi port SDK",
+  "Devices_SecondaryHttpPort": "Drugi port HTTP"
 }

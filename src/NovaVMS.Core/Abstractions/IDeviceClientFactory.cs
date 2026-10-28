@@ -9,6 +9,10 @@ public interface IDeviceClientFactory
 {
     IDeviceClient Create(Device device);
 
+    Device GetConfiguredConnection(Device device) => device;
+
+    bool UsesOptionalProtocol(Device device) => false;
+
     /// <summary>Selects a reachable address once for camera use; setup can probe without pinning it.</summary>
     Task<IDeviceClient> CreateAsync(Device device, bool rememberAddress = true, CancellationToken cancellationToken = default)
         => Task.FromResult(Create(device));

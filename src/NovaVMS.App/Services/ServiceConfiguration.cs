@@ -25,7 +25,9 @@ internal static class ServiceConfiguration
         services.AddSingleton<ILocalSettingsStore, LocalSettingsStore>();
         services.AddSingleton<IRemoteSettingsStoreFactory, RemoteSettingsStoreFactory>();
         services.AddSingleton<IDeviceDiscovery, OnvifDiscovery>();
-        services.AddSingleton<IDeviceClientFactory, DeviceClientFactory>();
+        services.AddSingleton<IDeviceClientFactory>(provider => new DeviceClientFactory(
+            provider.GetRequiredService<IDeviceReachability>(),
+            provider.GetRequiredService<LocalSettingsService>().Current.UseOptionalProtocol));
         services.AddSingleton<IDeviceReachability, DeviceReachability>();
         services.AddSingleton<DeviceCsvReader>();
         // Internal transition snapshots must not display filenames or preview thumbnails over video.

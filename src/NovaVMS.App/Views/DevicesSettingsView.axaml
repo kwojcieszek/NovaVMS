@@ -119,6 +119,7 @@
           <DataGridTextColumn Header="{l:Tr Devices_SecondaryRtspPort}" Binding="{Binding SecondaryRtspPort}" Width="Auto" />
           <DataGridTextColumn Header="{l:Tr Devices_ActiveAddress}" Binding="{Binding ActiveAddress}" Width="Auto" />
           <DataGridTextColumn Header="{l:Tr Devices_ColumnProtocol}" Binding="{Binding Protocol}" Width="Auto" />
+          <DataGridTextColumn Header="{l:Tr Devices_OptionalProtocol}" Binding="{Binding OptionalProtocol}" Width="Auto" />
           <DataGridTextColumn Header="{l:Tr Devices_ColumnType}" Binding="{Binding Type}" Width="Auto" />
           <DataGridTextColumn Header="{l:Tr Devices_ColumnModel}" Binding="{Binding Model}" Width="Auto" />
           <DataGridTextColumn Header="{l:Tr Devices_ColumnSerial}" Binding="{Binding SerialNumber}" Width="Auto" />
@@ -139,6 +140,7 @@
         <TextBlock Classes="muted" Text="{l:Tr Devices_Protocol}" />
         <ComboBox ItemsSource="{Binding Protocols}"
                   SelectedItem="{Binding EditProtocol}"
+                  ToolTip.Tip="{l:Tr Devices_ProtocolHint}"
                   HorizontalAlignment="Stretch">
           <ComboBox.ItemTemplate>
             <DataTemplate x:DataType="models:ProtocolOption">
@@ -146,35 +148,50 @@
             </DataTemplate>
           </ComboBox.ItemTemplate>
         </ComboBox>
-        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Devices_ProtocolHint}" />
+        <CheckBox Content="{l:Tr Devices_EnableOptionalProtocol}" IsChecked="{Binding HasOptionalProtocol}" />
+        <StackPanel Spacing="6" IsVisible="{Binding HasOptionalProtocol}">
+          <TextBlock Classes="muted" Text="{l:Tr Devices_OptionalProtocol}" />
+          <ComboBox ItemsSource="{Binding Protocols}"
+                    SelectedItem="{Binding EditOptionalProtocol}"
+                    ToolTip.Tip="{l:Tr Devices_ProtocolHint}"
+                    HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="models:ProtocolOption">
+                <TextBlock Text="{Binding Label}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </StackPanel>
 
         <Grid ColumnDefinitions="*,12,110" RowDefinitions="Auto,Auto">
           <TextBlock Classes="muted" Text="{l:Tr Devices_Host}" Margin="0,0,0,6" />
-          <TextBlock Grid.Column="2" Classes="muted" Text="{l:Tr Devices_SdkPort}"
-                     IsVisible="{Binding IsSdkProtocol}" TextWrapping="Wrap" Margin="0,0,0,6" />
-          <TextBlock Grid.Column="2" Classes="muted" Text="{l:Tr Devices_HttpPort}"
-                     IsVisible="{Binding IsNetworkProtocol}" TextWrapping="Wrap" Margin="0,0,0,6" />
+          <TextBlock Grid.Column="2" Classes="muted" Text="{l:Tr Devices_SdkPort}" Margin="0,0,0,6" />
           <TextBox Grid.Row="1" Watermark="192.168.1.64" Text="{Binding EditHost}" />
-          <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding EditSdkPort}" IsVisible="{Binding IsSdkProtocol}" />
-          <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding EditHttpPort}" IsVisible="{Binding IsNetworkProtocol}" />
+          <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding EditSdkPort}" />
         </Grid>
-
-        <StackPanel Spacing="6" IsVisible="{Binding IsNetworkProtocol}">
+        <StackPanel Spacing="6" Width="110" HorizontalAlignment="Right" IsVisible="{Binding HasNetworkProtocol}">
+          <TextBlock Classes="muted" Text="{l:Tr Devices_HttpPort}" />
+          <TextBox Text="{Binding EditHttpPort}" />
+        </StackPanel>
+        <StackPanel Spacing="6" Width="110" HorizontalAlignment="Right">
           <TextBlock Classes="muted" Text="{l:Tr Devices_RtspPort}" />
           <TextBox Text="{Binding EditRtspPort}" />
         </StackPanel>
 
         <Grid ColumnDefinitions="*,12,110" RowDefinitions="Auto,Auto">
           <TextBlock Classes="muted" Text="{l:Tr Devices_SecondaryHost}" Margin="0,0,0,6" />
-          <TextBlock Grid.Column="2" Classes="muted" Text="{l:Tr Devices_SecondaryPort}" TextWrapping="Wrap" Margin="0,0,0,6" />
-          <TextBox Grid.Row="1" Text="{Binding EditSecondaryHost}" Watermark="{l:Tr Devices_SecondaryHostWatermark}" />
-          <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding EditSecondaryPort}" Minimum="1" Maximum="65535"
-                         ShowButtonSpinner="False"
-                         FormatString="0" ToolTip.Tip="{l:Tr Devices_SecondaryPort}" />
+          <TextBlock Grid.Column="2" Classes="muted" Text="{l:Tr Devices_SecondarySdkPort}" TextWrapping="Wrap" Margin="0,0,0,6" />
+          <TextBox Grid.Row="1" Text="{Binding EditSecondaryHost}" Watermark="{l:Tr Devices_SecondaryHostWatermark}"
+                   ToolTip.Tip="{l:Tr Devices_SecondaryHostHint}" />
+          <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding EditSecondarySdkPort}" Minimum="1" Maximum="65535"
+                         ShowButtonSpinner="False" FormatString="0" />
         </Grid>
-        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Devices_SecondaryHostHint}" />
-
-        <StackPanel Spacing="6" IsVisible="{Binding IsNetworkProtocol}">
+        <StackPanel Spacing="6" Width="110" HorizontalAlignment="Right" IsVisible="{Binding HasNetworkProtocol}">
+          <TextBlock Classes="muted" Text="{l:Tr Devices_SecondaryHttpPort}" TextWrapping="Wrap" />
+          <NumericUpDown Value="{Binding EditSecondaryHttpPort}" Minimum="1" Maximum="65535"
+                         ShowButtonSpinner="False" FormatString="0" />
+        </StackPanel>
+        <StackPanel Spacing="6" Width="110" HorizontalAlignment="Right">
           <TextBlock Classes="muted" Text="{l:Tr Devices_SecondaryRtspPort}" />
           <NumericUpDown Value="{Binding EditSecondaryRtspPort}" Minimum="1" Maximum="65535"
                          ShowButtonSpinner="False" FormatString="0" />
@@ -189,8 +206,20 @@
         <TextBox PasswordChar="•" Text="{Binding EditPassword}" />
 
         <TextBlock Classes="muted" Text="{l:Tr Devices_StreamKey}" />
-        <TextBox PasswordChar="•" Text="{Binding EditStreamEncryptionKey}" />
-        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Devices_StreamKeyHint}" />
+        <TextBox PasswordChar="•" ToolTip.Tip="{l:Tr Devices_StreamKeyHint}" Text="{Binding EditStreamEncryptionKey}" />
+
+        <StackPanel Spacing="6" IsVisible="{Binding HasOptionalProtocol}">
+          <CheckBox Content="{l:Tr Devices_UseHttps}" IsChecked="{Binding EditOptionalUseHttps}" IsVisible="{Binding IsOptionalNetworkProtocol}" />
+
+          <TextBlock Classes="muted" Text="{l:Tr Devices_User}" />
+          <TextBox Text="{Binding EditOptionalUsername}" />
+
+          <TextBlock Classes="muted" Text="{l:Tr Devices_Password}" />
+          <TextBox PasswordChar="•" Text="{Binding EditOptionalPassword}" />
+
+          <TextBlock Classes="muted" Text="{l:Tr Devices_StreamKey}" />
+          <TextBox PasswordChar="•" ToolTip.Tip="{l:Tr Devices_StreamKeyHint}" Text="{Binding EditOptionalStreamEncryptionKey}" />
+        </StackPanel>
 
         <WrapPanel Orientation="Horizontal" Margin="0,10,0,0">
           <Button Classes="accent"
