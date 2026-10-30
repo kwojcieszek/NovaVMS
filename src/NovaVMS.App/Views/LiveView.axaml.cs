@@ -5,6 +5,8 @@ namespace NovaVMS.App.Views;
 
 public partial class LiveView : UserControl
 {
+    private WindowState _lastWindowState = WindowState.Maximized;
+
     public LiveView()
     {
         InitializeComponent();
@@ -17,8 +19,13 @@ public partial class LiveView : UserControl
             return;
         }
 
+        if(window.WindowState != WindowState.FullScreen)
+        {
+            _lastWindowState = window.WindowState;
+        }
+
         window.WindowState = window.WindowState == WindowState.FullScreen
-            ? WindowState.Normal
+            ? _lastWindowState
             : WindowState.FullScreen;
     }
 }
