@@ -24,6 +24,8 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RemoveCameraCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MoveCameraUpCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MoveCameraDownCommand))]
     private CameraDescriptor? _selectedGroupCamera;
 
     [ObservableProperty]
@@ -151,6 +153,32 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     private bool CanRemoveCamera()
     {
         return SelectedGroup is not null && SelectedGroupCamera is not null;
+    }
+
+    private bool CanMoveCameraUp() => SelectedGroupCamera is { } camera && GroupCameras.IndexOf(camera) > 0;
+
+    private bool CanMoveCameraDown() => SelectedGroupCamera is { } camera &&
+        GroupCameras.IndexOf(camera) >= 0 && GroupCameras.IndexOf(camera) < GroupCameras.Count - 1;
+
+    [RelayCommand(CanExecute = nameof(CanMoveCameraUp))]
+    private Task MoveCameraUpAsync() => MoveCameraAsync(-1);
+
+    [RelayCommand(CanExecute = nameof(CanMoveCameraDown))]
+    private Task MoveCameraDownAsync() => MoveCameraAsync(1);
+
+    private async Task MoveCameraAsync(int offset)
+    {
+        if (SelectedGroup is not { } group || SelectedGroupCamera is not { } camera) return;
+        var index = GroupCameras.IndexOf(camera);
+        var target = index + offset;
+        if (index < 0 || target < 0 || target >= GroupCameras.Count) return;
+        var sourceIndex = group.Cameras.IndexOf(camera.Reference);
+        var targetIndex = group.Cameras.IndexOf(GroupCameras[target].Reference);
+        if (sourceIndex < 0 || targetIndex < 0) return;
+        var reference = group.Cameras[sourceIndex];
+        group.Cameras.RemoveAt(sourceIndex);
+        group.Cameras.Insert(targetIndex, reference);
+        await _configuration.SaveAsync();
     }
 
     private bool HasSelectedSourceDevice()
@@ -297,7 +325,9 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
 
     private void RefreshGroupCameras()
     {
+        var selected = SelectedGroupCamera?.Reference;
         GroupCameras.Clear();
+        SelectedGroupCamera = null;
         var group = SelectedGroup;
         if (group is null)
         {
@@ -312,6 +342,9 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
                 GroupCameras.Add(camera);
             }
         }
+        SelectedGroupCamera = GroupCameras.FirstOrDefault(camera => camera.Reference.Equals(selected));
+        MoveCameraUpCommand.NotifyCanExecuteChanged();
+        MoveCameraDownCommand.NotifyCanExecuteChanged();
     }
 }
 

@@ -52,7 +52,18 @@ public sealed class VideoDisplayGeometryTests
         Assert.Equal(expected, channel.MainAspectRatio);
     }
 
-    private sealed class ChannelTransport(string width, string height) : IIsapiTransport
+    [Fact]
+    public async Task ChannelSyncIncludesOfflineInputsWithoutStreamingProfiles()
+    {
+        using var transport = new ChannelTransport("1920", "1080", true);
+        var channels = await new IsapiDeviceService(transport).GetChannelsAsync(CancellationToken.None);
+        Assert.Equal(new[] { 1, 4 }, channels.Select(channel => channel.Number));
+        Assert.Equal("16:9", channels[0].MainAspectRatio);
+        Assert.False(channels[1].Online);
+        Assert.False(channels[1].Enabled);
+    }
+
+    private sealed class ChannelTransport(string width, string height, bool includeOffline = false) : IIsapiTransport
     {
         public Task<XDocument> GetXmlAsync(string path, CancellationToken cancellationToken) => Task.FromResult(
             path == "ISAPI/Streaming/channels" ? XDocument.Parse($"""
@@ -66,6 +77,11 @@ public sealed class VideoDisplayGeometryTests
                     <videoResolutionHeight>576</videoResolutionHeight>
                   </Video></StreamingChannel>
                 </StreamingChannelList>
+                """) : includeOffline ? XDocument.Parse("""
+                <InputProxyChannelStatusList>
+                  <InputProxyChannelStatus><id>1</id><online>true</online></InputProxyChannelStatus>
+                  <InputProxyChannelStatus><id>4</id><online>false</online></InputProxyChannelStatus>
+                </InputProxyChannelStatusList>
                 """) : new XDocument(new XElement("InputProxyChannelStatusList")));
         public Task<XDocument> PostXmlAsync(string path, XElement body, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task PutAsync(string path, XElement? body, CancellationToken cancellationToken) => throw new NotSupportedException();

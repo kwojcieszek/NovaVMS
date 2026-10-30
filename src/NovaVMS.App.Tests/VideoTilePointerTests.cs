@@ -18,6 +18,31 @@ namespace NovaVMS.App.Tests;
 public sealed class VideoTilePointerTests
 {
     [AvaloniaFact]
+    public async Task OverlayGeometryRecoversAfterWindowSystemChangesWithoutSwitchingGroups()
+    {
+        await using var scene = await Scene.CreateAsync();
+        var overlay = Assert.IsType<VideoOverlayWindow>(TopLevel.GetTopLevel(scene.Overlay));
+        var host = scene.View.FindControl<Panel>("VideoHost")!;
+        var expectedPosition = host.PointToScreen(default);
+        var expectedSize = host.Bounds.Size;
+        // Native window resizing/moving can change actual geometry without changing the tile layout.
+        overlay.Position = new PixelPoint(expectedPosition.X + 300, expectedPosition.Y + 200);
+        overlay.Width = 1;
+        overlay.Height = 1;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(expectedPosition, overlay.Position);
+        Assert.Equal(expectedSize.Width, overlay.Width);
+        Assert.Equal(expectedSize.Height, overlay.Height);
+        for (var press = 0; press < 2; press++)
+        {
+            overlay.MouseDown(new Point(80, 80), MouseButton.Left);
+            overlay.MouseUp(new Point(80, 80), MouseButton.Left);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.True(scene.Live.IsMaximized);
+    }
+
+    [AvaloniaFact]
     public async Task ClosingSettingsRestoresRealMouseDoubleClicksAfterNativeTeardown()
     {
         await using var scene = await Scene.CreateAsync();

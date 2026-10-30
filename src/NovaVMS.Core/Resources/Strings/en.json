@@ -224,6 +224,8 @@
   "Groups_SelectDevice": "Select a device",
   "Groups_CamerasInGroup": "Cameras in the group",
   "Groups_RemoveFromGroup": "Remove from group",
+  "Groups_MoveUp": "Move camera up",
+  "Groups_MoveDown": "Move camera down",
   "Groups_AllDevices": "All devices",
   "Groups_FilterByDevice": "Show only cameras of the selected device",
   "Groups_Available": "Available cameras",

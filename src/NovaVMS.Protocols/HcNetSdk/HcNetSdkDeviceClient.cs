@@ -60,7 +60,15 @@ public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClien
     {
         try
         {
-            return await _deviceService.GetChannelsAsync(cancellationToken).ConfigureAwait(false);
+            var channels = (await _deviceService.GetChannelsAsync(cancellationToken).ConfigureAwait(false)).ToList();
+            var session = await HcNetSdkSessionPool.AcquireAsync(_device, cancellationToken).ConfigureAwait(false);
+            // Login reports the recorder's full capacity, including inputs omitted by ISAPI streaming profiles.
+            for (var number = 1; number <= session.ChannelCount; number++)
+            {
+                if (channels.All(channel => channel.Number != number))
+                    channels.Add(new Channel { Number = number, Enabled = false, Online = false });
+            }
+            return channels.OrderBy(channel => channel.Number).ToList();
         }
         catch (DeviceCommunicationException exception) when (IsIsapiUnavailable(exception))
         {
