@@ -17,11 +17,11 @@ public sealed class GroupCameraPlacementTests
     }
 
     [Fact]
-    public void GroupPlacementAndExplicitEmptySlotsArePreservedWhileForeignCamerasAreReplaced()
+    public void GroupOrderOverridesSavedPlacementWhileExplicitEmptySlotsArePreserved()
     {
         var result = GroupCameraPlacement.Fill([Camera(3), null, Camera(99), null, null],
             [Camera(1), Camera(2), Camera(3)], new HashSet<int> { 1 });
-        Assert.Equal(new CameraReference?[] { Camera(3), null, Camera(1), Camera(2), null }, result);
+        Assert.Equal(new CameraReference?[] { Camera(1), null, Camera(2), Camera(3), null }, result);
     }
 
     [Fact]
@@ -44,7 +44,15 @@ public sealed class GroupCameraPlacementTests
     {
         var result = GroupCameraPlacement.Fill([Camera(2), Camera(2), null],
             [Camera(1), Camera(2), Camera(3)], new HashSet<int>());
-        Assert.Equal(new CameraReference?[] { Camera(2), Camera(1), Camera(3) }, result);
+        Assert.Equal(new CameraReference?[] { Camera(1), Camera(2), Camera(3) }, result);
+    }
+
+    [Fact]
+    public void ReorderedGroupReplacesExistingPositionsAndUsesFirstMembersWhenGridIsSmaller()
+    {
+        var result = GroupCameraPlacement.Fill([Camera(1), Camera(2), Camera(3)],
+            [Camera(4), Camera(3), Camera(2), Camera(1)], new HashSet<int>());
+        Assert.Equal(new CameraReference?[] { Camera(4), Camera(3), Camera(2) }, result);
     }
 
     [Fact]

@@ -117,16 +117,19 @@ internal sealed class IsapiDeviceService
 
         foreach (var status in document.DescendantsByLocalName("InputProxyChannelStatus"))
         {
-            if (!int.TryParse(status.ChildValue("id"), out var channelNumber))
+            if (!int.TryParse(status.ChildValue("id"), out var channelNumber) || channelNumber <= 0)
             {
                 continue;
             }
 
             var channel = channels.FirstOrDefault(candidate => candidate.Number == channelNumber);
-            if (channel is not null)
+            if (channel is null)
             {
-                channel.Online = !string.Equals(status.ChildValue("online"), "false", StringComparison.OrdinalIgnoreCase);
+                // Unused recorder inputs may have no streaming profile but still appear in its input inventory.
+                channel = new Channel { Number = channelNumber, Enabled = false };
+                channels.Add(channel);
             }
+            channel.Online = !string.Equals(status.ChildValue("online"), "false", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

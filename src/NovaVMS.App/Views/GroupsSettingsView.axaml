@@ -67,6 +67,12 @@
               Command="{Binding RemoveCameraCommand}">
         <mi:MaterialIconText Kind="ArrowRightBold" Text="{l:Tr Groups_RemoveFromGroup}" />
       </Button>
+      <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
+        <Button Command="{Binding MoveCameraUpCommand}" ToolTip.Tip="{l:Tr Groups_MoveUp}"
+                Content="{mi:MaterialIconExt Kind=ArrowUp}" />
+        <Button Command="{Binding MoveCameraDownCommand}" ToolTip.Tip="{l:Tr Groups_MoveDown}"
+                Content="{mi:MaterialIconExt Kind=ArrowDown}" />
+      </StackPanel>
       <ListBox ItemsSource="{Binding GroupCameras}"
                SelectedItem="{Binding SelectedGroupCamera}"
                Tapped="OnCameraTapped">

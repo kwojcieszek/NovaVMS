@@ -28,10 +28,7 @@ public partial class VideoTileView : UserControl
     private VideoTileViewModel? _tile;
     private Window? _overlayWindow;
     private Window? _ownerWindow;
-    // Last geometry given to the overlay window. The owner's layout pass runs often (status text, timers),
-    // and setting a window position always moves the native window, even to the same place.
-    private PixelPoint? _overlayPosition;
-    private Size _overlaySize;
+    private bool _overlayUpdateQueued;
 
     public VideoTileView()
     {
@@ -108,8 +105,6 @@ public partial class VideoTileView : UserControl
         if (_ownerWindow is not { } owner || !this.IsAttachedToVisualTree()
             || owner.GetValue(ModalDialog.DepthProperty) > 0) return;
         if (_overlayWindow is not null) { UpdateOverlayWindow(); return; }
-        _overlayPosition = null;
-        _overlaySize = default;
         _overlayWindow = new VideoOverlayWindow
         {
             SystemDecorations = SystemDecorations.None,
@@ -123,7 +118,25 @@ public partial class VideoTileView : UserControl
             Focusable = false,
             Content = VideoOverlay
         };
+        _overlayWindow.PositionChanged += OnOverlayPositionChanged;
+        _overlayWindow.SizeChanged += OnOverlaySizeChanged;
         UpdateOverlayWindow();
+    }
+
+    private void OnOverlayPositionChanged(object? sender, PixelPointEventArgs e) => QueueOverlayUpdate();
+    private void OnOverlaySizeChanged(object? sender, SizeChangedEventArgs e) => QueueOverlayUpdate();
+
+    private void QueueOverlayUpdate()
+    {
+        if (_overlayUpdateQueued) return;
+        _overlayUpdateQueued = true;
+        // Native moves/resizes can arrive outside the owner's layout pass. Finish the current
+        // notification before correcting geometry, including changes made by our own update.
+        Dispatcher.UIThread.Post(() =>
+        {
+            _overlayUpdateQueued = false;
+            UpdateOverlayWindow();
+        }, DispatcherPriority.Loaded);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -146,11 +159,11 @@ public partial class VideoTileView : UserControl
         _overlayWindow = null;
         if (overlay is not null)
         {
+            overlay.PositionChanged -= OnOverlayPositionChanged;
+            overlay.SizeChanged -= OnOverlaySizeChanged;
             overlay.Content = null;
             overlay.Close();
         }
-        _overlayPosition = null;
-        _overlaySize = default;
     }
 
     private void OnOwnerLayoutUpdated(object? sender, EventArgs e)
@@ -195,18 +208,16 @@ public partial class VideoTileView : UserControl
         // SUB/MAIN handovers instead of letting each VideoView open a SizeToContent window.
         var size = VideoHost.Bounds.Size;
         var position = VideoHost.PointToScreen(default);
-        if (size != _overlaySize)
-        {
-            overlay.Width = size.Width;
-            overlay.Height = size.Height;
-            _overlaySize = size;
-        }
+        // Compare the actual window geometry: Windows can move/resize an owned window
+        // independently. A cache of our last request can leave input over the wrong camera.
+        // Avoid redundant native moves, which can disrupt a click already in progress.
+        if (overlay.Width != size.Width) overlay.Width = size.Width;
+        if (overlay.Height != size.Height) overlay.Height = size.Height;
 
         overlay.Opacity = owner.Opacity;
-        if (position != _overlayPosition || !overlay.IsVisible)
+        if (position != overlay.Position)
         {
             overlay.Position = position;
-            _overlayPosition = position;
         }
 
         if (!overlay.IsVisible) overlay.Show(owner);
