@@ -15,7 +15,7 @@
       <StackPanel Orientation="Horizontal" Spacing="10">
         <mi:MaterialIcon Kind="ViewGridOutline" VerticalAlignment="Center" />
         <TextBlock Text="{l:Tr Playback_CameraCount}" VerticalAlignment="Center" />
-        <ComboBox ItemsSource="{Binding CameraCounts}" SelectedItem="{Binding SelectedCameraCount}" MinWidth="65" />
+        <ComboBox ItemsSource="{Binding CameraCounts}" SelectedItem="{Binding SelectedCameraCount}" MinWidth="78" />
         <Button Command="{Binding ResetWindowsCommand}">
           <mi:MaterialIconText Kind="Restore" Text="{l:Tr Playback_ResetWindows}" />
         </Button>
