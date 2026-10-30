@@ -43,8 +43,6 @@
           </Button>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="2">
-          <TextBlock Text="{Binding ActiveSavedViewName}" MaxWidth="110" TextTrimming="CharacterEllipsis"
-                     VerticalAlignment="Center" ToolTip.Tip="{l:Tr Views_AutoSave}" />
           <Button Classes="toolbar"
                   Command="{Binding ToggleAudioCommand}"
                   ToolTip.Tip="{l:Tr Live_AudioTip}">
@@ -63,14 +61,6 @@
               <mi:MaterialIcon Kind="EyeOffOutline" IsVisible="{Binding !ShowTileTitles}" />
               <TextBlock Text="{l:Tr Live_CameraNames}" VerticalAlignment="Center" />
             </StackPanel>
-          </Button>
-          <Button Classes="toolbar"
-                  Command="{Binding CloseSelectedCommand}">
-            <mi:MaterialIconText Kind="Close" Text="{l:Tr Live_CloseTile}" />
-          </Button>
-          <Button Classes="toolbar"
-                  Command="{Binding CloseAllCommand}">
-            <mi:MaterialIconText Kind="CloseBoxMultipleOutline" Text="{l:Tr Live_CloseAll}" />
           </Button>
         </StackPanel>
       </DockPanel>
