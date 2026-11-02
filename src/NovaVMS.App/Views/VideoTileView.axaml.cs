@@ -35,8 +35,7 @@ public partial class VideoTileView : UserControl
         InitializeComponent();
         VideoHost.Children.Remove(VideoOverlay);
 
-        // Both surfaces must receive presses before child controls handle them.
-        VideoOverlay.AddHandler(PointerPressedEvent, OnTilePointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
+        // The header belongs to the owner window; video input is captured at the overlay window root.
         HeaderButton.AddHandler(PointerPressedEvent, OnTilePointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
 
         foreach (var dropTarget in new Control[] { VideoOverlay, HeaderButton })
@@ -118,6 +117,10 @@ public partial class VideoTileView : UserControl
             Focusable = false,
             Content = VideoOverlay
         };
+        // Capture input at the window root, including presses whose hit-test target is the
+        // window itself rather than VideoOverlay (for example during a layout update).
+        _overlayWindow.AddHandler(PointerPressedEvent, OnTilePointerPressed,
+            RoutingStrategies.Tunnel, handledEventsToo: true);
         _overlayWindow.PositionChanged += OnOverlayPositionChanged;
         _overlayWindow.SizeChanged += OnOverlaySizeChanged;
         UpdateOverlayWindow();
@@ -159,6 +162,7 @@ public partial class VideoTileView : UserControl
         _overlayWindow = null;
         if (overlay is not null)
         {
+            overlay.RemoveHandler(PointerPressedEvent, OnTilePointerPressed);
             overlay.PositionChanged -= OnOverlayPositionChanged;
             overlay.SizeChanged -= OnOverlaySizeChanged;
             overlay.Content = null;

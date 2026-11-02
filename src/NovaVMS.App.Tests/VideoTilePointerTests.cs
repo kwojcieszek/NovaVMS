@@ -126,6 +126,21 @@ public sealed class VideoTilePointerTests
     }
 
     [AvaloniaFact]
+    public async Task DoubleClickSurvivesHitTestTargetChangingBetweenPanelAndWindow()
+    {
+        await using var scene = await Scene.CreateAsync();
+        var window = Assert.IsType<VideoOverlayWindow>(TopLevel.GetTopLevel(scene.Overlay));
+        var screen = scene.Overlay.PointToScreen(new Point(80, 80));
+        scene.Press(scene.Overlay, scene.Overlay.PointToClient(screen), 1000, 1);
+        scene.Press(window, window.PointToClient(screen), 1100, 1);
+        Assert.True(scene.Live.IsMaximized);
+        scene.Press(window, window.PointToClient(screen), 1200, 1);
+        Assert.True(scene.Live.IsMaximized);
+        scene.Press(scene.Overlay, scene.Overlay.PointToClient(screen), 1300, 1);
+        Assert.False(scene.Live.IsMaximized);
+    }
+
+    [AvaloniaFact]
     public async Task ChildControlCannotSwallowTheOverlayDoubleClick()
     {
         await using var scene = await Scene.CreateAsync();
