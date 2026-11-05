@@ -33,7 +33,7 @@
             <Button Command="{Binding DiscoverCommand}">
               <mi:MaterialIconText Kind="Magnify" Text="{l:Tr Devices_SearchDevices}" />
             </Button>
-            <DataGrid ItemsSource="{Binding DiscoveredDevices}"
+            <DataGrid ScrollViewer.AllowAutoHide="False" ItemsSource="{Binding DiscoveredDevices}"
                       SelectedItem="{Binding SelectedDiscoveredDevice}"
                       SelectionMode="Single"
                       IsReadOnly="True"
@@ -79,7 +79,7 @@
         </Expander>
       </StackPanel>
 
-      <DataGrid ItemsSource="{Binding Devices}"
+      <DataGrid ScrollViewer.AllowAutoHide="False" ItemsSource="{Binding Devices}"
                 SelectedItem="{Binding SelectedDevice}"
                 SelectionMode="Single"
                 IsReadOnly="True"
@@ -130,7 +130,7 @@
     </DockPanel>
 
     <!-- Device form -->
-    <ScrollViewer Grid.Column="2">
+    <ScrollViewer Grid.Column="2" AllowAutoHide="False">
       <StackPanel Spacing="6">
         <TextBlock Classes="sectionTitle" FontSize="18" TextWrapping="Wrap" Text="{Binding FormTitle}" />
 
@@ -199,6 +199,10 @@
 
         <CheckBox Content="{l:Tr Devices_UseHttps}" IsChecked="{Binding EditUseHttps}" IsVisible="{Binding IsNetworkProtocol}" />
 
+        <StackPanel Spacing="6" IsVisible="{Binding HasOptionalProtocol}">
+          <CheckBox Content="{l:Tr Devices_UseHttps}" IsChecked="{Binding EditOptionalUseHttps}" IsVisible="{Binding IsOptionalNetworkProtocol}" />
+        </StackPanel>
+
         <TextBlock Classes="muted" Text="{l:Tr Devices_User}" />
         <TextBox Text="{Binding EditUsername}" />
 
@@ -207,19 +211,6 @@
 
         <TextBlock Classes="muted" Text="{l:Tr Devices_StreamKey}" />
         <TextBox PasswordChar="•" ToolTip.Tip="{l:Tr Devices_StreamKeyHint}" Text="{Binding EditStreamEncryptionKey}" />
-
-        <StackPanel Spacing="6" IsVisible="{Binding HasOptionalProtocol}">
-          <CheckBox Content="{l:Tr Devices_UseHttps}" IsChecked="{Binding EditOptionalUseHttps}" IsVisible="{Binding IsOptionalNetworkProtocol}" />
-
-          <TextBlock Classes="muted" Text="{l:Tr Devices_User}" />
-          <TextBox Text="{Binding EditOptionalUsername}" />
-
-          <TextBlock Classes="muted" Text="{l:Tr Devices_Password}" />
-          <TextBox PasswordChar="•" Text="{Binding EditOptionalPassword}" />
-
-          <TextBlock Classes="muted" Text="{l:Tr Devices_StreamKey}" />
-          <TextBox PasswordChar="•" ToolTip.Tip="{l:Tr Devices_StreamKeyHint}" Text="{Binding EditOptionalStreamEncryptionKey}" />
-        </StackPanel>
 
         <WrapPanel Orientation="Horizontal" Margin="0,10,0,0">
           <Button Classes="accent"

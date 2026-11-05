@@ -11,19 +11,19 @@ public sealed class OptionalProtocolTests
 {
     private static Device CreateDevice() => new()
     {
-        Host = "primary", Protocol = DeviceProtocol.Isapi, Password = "primary-password",
+        Host = "primary", Protocol = DeviceProtocol.Isapi, Username = "shared-user", StreamEncryptionKey = "shared-key", Password = "primary-password",
         Channels = [new Channel { Number = 1, ProfileToken = "primary-profile" }],
         OptionalConnection = new()
         {
             Protocol = DeviceProtocol.HikvisionSdk, Host = "optional", SecondaryHost = "optional-secondary",
             HttpPort = 81, RtspPort = 555, SdkPort = 8001, SecondaryPort = 18001, SecondaryRtspPort = 1555,
-            UseHttps = true, Username = "optional-user", Password = "optional-password", StreamEncryptionKey = "optional-key",
+            UseHttps = true,
             Channels = [new Channel { Number = 1, ProfileToken = "optional-profile" }]
         }
     };
 
     [Fact]
-    public void LocalChoiceUsesEntireIndependentConnectionWithoutChangingPrimary()
+    public void LocalChoiceUsesOptionalEndpointWithSharedDeviceCredentials()
     {
         var device = CreateDevice();
         var factory = new DeviceClientFactory(new DeviceReachability(), useOptionalProtocol: true);
@@ -39,9 +39,9 @@ public sealed class OptionalProtocolTests
         Assert.Equal(18001, selected.SecondaryPort);
         Assert.Equal(1555, selected.SecondaryRtspPort);
         Assert.True(selected.UseHttps);
-        Assert.Equal("optional-user", selected.Username);
-        Assert.Equal("optional-password", selected.Password);
-        Assert.Equal("optional-key", selected.StreamEncryptionKey);
+        Assert.Equal("shared-user", selected.Username);
+        Assert.Equal("primary-password", selected.Password);
+        Assert.Equal("shared-key", selected.StreamEncryptionKey);
         Assert.Equal("optional-profile", Assert.Single(selected.Channels).ProfileToken);
         Assert.Equal("primary", device.Host);
         Assert.Equal("primary-password", device.Password);
@@ -59,18 +59,18 @@ public sealed class OptionalProtocolTests
         var device = CreateDevice();
         var configuration = new AppConfiguration { Devices = [device] };
         var copy = configuration.CreateSnapshot();
-        copy.Devices[0].OptionalConnection!.Password = "changed";
+        copy.Devices[0].Password = "changed";
         copy.Devices[0].OptionalConnection!.Channels[0].ProfileToken = "changed";
-        Assert.Equal("optional-password", device.OptionalConnection!.Password);
-        Assert.Equal("optional-profile", device.OptionalConnection.Channels[0].ProfileToken);
+        Assert.Equal("primary-password", device.Password);
+        Assert.Equal("optional-profile", device.OptionalConnection!.Channels[0].ProfileToken);
         using var stream = new MemoryStream();
         var serializer = new JsonConfigurationSerializer();
         await serializer.SerializeAsync(stream, configuration);
         stream.Position = 0;
         var restored = Assert.Single((await serializer.DeserializeAsync(stream)).Devices);
         Assert.Equal("primary-password", restored.Password);
-        Assert.Equal("optional-password", restored.OptionalConnection!.Password);
-        Assert.Equal(8001, restored.OptionalConnection.SdkPort);
+        Assert.Equal("shared-key", restored.ForProtocol(true).StreamEncryptionKey);
+        Assert.Equal(8001, restored.OptionalConnection!.SdkPort);
         Assert.Equal("optional-profile", restored.OptionalConnection.Channels[0].ProfileToken);
         using var legacy = new MemoryStream(Encoding.UTF8.GetBytes("{\"Devices\":[{\"Host\":\"primary\"}]}"));
         Assert.Null(Assert.Single((await serializer.DeserializeAsync(legacy)).Devices).OptionalConnection);
@@ -89,8 +89,8 @@ public sealed class OptionalProtocolTests
         stream.Position = 0;
         var exported = Assert.Single((await new JsonConfigurationSerializer().DeserializeAsync(stream)).Devices);
         Assert.Equal(includePasswords ? "primary-password" : "", exported.Password);
-        Assert.Equal(includePasswords ? "optional-password" : "", exported.OptionalConnection!.Password);
-        Assert.Equal(includePasswords ? "optional-key" : "", exported.OptionalConnection.StreamEncryptionKey);
-        Assert.Equal("optional-password", device.OptionalConnection!.Password);
+        Assert.Equal(includePasswords ? "primary-password" : "", exported.ForProtocol(true).Password);
+        Assert.Equal(includePasswords ? "shared-key" : "", exported.ForProtocol(true).StreamEncryptionKey);
+        Assert.Equal("primary-password", device.Password);
     }
 }

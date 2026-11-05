@@ -35,6 +35,14 @@ public sealed class ExceptionLogWriter(Func<string> logDirectory, Func<string>? 
         finally { _isWriting = false; }
     }
 
+    public void ClearFile(string path)
+    {
+        lock (_fileLock)
+        {
+            using var file = new FileStream(path, FileMode.Truncate, FileAccess.Write, FileShare.Read);
+        }
+    }
+
     private static bool TryWrite(Func<string> directoryProvider, string fileName, string entry)
     {
         try

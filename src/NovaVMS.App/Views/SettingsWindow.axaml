@@ -46,6 +46,35 @@
         </TabItem.Header>
         <views:SyncSettingsView DataContext="{Binding Sync}" />
       </TabItem>
+      <TabItem IsVisible="{Binding Session.CanEditGeneralSettings}">
+        <TabItem.Header>
+          <mi:MaterialIconText Kind="FileDocumentOutline" FontSize="16" Text="{l:Tr Settings_Log}" />
+        </TabItem.Header>
+        <Grid x:DataType="vm:ApplicationLogViewModel" DataContext="{Binding Log, DataType=vm:SettingsWindowViewModel}"
+              Loaded="OnLogLoaded" RowDefinitions="Auto,Auto,*,Auto" Margin="12">
+          <DockPanel Margin="0,0,0,8">
+            <Button DockPanel.Dock="Right" Command="{Binding ClearCommand}" Content="{l:Tr Log_Clear}" Margin="8,0,0,0" />
+            <Button DockPanel.Dock="Right" Command="{Binding RefreshCommand}" Content="{l:Tr Sync_Refresh}" />
+            <TextBlock Text="{Binding FilePath}" VerticalAlignment="Center" TextWrapping="Wrap" />
+          </DockPanel>
+          <TextBlock Grid.Row="1" Text="{Binding Status}" IsVisible="{Binding !!Status}" Margin="0,0,0,8" />
+          <DataGrid Grid.Row="2" ItemsSource="{Binding Entries}" SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+                    AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" HeadersVisibility="Column"
+                    CanUserResizeColumns="True" ScrollViewer.AllowAutoHide="False">
+            <DataGrid.Columns>
+              <DataGridTextColumn x:DataType="vm:ApplicationLogEntry" Header="{l:Tr Log_Timestamp}" Binding="{Binding Timestamp}" Width="Auto" />
+              <DataGridTextColumn x:DataType="vm:ApplicationLogEntry" Header="{l:Tr Log_ProcessId}" Binding="{Binding ProcessId}" Width="Auto" />
+              <DataGridTextColumn x:DataType="vm:ApplicationLogEntry" Header="{l:Tr Log_ThreadId}" Binding="{Binding ThreadId}" Width="Auto" />
+              <DataGridTextColumn x:DataType="vm:ApplicationLogEntry" Header="{l:Tr Log_Source}" Binding="{Binding Source}" Width="2*" />
+              <DataGridTextColumn x:DataType="vm:ApplicationLogEntry" Header="{l:Tr Log_Summary}" Binding="{Binding Summary}" Width="3*" />
+            </DataGrid.Columns>
+          </DataGrid>
+          <TextBox Grid.Row="3" Text="{Binding SelectedEntry.FullText, Mode=OneWay}" IsVisible="{Binding !!SelectedEntry}"
+                   Height="160" Margin="0,8,0,0" IsReadOnly="True" FontFamily="Consolas,monospace"
+                   AcceptsReturn="True" VerticalContentAlignment="Top" TextWrapping="NoWrap"
+                   ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" />
+        </Grid>
+      </TabItem>
     </TabControl>
   </DockPanel>
 </Window>

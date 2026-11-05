@@ -20,6 +20,8 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteGroupCommand))]
     [NotifyCanExecuteChangedFor(nameof(AddCameraCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MoveGroupUpCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MoveGroupDownCommand))]
     private CameraGroup? _selectedGroup;
 
     [ObservableProperty]
@@ -138,6 +140,32 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
         var group = _configuration.CreateGroupFromDevice(device);
         await _configuration.SaveAsync();
         SelectedGroup = Groups.FirstOrDefault(candidate => candidate.Id == group.Id);
+    }
+
+    private bool CanMoveGroup(int offset)
+    {
+        if (SelectedGroup is not { } group) return false;
+        var groups = _configuration.Current.Groups;
+        var index = groups.IndexOf(group);
+        return index >= 0 && index + offset >= 0 && index + offset < groups.Count;
+    }
+
+    private bool CanMoveGroupUp() => CanMoveGroup(-1);
+    private bool CanMoveGroupDown() => CanMoveGroup(1);
+
+    [RelayCommand(CanExecute = nameof(CanMoveGroupUp))]
+    private Task MoveGroupUpAsync() => MoveGroupAsync(-1);
+
+    [RelayCommand(CanExecute = nameof(CanMoveGroupDown))]
+    private Task MoveGroupDownAsync() => MoveGroupAsync(1);
+
+    private async Task MoveGroupAsync(int offset)
+    {
+        if (SelectedGroup is not { } group || !CanMoveGroup(offset)) return;
+        var groups = _configuration.Current.Groups;
+        var index = groups.IndexOf(group);
+        (groups[index], groups[index + offset]) = (groups[index + offset], group);
+        await _configuration.SaveAsync();
     }
 
     private bool HasSelectedGroup()
@@ -272,6 +300,8 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
             _isRefreshing = false;
         }
 
+        MoveGroupUpCommand.NotifyCanExecuteChanged();
+        MoveGroupDownCommand.NotifyCanExecuteChanged();
         if (SelectedGroup is null)
         {
             EditGroupName = string.Empty;
@@ -283,7 +313,7 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     private void RebuildLists(Guid? selectedGroupId, Guid? selectedDeviceId, Guid? filterDeviceId)
     {
         Groups.Clear();
-        foreach (var group in _configuration.Current.Groups.OrderBy(group => group.IsCustom ? 0 : 1))
+        foreach (var group in _configuration.Current.Groups)
         {
             Groups.Add(group);
         }

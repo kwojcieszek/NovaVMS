@@ -253,11 +253,6 @@ public sealed class ConfigurationService
             {
                 device.Password = string.Empty;
                 device.StreamEncryptionKey = string.Empty;
-                if (device.OptionalConnection is { } optional)
-                {
-                    optional.Password = string.Empty;
-                    optional.StreamEncryptionKey = string.Empty;
-                }
             }
 
             foreach (var user in copy.Users)
@@ -301,11 +296,6 @@ public sealed class ConfigurationService
             if (string.IsNullOrEmpty(device.StreamEncryptionKey))
                 device.StreamEncryptionKey = Current.Devices[index].StreamEncryptionKey;
 
-            if (device.OptionalConnection is { } optional && Current.Devices[index].OptionalConnection is { } existingOptional)
-            {
-                if (string.IsNullOrEmpty(optional.Password)) optional.Password = existingOptional.Password;
-                if (string.IsNullOrEmpty(optional.StreamEncryptionKey)) optional.StreamEncryptionKey = existingOptional.StreamEncryptionKey;
-            }
             Current.Devices[index] = device;
             devicesUpdated++;
         }
@@ -410,9 +400,6 @@ public sealed class ConfigurationService
             {
                 optional.Host ??= string.Empty;
                 optional.SecondaryHost ??= string.Empty;
-                optional.Username ??= string.Empty;
-                optional.Password ??= string.Empty;
-                optional.StreamEncryptionKey ??= string.Empty;
                 optional.Channels ??= new();
             }
             device.Channels ??= new List<Channel>();

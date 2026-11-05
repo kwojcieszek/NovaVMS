@@ -12,9 +12,6 @@ public sealed class DeviceConnectionSettings
     public int RtspPort { get; set; } = 554;
     public int SdkPort { get; set; } = 8000;
     public bool UseHttps { get; set; }
-    public string Username { get; set; } = "admin";
-    public string Password { get; set; } = string.Empty;
-    public string StreamEncryptionKey { get; set; } = string.Empty;
     public List<Channel> Channels { get; set; } = new();
 
     public DeviceConnectionSettings Copy()

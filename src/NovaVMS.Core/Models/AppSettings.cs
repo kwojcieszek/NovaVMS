@@ -7,6 +7,13 @@ public sealed class AppSettings
 {
     public bool AutoCheckForUpdates { get; set; }
     public bool AutoDownloadUpdates { get; set; }
+    public bool AutoInstallUpdates { get; set; }
+    private int _updateCheckIntervalMinutes = 360;
+    public int UpdateCheckIntervalMinutes
+    {
+        get => _updateCheckIntervalMinutes;
+        set => _updateCheckIntervalMinutes = Math.Clamp(value, 1, 10080);
+    }
     public string UpdateServerUrl { get; set; } = string.Empty;
 
     internal AppSettings Copy() => (AppSettings)MemberwiseClone();

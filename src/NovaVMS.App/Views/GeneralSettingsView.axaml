@@ -144,8 +144,11 @@
       <TextBlock Classes="sectionTitle" FontSize="18" Margin="0,24,0,6" Text="{l:Tr Updates_Title}" />
       <TextBlock Classes="muted" Text="{Binding Updates.CurrentVersion}" />
       <CheckBox Content="{l:Tr Updates_Automatic}" IsChecked="{Binding AutoCheckForUpdates}" IsEnabled="{Binding !Updates.IsBusy}" />
+      <TextBlock Classes="muted" Text="{l:Tr Updates_CheckInterval}" />
+      <NumericUpDown Value="{Binding UpdateCheckIntervalMinutes}" Minimum="1" Maximum="10080" Increment="1" FormatString="0" />
       <CheckBox Content="{l:Tr Updates_AutoDownload}" IsChecked="{Binding AutoDownloadUpdates}" IsEnabled="{Binding !Updates.IsBusy}" />
-      <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Updates_AutoDownloadHint}" />
+      <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Updates_AutoDownloadHint}" IsVisible="{Binding !AutoInstallUpdates}" />
+      <CheckBox Content="{l:Tr Updates_AutoInstall}" IsChecked="{Binding AutoInstallUpdates}" IsEnabled="{Binding !Updates.IsBusy}" />
       <TextBlock Classes="muted" Text="{l:Tr Updates_Server}" />
       <TextBox Text="{Binding UpdateServerUrl}" Watermark="https://example.com/novavms/" IsEnabled="{Binding !Updates.IsBusy}" />
       <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{l:Tr Updates_ServerHint}" />

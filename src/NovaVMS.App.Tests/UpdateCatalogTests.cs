@@ -73,6 +73,8 @@ public sealed class UpdateCatalogTests
         var config = new AppConfiguration();
         config.Settings.AutoCheckForUpdates = true;
         config.Settings.AutoDownloadUpdates = true;
+        config.Settings.AutoInstallUpdates = true;
+        config.Settings.UpdateCheckIntervalMinutes = 45;
         config.Settings.UpdateServerUrl = "https://example.invalid/releases/";
         var snapshot = config.CreateSnapshot();
         config.Settings.UpdateServerUrl = "changed";
@@ -83,6 +85,8 @@ public sealed class UpdateCatalogTests
         var restored = await serializer.DeserializeAsync(stream);
         Assert.True(restored.Settings.AutoCheckForUpdates);
         Assert.True(restored.Settings.AutoDownloadUpdates);
+        Assert.True(restored.Settings.AutoInstallUpdates);
+        Assert.Equal(45, restored.Settings.UpdateCheckIntervalMinutes);
         Assert.Equal("https://example.invalid/releases/", restored.Settings.UpdateServerUrl);
     }
 

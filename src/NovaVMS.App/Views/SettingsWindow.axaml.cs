@@ -10,6 +10,12 @@ public partial class SettingsWindow : Window
     private bool _canClose;
     public SettingsWindow() => InitializeComponent();
 
+    private void OnLogLoaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is SettingsWindowViewModel vm && vm.Session.CanEditGeneralSettings && vm.Log.RefreshCommand.CanExecute(null))
+            vm.Log.RefreshCommand.Execute(null);
+    }
+
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);

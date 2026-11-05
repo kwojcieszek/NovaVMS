@@ -1,4 +1,5 @@
 using NovaVMS.Core.Exceptions;
+using NovaVMS.Core.Abstractions;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -16,6 +17,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 {
     private readonly ConfigurationService _configuration;
     private readonly DeviceSyncService _sync;
+    private readonly IDeviceReachability _reachability;
+    private Task _availabilityMonitor = Task.CompletedTask;
     private readonly SettingsSyncService _settingsSync;
     private readonly Func<SettingsWindowViewModel> _settingsFactory;
     private readonly IDialogService _dialogs;
@@ -31,6 +34,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(
         ConfigurationService configuration,
         DeviceSyncService sync,
+        IDeviceReachability reachability,
         SettingsSyncService settingsSync,
         Func<SettingsWindowViewModel> settingsFactory,
         ResourceTreeViewModel tree,
@@ -44,6 +48,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         _configuration = configuration;
         _sync = sync;
+        _reachability = reachability;
         _settingsSync = settingsSync;
         _settingsFactory = settingsFactory;
         _dialogs = dialogs;
@@ -132,7 +137,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public async Task CompleteShutdownAsync()
     {
         PrepareShutdown();
-        var synchronization = _sync.ShutdownAsync();
+        var synchronization = Task.WhenAll(_sync.ShutdownAsync(), _availabilityMonitor);
         Ptz.Dispose();
         Live.Dispose();
         Playback.Dispose();
@@ -175,6 +180,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             FinishStartup();
         }
 
+        _availabilityMonitor = _sync.MonitorAvailabilityAsync(_reachability, _lifetime.Token);
         var deviceCount = _configuration.Current.Devices.Count;
         if (deviceCount == 0)
         {

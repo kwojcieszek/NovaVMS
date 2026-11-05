@@ -65,6 +65,23 @@ public sealed class SavedCameraViewTests
     }
 
     [Fact]
+    public async Task MovingSavedViewUpdatesTreeAndStoredOrder()
+    {
+        var (configuration, tree) = await CreateAsync();
+        configuration.Current.Views.Add(new SavedCameraView { Name = "Parking" });
+        await configuration.SaveAsync();
+        var views = tree.Groups.Single(group => group.IsViewsFolder).Views;
+        var entrance = views[0];
+        Assert.False(tree.MoveViewUpCommand.CanExecute(entrance));
+        await tree.MoveViewDownCommand.ExecuteAsync(entrance);
+        Assert.Same(entrance, views[1]);
+        Assert.Equal(entrance.Id, configuration.Current.CreateSnapshot().Views[1].Id);
+        Assert.False(tree.MoveViewDownCommand.CanExecute(entrance));
+        await tree.MoveViewUpCommand.ExecuteAsync(entrance);
+        Assert.Same(entrance, views[0]);
+    }
+
+    [Fact]
     public async Task SearchingCanFindSavedViewsByCameraName()
     {
         var (_, tree) = await CreateAsync();

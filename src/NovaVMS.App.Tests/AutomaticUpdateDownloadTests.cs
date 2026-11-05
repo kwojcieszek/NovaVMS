@@ -44,6 +44,23 @@ public sealed class AutomaticUpdateDownloadTests
     }
 
     [AvaloniaFact]
+    public async Task AutomaticInstallDownloadsAndAttemptsInstallationWithoutConfirmation()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var configuration = await ConfigurationAsync(autoDownload: false);
+        configuration.Current.Settings.AutoInstallUpdates = true;
+        var handler = new Server(Package());
+        var dialogs = new Dialogs();
+        using var updates = new ApplicationUpdateService(configuration, dialogs, new HttpClient(handler), DirectoryPath());
+        await updates.CheckCommand.ExecuteAsync(null);
+        Assert.True(updates.IsDownloaded);
+        Assert.Equal(1, handler.Downloads);
+        Assert.Equal(0, dialogs.Confirmations);
+        // The test host cannot be replaced by the NovaVMS installer.
+        Assert.Contains(NovaVMS.App.Localization.Localizer.Text("Updates_RunExecutable"), updates.StatusText);
+    }
+
+    [AvaloniaFact]
     public async Task DisabledOptionChecksManifestWithoutDownloading()
     {
         if (!OperatingSystem.IsWindows()) return;

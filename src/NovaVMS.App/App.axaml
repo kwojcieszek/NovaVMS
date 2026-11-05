@@ -153,6 +153,9 @@
     <Style Selector="mi|MaterialIcon.status.online">
       <Setter Property="Foreground" Value="{DynamicResource NovaOnline}" />
     </Style>
+    <Style Selector="StackPanel.offline > mi|MaterialIcon">
+      <Setter Property="Foreground" Value="{DynamicResource NovaMutedText}" />
+    </Style>
     <Style Selector="StackPanel.offline > TextBlock">
       <Setter Property="Foreground" Value="{DynamicResource NovaMutedText}" />
     </Style>

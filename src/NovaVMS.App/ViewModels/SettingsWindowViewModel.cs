@@ -26,6 +26,8 @@ public sealed class SettingsWindowViewModel : ViewModelBase, IDisposable
         Session = session;
     }
 
+    public ApplicationLogViewModel Log { get; } = new();
+
     public UsersSettingsViewModel Users { get; }
 
     /// <summary>

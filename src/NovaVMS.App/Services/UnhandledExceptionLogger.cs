@@ -13,7 +13,7 @@ internal static class UnhandledExceptionLogger
 {
     private static readonly ExceptionLogWriter Writer = new(
         () => AppDataPaths.LogDirectory,
-        () => Path.Combine(Path.GetTempPath(), "NovaVMS", "logs"));
+        () => FallbackLogDirectory);
     private static readonly FirstChanceExceptionCapture FirstChance = new(Log);
     private static int _installed;
     private static int _dispatcherAttached;
@@ -30,6 +30,7 @@ internal static class UnhandledExceptionLogger
     /// </summary>
     public static bool IsShuttingDown { get; set; }
 
+    internal static string FallbackLogDirectory => Path.Combine(Path.GetTempPath(), "NovaVMS", "logs");
     public static string LogDirectory => AppDataPaths.LogDirectory;
 
     public static void Install()
@@ -52,6 +53,12 @@ internal static class UnhandledExceptionLogger
         // Never wait there for disk access or a logger lock held by another thread.
         if (_writingLog) return;
         Entries.Writer.TryWrite(new Entry($"{source} [origin thread {Environment.CurrentManagedThreadId}]", exception));
+    }
+
+    internal static async Task ClearFileAsync(string path)
+    {
+        await FlushAsync();
+        await Task.Run(() => Writer.ClearFile(path));
     }
 
     internal static Task FlushAsync()

@@ -113,15 +113,6 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     [ObservableProperty]
     private bool _editOptionalUseHttps;
 
-    [ObservableProperty]
-    private string _editOptionalUsername = "admin";
-
-    [ObservableProperty]
-    private string _editOptionalPassword = string.Empty;
-
-    [ObservableProperty]
-    private string _editOptionalStreamEncryptionKey = string.Empty;
-
     public bool HasNetworkProtocol => IsNetworkProtocol || (HasOptionalProtocol && IsOptionalNetworkProtocol);
 
     public bool IsOptionalSdkProtocol => EditOptionalProtocol.Value == DeviceProtocol.HikvisionSdk;
@@ -229,11 +220,6 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
             InfoText = Localizer.Text("Devices_StreamKeyInvalid");
             return;
         }
-        if (HasOptionalProtocol && (EditOptionalStreamEncryptionKey.Contains('\0') || Encoding.UTF8.GetByteCount(EditOptionalStreamEncryptionKey) > 128))
-        {
-            InfoText = Localizer.Text("Devices_StreamKeyInvalid");
-            return;
-        }
         var row = SelectedDevice;
         var device = row?.Device ?? new Device();
 
@@ -274,9 +260,6 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
             RtspPort = EditRtspPort,
             SdkPort = EditSdkPort,
             UseHttps = EditOptionalUseHttps,
-            Username = EditOptionalUsername.Trim(),
-            Password = EditOptionalPassword,
-            StreamEncryptionKey = EditOptionalStreamEncryptionKey,
         } : null;
 
         if (row is null)
@@ -697,9 +680,6 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     {
         EditOptionalProtocol = ProtocolOption.Find(connection.Protocol);
         EditOptionalUseHttps = connection.UseHttps;
-        EditOptionalUsername = connection.Username;
-        EditOptionalPassword = connection.Password;
-        EditOptionalStreamEncryptionKey = connection.StreamEncryptionKey;
     }
 
     private void ClearForm()

@@ -94,6 +94,12 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     private bool _autoDownloadUpdates;
 
     [ObservableProperty]
+    private bool _autoInstallUpdates;
+
+    [ObservableProperty]
+    private decimal? _updateCheckIntervalMinutes;
+
+    [ObservableProperty]
     private string _updateServerUrl = string.Empty;
 
     /// <summary>
@@ -135,6 +141,8 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         _hcNetSdkDirectory = settings.HcNetSdkDirectory;
         _autoCheckForUpdates = settings.AutoCheckForUpdates;
         _autoDownloadUpdates = settings.AutoDownloadUpdates;
+        _autoInstallUpdates = settings.AutoInstallUpdates;
+        _updateCheckIntervalMinutes = settings.UpdateCheckIntervalMinutes;
         _updateServerUrl = settings.UpdateServerUrl ?? "";
 
         // Settings can also change outside this page (e.g. the theme button in the header).
@@ -270,6 +278,8 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
 
     partial void OnAutoCheckForUpdatesChanged(bool value) => ApplyChanges();
     partial void OnAutoDownloadUpdatesChanged(bool value) => ApplyChanges();
+    partial void OnAutoInstallUpdatesChanged(bool value) => ApplyChanges();
+    partial void OnUpdateCheckIntervalMinutesChanged(decimal? value) => ApplyChanges();
     partial void OnUpdateServerUrlChanged(string value) => ApplyChanges();
 
     partial void OnStartFullScreenChanged(bool value)
@@ -324,6 +334,8 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         settings.HcNetSdkDirectory = HcNetSdkDirectory.Trim();
         settings.AutoCheckForUpdates = AutoCheckForUpdates;
         settings.AutoDownloadUpdates = AutoDownloadUpdates;
+        settings.AutoInstallUpdates = AutoInstallUpdates;
+        settings.UpdateCheckIntervalMinutes = (int)(UpdateCheckIntervalMinutes ?? settings.UpdateCheckIntervalMinutes);
         settings.UpdateServerUrl = UpdateServerUrl.Trim();
 
         _ = SaveAsync();
@@ -444,6 +456,8 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
             HcNetSdkDirectory = settings.HcNetSdkDirectory;
             AutoCheckForUpdates = settings.AutoCheckForUpdates;
             AutoDownloadUpdates = settings.AutoDownloadUpdates;
+            AutoInstallUpdates = settings.AutoInstallUpdates;
+            UpdateCheckIntervalMinutes = settings.UpdateCheckIntervalMinutes;
             UpdateServerUrl = settings.UpdateServerUrl ?? "";
         }
         finally

@@ -19,11 +19,12 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
     private readonly HttpClient _http;
     private readonly UpdateDownloadCache _downloads;
     private readonly CancellationTokenSource _lifetime = new();
-    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromHours(6) };
+    private readonly DispatcherTimer _timer = new();
     private bool _started;
     private string _lastUrl = "";
     private bool _lastAutomatic;
     private bool _lastAutoDownload;
+    private bool _lastAutoInstall;
     private ApplicationUpdate? _promptedUpdate;
     private CancellationTokenSource? _operation;
 
@@ -83,8 +84,10 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
         if (!_started) return;
         var settings = _configuration.Current.Settings;
         var url = (settings.UpdateServerUrl ?? "").Trim();
-        var automatic = settings.AutoCheckForUpdates || settings.AutoDownloadUpdates;
-        if (url == _lastUrl && automatic == _lastAutomatic && settings.AutoDownloadUpdates == _lastAutoDownload) return;
+        var automatic = settings.AutoCheckForUpdates || settings.AutoDownloadUpdates || settings.AutoInstallUpdates;
+        var interval = TimeSpan.FromMinutes(settings.UpdateCheckIntervalMinutes);
+        if (_timer.Interval != interval) _timer.Interval = interval;
+        if (url == _lastUrl && automatic == _lastAutomatic && settings.AutoDownloadUpdates == _lastAutoDownload && settings.AutoInstallUpdates == _lastAutoInstall) return;
         if (url != _lastUrl)
         {
             _operation?.Cancel();
@@ -95,6 +98,7 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
         _lastUrl = url;
         _lastAutomatic = automatic;
         _lastAutoDownload = settings.AutoDownloadUpdates;
+        _lastAutoInstall = settings.AutoInstallUpdates;
         _timer.Stop();
         if (_lastAutomatic && url.Length > 0)
         {
@@ -115,7 +119,7 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
 
     private void OnTimer(object? sender, EventArgs e)
     {
-        if (!IsBusy && (_configuration.Current.Settings.AutoCheckForUpdates || _configuration.Current.Settings.AutoDownloadUpdates)) _ = CheckAsync();
+        if (!IsBusy && _lastAutomatic) _ = CheckAsync();
     }
 
     private bool CanCheck() => !IsBusy && !_lifetime.IsCancellationRequested;
@@ -149,9 +153,11 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
                     IsDownloaded = true;
                     StatusText = Localizer.Format("Updates_Downloaded", found.VersionText);
                 }
-                else if (_configuration.Current.Settings.AutoDownloadUpdates)
+                else if (_configuration.Current.Settings.AutoDownloadUpdates || _configuration.Current.Settings.AutoInstallUpdates)
                     await DownloadAsync(found);
-                if (IsDownloaded && _configuration.Current.Settings.AutoDownloadUpdates)
+                if (IsDownloaded && Available == found && _configuration.Current.Settings.AutoInstallUpdates)
+                    await InstallCoreAsync(found, confirmed: true);
+                else if (IsDownloaded && _configuration.Current.Settings.AutoDownloadUpdates)
                     await PromptForDownloadedUpdateAsync(found);
             }
         }
@@ -263,6 +269,8 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
             var planPath = Path.Combine(job, "plan.json");
             await File.WriteAllTextAsync(planPath, JsonSerializer.Serialize(plan), download.Token);
             await _configuration.FlushAsync();
+            download.Token.ThrowIfCancellationRequested();
+            if (Available != update) return;
             var start = new ProcessStartInfo(Path.Combine(helper, "NovaVMS.Updater.exe"))
                 { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = helper };
             start.ArgumentList.Add(planPath);

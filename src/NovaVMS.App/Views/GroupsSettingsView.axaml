@@ -46,6 +46,12 @@
           </ComboBox>
         </DockPanel>
       </StackPanel>
+      <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
+        <Button Command="{Binding MoveGroupUpCommand}" ToolTip.Tip="{l:Tr Groups_MoveGroupUp}"
+                Content="{mi:MaterialIconExt Kind=ArrowUp}" />
+        <Button Command="{Binding MoveGroupDownCommand}" ToolTip.Tip="{l:Tr Groups_MoveGroupDown}"
+                Content="{mi:MaterialIconExt Kind=ArrowDown}" />
+      </StackPanel>
       <ListBox ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="core:CameraGroup">

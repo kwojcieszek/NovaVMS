@@ -30,6 +30,37 @@ public sealed class DeviceSyncService
         return _online.TryGetValue(deviceId, out var online) && online;
     }
 
+    public bool IsOffline(Guid deviceId) => _online.TryGetValue(deviceId, out var online) && !online;
+
+    public async Task MonitorAvailabilityAsync(IDeviceReachability reachability, CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                await RefreshAvailabilityAsync(reachability, token);
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+    }
+
+    internal Task RefreshAvailabilityAsync(IDeviceReachability reachability, CancellationToken token)
+    {
+        return Task.WhenAll(_configuration.Current.Devices.ToArray().Select(CheckAsync));
+
+        async Task CheckAsync(Device device)
+        {
+            var connection = _clientFactory.GetConfiguredConnection(device);
+            var signature = connection.GetConnectionSignature();
+            var reachable = await DeviceAvailability.CheckAsync(reachability, connection, token);
+            if (token.IsCancellationRequested || !_configuration.Current.Devices.Contains(device)
+                || _clientFactory.GetConfiguredConnection(device).GetConnectionSignature() != signature) return;
+            if (!_online.TryGetValue(device.Id, out var previous) || previous != reachable)
+                SetOnline(device.Id, reachable);
+        }
+    }
+
     /// <summary>
     /// Synchronizes all devices in parallel and saves the configuration. Returns the number of devices online.
     /// </summary>

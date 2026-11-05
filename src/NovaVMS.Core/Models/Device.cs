@@ -101,9 +101,6 @@ public sealed class Device
             copy.RtspPort = optional.RtspPort;
             copy.SdkPort = optional.SdkPort;
             copy.UseHttps = optional.UseHttps;
-            copy.Username = optional.Username;
-            copy.Password = optional.Password;
-            copy.StreamEncryptionKey = optional.StreamEncryptionKey;
             copy.Channels = optional.Channels.Select(channel => channel.Copy()).ToList();
         }
         copy.OptionalConnection = null;

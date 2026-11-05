@@ -2,6 +2,8 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using NovaVMS.App.Services;
+using NovaVMS.App.ViewModels;
+using NovaVMS.Infrastructure.Storage;
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
 using NovaVMS.Protocols;
@@ -93,6 +95,33 @@ public sealed class DeviceAvailabilityTests
         Assert.False(check.IsCompleted);
         release.SetResult(true);
         Assert.True(await check);
+    }
+
+    [Fact]
+    public async Task RecorderRowFollowsReachabilityAcrossRefreshAndTreeRebuild()
+    {
+        var device = new Device { Host = "primary", SecondaryHost = "backup", Channels = [new Channel { Number = 1 }] };
+        var group = new CameraGroup { Name = "Recorder", SourceDeviceId = device.Id,
+            Cameras = [new CameraReference { DeviceId = device.Id, ChannelNumber = 1 }] };
+        var configuration = new ConfigurationService(new MemoryConfigurationStore(new()
+            { Devices = [device], Groups = [group] }), new JsonConfigurationSerializer());
+        var sync = new DeviceSyncService(configuration, new FakeDeviceClientFactory());
+        var tree = new ResourceTreeViewModel(configuration, sync, null!, TestSessions.Create(configuration));
+        await configuration.LoadAsync();
+        var recorder = tree.Groups.Single(node => node.Id == group.Id);
+        Assert.False(recorder.IsRecorderOffline);
+
+        bool backupOnline = false;
+        var probe = new Probe((endpoint, _) => Task.FromResult(backupOnline && endpoint.Host == "backup"));
+        await sync.RefreshAvailabilityAsync(probe, default);
+        Assert.True(recorder.IsRecorderOffline);
+        await configuration.SaveAsync();
+        Assert.True(tree.Groups.Single(node => node.Id == group.Id).IsRecorderOffline);
+        Assert.All(tree.Groups.Where(node => !node.IsDeviceGroup), node => Assert.False(node.IsRecorderOffline));
+
+        backupOnline = true;
+        await sync.RefreshAvailabilityAsync(probe, default);
+        Assert.False(recorder.IsRecorderOffline);
     }
 
     private sealed class Probe(Func<Device, CancellationToken, Task<bool>> check) : IDeviceReachability

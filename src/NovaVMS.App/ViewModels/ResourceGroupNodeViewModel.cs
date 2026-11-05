@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using NovaVMS.App.Models;
 
 namespace NovaVMS.App.ViewModels;
@@ -6,7 +7,7 @@ namespace NovaVMS.App.ViewModels;
 /// <summary>
 /// Camera group in the resource tree. Favorites have no group identifier.
 /// </summary>
-public sealed class ResourceGroupNodeViewModel : ResourceNodeViewModel
+public sealed partial class ResourceGroupNodeViewModel : ResourceNodeViewModel
 {
     public ResourceGroupNodeViewModel(ResourceTreeViewModel owner, Guid? id, string name, GroupNodeKind kind)
         : base(owner, name)
@@ -16,6 +17,10 @@ public sealed class ResourceGroupNodeViewModel : ResourceNodeViewModel
     }
 
     public Guid? Id { get; }
+    public Guid? SourceDeviceId { get; set; }
+
+    [ObservableProperty]
+    private bool _isRecorderOffline;
 
     /// <summary>
     /// Key under which the live view remembers the split and camera placement of this group.

@@ -182,6 +182,32 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
         await _configuration.SaveAsync();
     }
 
+    [RelayCommand(CanExecute = nameof(CanMoveViewUp))]
+    private Task MoveViewUpAsync(ResourceGroupNodeViewModel? node) => MoveViewAsync(node, -1);
+
+    [RelayCommand(CanExecute = nameof(CanMoveViewDown))]
+    private Task MoveViewDownAsync(ResourceGroupNodeViewModel? node) => MoveViewAsync(node, 1);
+
+    private bool CanMoveViewUp(ResourceGroupNodeViewModel? node) => CanMoveView(node, -1);
+    private bool CanMoveViewDown(ResourceGroupNodeViewModel? node) => CanMoveView(node, 1);
+
+    private bool CanMoveView(ResourceGroupNodeViewModel? node, int offset)
+    {
+        if (!Session.CanEditViews || node is not { IsSavedView: true }) return false;
+        var views = _configuration.Current.Views;
+        var index = views.FindIndex(view => view.Id == node.Id);
+        return index >= 0 && index + offset >= 0 && index + offset < views.Count;
+    }
+
+    private async Task MoveViewAsync(ResourceGroupNodeViewModel? node, int offset)
+    {
+        if (!CanMoveView(node, offset)) return;
+        var views = _configuration.Current.Views;
+        var index = views.FindIndex(view => view.Id == node!.Id);
+        (views[index], views[index + offset]) = (views[index + offset], views[index]);
+        await _configuration.SaveAsync();
+    }
+
     [RelayCommand]
     private async Task DeleteViewAsync(ResourceGroupNodeViewModel? node)
     {
@@ -239,6 +265,7 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
     {
         foreach (var group in Groups.Concat(Groups.SelectMany(folder => folder.Views)))
         {
+            group.IsRecorderOffline = group.SourceDeviceId is { } id && _sync.IsOffline(id);
             foreach (var camera in group.Cameras)
             {
                 camera.IsOnline = IsOnline(_configuration.FindCamera(camera.Reference));
@@ -257,7 +284,6 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
         var filter = SearchText.Trim();
         _isFiltered = filter.Length > 0;
         var contents = new Dictionary<string, IReadOnlyList<CameraReference>>();
-        var customGroups = _configuration.Current.Groups.Where(group => group.IsCustom).ToList();
 
         // Bookmarks are a separate view; they do not change a camera's group membership.
         var favorites = _configuration.GetAllCameras().Where(camera => camera.Channel.IsFavorite).ToList();
@@ -290,8 +316,7 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
         }
         groups.Add(viewsFolder);
 
-        var orderedGroups = customGroups.Concat(_configuration.Current.Groups.Where(group => !group.IsCustom));
-        foreach (var group in orderedGroups)
+        foreach (var group in _configuration.Current.Groups)
         {
             var cameras = group.Cameras
                 .Select(reference => _configuration.FindCamera(reference))
@@ -299,11 +324,13 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
                 .ToList();
 
             var kind = group.IsCustom ? GroupNodeKind.Custom : GroupNodeKind.Device;
-            AddGroupNode(groups, group.Id, group.Name, kind, cameras, filter);
+            AddGroupNode(groups, group.Id, group.Name, kind, cameras, filter, group.SourceDeviceId);
             AddGroupContent(contents, group.Id, kind, cameras);
         }
 
         SynchronizeGroups(Groups, groups);
+        MoveViewUpCommand.NotifyCanExecuteChanged();
+        MoveViewDownCommand.NotifyCanExecuteChanged();
         RefreshActiveLiveView();
         SelectedNode = selected switch
         {
@@ -345,11 +372,14 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
         string name,
         GroupNodeKind kind,
         IReadOnlyList<CameraDescriptor> cameras,
-        string filter)
+        string filter,
+        Guid? sourceDeviceId = null)
     {
         var groupMatches = filter.Length == 0 || name.Contains(filter, StringComparison.CurrentCultureIgnoreCase);
         var node = new ResourceGroupNodeViewModel(this, id, name, kind)
         {
+            SourceDeviceId = sourceDeviceId,
+            IsRecorderOffline = sourceDeviceId is { } deviceId && _sync.IsOffline(deviceId),
             IsExpanded = filter.Length > 0 || (_expandedGroups.TryGetValue((kind, id), out var expanded)
                 && expanded)
         };
@@ -386,6 +416,8 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
                 && node.Id == candidate.Id && node.Name == candidate.Name);
             if (existing is null) return candidate;
             existing.IsExpanded = candidate.IsExpanded;
+            existing.SourceDeviceId = candidate.SourceDeviceId;
+            existing.IsRecorderOffline = candidate.IsRecorderOffline;
             SynchronizeGroups(existing.Views, candidate.Views);
             var cameras = candidate.Cameras.Select(camera =>
             {
