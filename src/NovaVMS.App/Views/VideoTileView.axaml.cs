@@ -102,6 +102,7 @@ public partial class VideoTileView : UserControl
     private void RestoreOverlayWindow()
     {
         if (_ownerWindow is not { } owner || !this.IsAttachedToVisualTree()
+            || owner.WindowState == WindowState.Minimized
             || owner.GetValue(ModalDialog.DepthProperty) > 0) return;
         if (_overlayWindow is not null) { UpdateOverlayWindow(); return; }
         _overlayWindow = new VideoOverlayWindow
@@ -187,7 +188,21 @@ public partial class VideoTileView : UserControl
                 Dispatcher.UIThread.Post(RestoreOverlayWindow, DispatcherPriority.Loaded);
             return;
         }
-        if (e.Property == Window.WindowStateProperty || e.Property == IsVisibleProperty || e.Property == OpacityProperty)
+        if (e.Property == Window.WindowStateProperty)
+        {
+            if (_ownerWindow?.WindowState == WindowState.Minimized)
+            {
+                ResetDoubleClick();
+                CloseOverlayWindow();
+            }
+            else
+            {
+                // Recreate the owned input window after the native owner has finished restoring.
+                Dispatcher.UIThread.Post(RestoreOverlayWindow, DispatcherPriority.Loaded);
+            }
+            return;
+        }
+        if (e.Property == IsVisibleProperty || e.Property == OpacityProperty)
             UpdateOverlayWindow();
     }
 

@@ -18,6 +18,26 @@ namespace NovaVMS.App.Tests;
 public sealed class VideoTilePointerTests
 {
     [AvaloniaFact]
+    public async Task MaximizingAfterMinimizationRestoresVideoInput()
+    {
+        await using var scene = await Scene.CreateAsync();
+        scene.Owner.WindowState = WindowState.Minimized;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Null(TopLevel.GetTopLevel(scene.Overlay));
+        scene.Owner.WindowState = WindowState.Maximized;
+        Dispatcher.UIThread.RunJobs();
+        var overlay = Assert.IsType<VideoOverlayWindow>(TopLevel.GetTopLevel(scene.Overlay));
+        Assert.True(overlay.IsVisible);
+        for (var press = 0; press < 2; press++)
+        {
+            overlay.MouseDown(new Point(80, 80), MouseButton.Left);
+            overlay.MouseUp(new Point(80, 80), MouseButton.Left);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.True(scene.Live.IsMaximized);
+    }
+
+    [AvaloniaFact]
     public async Task OverlayGeometryRecoversAfterWindowSystemChangesWithoutSwitchingGroups()
     {
         await using var scene = await Scene.CreateAsync();
