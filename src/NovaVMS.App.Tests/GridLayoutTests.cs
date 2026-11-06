@@ -16,11 +16,23 @@ public sealed class GridLayoutTests
     {
         var layout = GridLayoutOption.Find(id);
         var occupied = new int[layout.Rows, layout.Columns];
+
         foreach (var cell in layout.Cells)
+        {
             for (var row = cell.Row; row < cell.Row + cell.RowSpan; row++)
+            {
                 for (var column = cell.Column; column < cell.Column + cell.ColumnSpan; column++)
+                {
                     occupied[row, column]++;
-        foreach (var count in occupied) Assert.Equal(1, count);
+                }
+            }
+        }
+
+        foreach (var count in occupied)
+        {
+            Assert.Equal(1, count);
+        }
+
         Assert.Equal(int.Parse(id.Split('-')[1]), layout.Count);
     }
 
@@ -37,18 +49,35 @@ public sealed class GridLayoutTests
     public void LargeTileAndMaximizationUseCorrectBounds()
     {
         var panel = new VideoLayoutPanel { Layout = GridLayoutOption.Find("standard-6") };
-        for (var index = 0; index < 6; index++) panel.Children.Add(new Border());
+
+        for (var index = 0; index < 6; index++)
+        {
+            panel.Children.Add(new Border());
+        }
+
         panel.Measure(new Size(900, 600));
         panel.Arrange(new Rect(0, 0, 900, 600));
         Assert.Equal(new Rect(0, 0, 600, 400), panel.Children[0].Bounds);
         Assert.Equal(new Rect(600, 0, 300, 200), panel.Children[1].Bounds);
-        for (var index = 0; index < 6; index++) panel.Children[index].IsVisible = index == 4;
+
+        for (var index = 0; index < 6; index++)
+        {
+            panel.Children[index].IsVisible = index == 4;
+        }
+
         panel.IsMaximized = true;
+
         panel.Measure(new Size(900, 600));
         panel.Arrange(new Rect(0, 0, 900, 600));
         Assert.Equal(new Rect(0, 0, 900, 600), panel.Children[4].Bounds);
+
         panel.IsMaximized = false;
-        foreach (var child in panel.Children) child.IsVisible = true;
+
+        foreach (var child in panel.Children)
+        {
+            child.IsVisible = true;
+        }
+
         panel.Measure(new Size(900, 600));
         panel.Arrange(new Rect(0, 0, 900, 600));
         Assert.Equal(new Rect(0, 0, 600, 400), panel.Children[0].Bounds);

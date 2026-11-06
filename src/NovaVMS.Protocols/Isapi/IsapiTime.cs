@@ -32,10 +32,12 @@ internal static class IsapiTime
         if (DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out var offset))
         {
             value = offset.DateTime;
+
             return true;
         }
 
         value = default;
+
         return false;
     }
 }

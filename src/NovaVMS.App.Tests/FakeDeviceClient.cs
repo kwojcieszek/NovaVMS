@@ -21,12 +21,14 @@ internal sealed class FakeDeviceClient(Device device) : IDeviceClient
     public Task PtzMoveAsync(int channelNumber, int pan, int tilt, int zoom, CancellationToken cancellationToken = default)
     {
         Commands.Add("move");
+
         return Move?.Invoke() ?? Task.CompletedTask;
     }
 
     public Task PtzStopAsync(int channelNumber, CancellationToken cancellationToken = default)
     {
         Commands.Add("stop");
+
         return Task.CompletedTask;
     }
 
@@ -38,6 +40,7 @@ internal sealed class FakeDeviceClient(Device device) : IDeviceClient
     public Task GotoPtzPresetAsync(int channelNumber, PtzPreset preset, CancellationToken cancellationToken = default)
     {
         Commands.Add("preset");
+
         return Task.CompletedTask;
     }
 

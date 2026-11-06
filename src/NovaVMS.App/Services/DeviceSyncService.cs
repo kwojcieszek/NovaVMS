@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Exceptions;
 using NovaVMS.Core.Models;
@@ -15,7 +15,7 @@ public sealed class DeviceSyncService
     private readonly ConcurrentDictionary<Guid, bool> _online = new();
     private readonly OperationLifetime _operations = new();
 
-    public Task ShutdownAsync() => _operations.StopAsync();
+    public event EventHandler? StatusChanged;
 
     public DeviceSyncService(ConfigurationService configuration, IDeviceClientFactory clientFactory)
     {
@@ -23,7 +23,7 @@ public sealed class DeviceSyncService
         _clientFactory = clientFactory;
     }
 
-    public event EventHandler? StatusChanged;
+    public Task ShutdownAsync() => _operations.StopAsync();
 
     public bool IsOnline(Guid deviceId)
     {
@@ -35,6 +35,7 @@ public sealed class DeviceSyncService
     public async Task MonitorAvailabilityAsync(IDeviceReachability reachability, CancellationToken token)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+
         try
         {
             while (await timer.WaitForNextTickAsync(token))
@@ -42,7 +43,9 @@ public sealed class DeviceSyncService
                 await RefreshAvailabilityAsync(reachability, token);
             }
         }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+        }
     }
 
     internal Task RefreshAvailabilityAsync(IDeviceReachability reachability, CancellationToken token)
@@ -54,10 +57,17 @@ public sealed class DeviceSyncService
             var connection = _clientFactory.GetConfiguredConnection(device);
             var signature = connection.GetConnectionSignature();
             var reachable = await DeviceAvailability.CheckAsync(reachability, connection, token);
+
             if (token.IsCancellationRequested || !_configuration.Current.Devices.Contains(device)
-                || _clientFactory.GetConfiguredConnection(device).GetConnectionSignature() != signature) return;
+                || _clientFactory.GetConfiguredConnection(device).GetConnectionSignature() != signature)
+            {
+                return;
+            }
+
             if (!_online.TryGetValue(device.Id, out var previous) || previous != reachable)
+            {
                 SetOnline(device.Id, reachable);
+            }
         }
     }
 
@@ -77,6 +87,7 @@ public sealed class DeviceSyncService
         }
 
         await _configuration.SaveAsync();
+
         return results.Count(result => result.Success);
     }
 
@@ -88,21 +99,29 @@ public sealed class DeviceSyncService
         try
         {
             using var client = await _clientFactory.CreateAsync(device, rememberAddress: false, cancellationToken);
+
             cancellationToken.ThrowIfCancellationRequested();
+
             if (client is IDeviceConnectionClient connectionClient)
             {
                 var connection = await connectionClient.TryConnectAsync(cancellationToken);
+
                 cancellationToken.ThrowIfCancellationRequested();
+
                 if (!connection.Success)
                 {
                     SetOnline(device.Id, false);
+
                     var message = DeviceOperationErrors.Report($"Device synchronization: {device.DisplayName} ({device.Host})", connection.Error!);
+
                     return new DeviceSyncResult(false, null, message);
                 }
             }
 
             var info = await client.GetDeviceInfoAsync(cancellationToken);
+
             cancellationToken.ThrowIfCancellationRequested();
+
             var channels = await client.GetChannelsAsync(cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -111,6 +130,7 @@ public sealed class DeviceSyncService
             device.Model = string.IsNullOrWhiteSpace(info.Model) ? device.Model : info.Model;
             device.SerialNumber = string.IsNullOrWhiteSpace(info.SerialNumber) ? device.SerialNumber : info.SerialNumber;
             device.FirmwareVersion = string.IsNullOrWhiteSpace(info.FirmwareVersion) ? device.FirmwareVersion : info.FirmwareVersion;
+
             if (string.IsNullOrWhiteSpace(device.Name))
             {
                 device.Name = info.DeviceName;
@@ -118,22 +138,31 @@ public sealed class DeviceSyncService
 
             // Known cameras keep their identity, so views and groups still show the same cameras.
             ChannelIdentity.Keep(device.Channels, channels);
+
             if (_clientFactory.UsesOptionalProtocol(device) && device.OptionalConnection is { } optional)
             {
                 optional.Channels = channels.ToList();
                 // Keep common camera identities but retain the primary protocol's media metadata.
                 device.Channels = channels.Select(channel => new Channel
                 {
-                    Id = channel.Id, Number = channel.Number, Name = channel.Name,
-                    Enabled = channel.Enabled, IsFavorite = channel.IsFavorite,
+                    Id = channel.Id,
+                    Number = channel.Number,
+                    Name = channel.Name,
+                    Enabled = channel.Enabled,
+                    IsFavorite = channel.IsFavorite,
                     MainAspectRatio = channel.MainAspectRatio,
                     MainStreamUri = device.Channels.FirstOrDefault(old => old.Id == channel.Id)?.MainStreamUri,
                     SubStreamUri = device.Channels.FirstOrDefault(old => old.Id == channel.Id)?.SubStreamUri,
                     ProfileToken = device.Channels.FirstOrDefault(old => old.Id == channel.Id)?.ProfileToken
                 }).ToList();
             }
-            else device.Channels = channels.ToList();
+            else
+            {
+                device.Channels = channels.ToList();
+            }
+
             SetOnline(device.Id, true);
+
             return new DeviceSyncResult(true, info, null);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -143,7 +172,9 @@ public sealed class DeviceSyncService
         catch (Exception exception) when (DeviceFailure.IsExpected(exception) || exception is OperationCanceledException)
         {
             SetOnline(device.Id, false);
+
             var message = DeviceOperationErrors.Report($"Device synchronization: {device.DisplayName} ({device.Host})", exception);
+
             return new DeviceSyncResult(false, null, message);
         }
     }
@@ -151,6 +182,7 @@ public sealed class DeviceSyncService
     private void SetOnline(Guid deviceId, bool online)
     {
         _online[deviceId] = online;
+
         StatusChanged?.Invoke(this, EventArgs.Empty);
     }
 }

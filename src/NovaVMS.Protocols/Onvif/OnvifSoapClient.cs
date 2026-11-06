@@ -25,6 +25,8 @@ internal sealed class OnvifSoapClient : IDisposable
     private readonly string _password;
     private TimeSpan? _clockOffset;
 
+    public Uri DeviceServiceUri { get; }
+
     public OnvifSoapClient(Device device)
     {
         ArgumentNullException.ThrowIfNull(device);
@@ -50,11 +52,26 @@ internal sealed class OnvifSoapClient : IDisposable
         DeviceServiceUri = new Uri(baseUri, "onvif/device_service");
     }
 
-    public Uri DeviceServiceUri { get; }
+    /// <summary>
+    /// PasswordDigest = Base64(SHA1(nonce + created + password)), as defined by the WS-Security UsernameToken profile.
+    /// </summary>
+    public static string CreatePasswordDigest(byte[] nonce, string created, string password)
+    {
+        var createdBytes = Encoding.UTF8.GetBytes(created);
+        var passwordBytes = Encoding.UTF8.GetBytes(password);
+        var buffer = new byte[nonce.Length + createdBytes.Length + passwordBytes.Length];
+
+        nonce.CopyTo(buffer, 0);
+        createdBytes.CopyTo(buffer, nonce.Length);
+        passwordBytes.CopyTo(buffer, nonce.Length + createdBytes.Length);
+
+        return Convert.ToBase64String(SHA1.HashData(buffer));
+    }
 
     public async Task<XElement> CallAsync(Uri serviceUri, XElement request, CancellationToken cancellationToken)
     {
         _clockOffset ??= await ReadClockOffsetAsync(cancellationToken).ConfigureAwait(false);
+
         return await SendAsync(serviceUri, request, authenticate: true, cancellationToken).ConfigureAwait(false);
     }
 
@@ -63,6 +80,7 @@ internal sealed class OnvifSoapClient : IDisposable
         try
         {
             using var response = await _httpClient.GetAsync(uri, cancellationToken).ConfigureAwait(false);
+
             if (!response.IsSuccessStatusCode)
             {
                 throw new DeviceCommunicationException(ProtocolText.Format("HttpStatus", (int)response.StatusCode, uri.AbsolutePath), response.StatusCode);
@@ -81,18 +99,39 @@ internal sealed class OnvifSoapClient : IDisposable
         _httpClient.Dispose();
     }
 
-    /// <summary>
-    /// PasswordDigest = Base64(SHA1(nonce + created + password)), as defined by the WS-Security UsernameToken profile.
-    /// </summary>
-    public static string CreatePasswordDigest(byte[] nonce, string created, string password)
+    private static XDocument? TryParse(string body)
     {
-        var createdBytes = Encoding.UTF8.GetBytes(created);
-        var passwordBytes = Encoding.UTF8.GetBytes(password);
-        var buffer = new byte[nonce.Length + createdBytes.Length + passwordBytes.Length];
-        nonce.CopyTo(buffer, 0);
-        createdBytes.CopyTo(buffer, nonce.Length);
-        passwordBytes.CopyTo(buffer, nonce.Length + createdBytes.Length);
-        return Convert.ToBase64String(SHA1.HashData(buffer));
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return null;
+        }
+
+        try
+        {
+            return XDocument.Parse(body);
+        }
+        catch (XmlException)
+        {
+            return null;
+        }
+    }
+
+    private static string DescribeFault(XElement fault)
+    {
+        var reason = fault.DescendantsByLocalName("Text").FirstOrDefault()?.Value.Trim();
+
+        if (string.IsNullOrEmpty(reason))
+        {
+            reason = fault.DescendantsByLocalName("Value").LastOrDefault()?.Value.Trim() ?? string.Empty;
+        }
+
+        // Authentication failures are reported as SOAP faults by most cameras.
+        if (reason.Contains("auth", StringComparison.OrdinalIgnoreCase) || reason.Contains("NotAuthorized", StringComparison.OrdinalIgnoreCase))
+        {
+            return ProtocolText.Get("InvalidCredentials");
+        }
+
+        return ProtocolText.Format("OnvifFault", reason);
     }
 
     // GetSystemDateAndTime does not require authentication; it lets the token use the device's clock.
@@ -103,6 +142,7 @@ internal sealed class OnvifSoapClient : IDisposable
             var request = new XElement(OnvifNamespaces.Device + "GetSystemDateAndTime");
             var response = await SendAsync(DeviceServiceUri, request, authenticate: false, cancellationToken).ConfigureAwait(false);
             var utc = response.DescendantsByLocalName("UTCDateTime").FirstOrDefault();
+
             if (utc is null)
             {
                 return TimeSpan.Zero;
@@ -149,6 +189,7 @@ internal sealed class OnvifSoapClient : IDisposable
 
             var document = TryParse(body);
             var fault = document?.DescendantsByLocalName("Fault").FirstOrDefault();
+
             if (fault is not null)
             {
                 throw new DeviceCommunicationException(DescribeFault(fault), response.StatusCode);
@@ -160,6 +201,7 @@ internal sealed class OnvifSoapClient : IDisposable
             }
 
             var responseBody = document.Root.Elements().FirstOrDefault(element => element.Name.LocalName == "Body");
+
             return responseBody?.Elements().FirstOrDefault() ?? new XElement("Empty");
         }
         catch (HttpRequestException exception)
@@ -189,39 +231,5 @@ internal sealed class OnvifSoapClient : IDisposable
                     new XAttribute("EncodingType", OnvifNamespaces.Base64EncodingType),
                     Convert.ToBase64String(nonce)),
                 new XElement(OnvifNamespaces.Utility + "Created", created)));
-    }
-
-    private static XDocument? TryParse(string body)
-    {
-        if (string.IsNullOrWhiteSpace(body))
-        {
-            return null;
-        }
-
-        try
-        {
-            return XDocument.Parse(body);
-        }
-        catch (XmlException)
-        {
-            return null;
-        }
-    }
-
-    private static string DescribeFault(XElement fault)
-    {
-        var reason = fault.DescendantsByLocalName("Text").FirstOrDefault()?.Value.Trim();
-        if (string.IsNullOrEmpty(reason))
-        {
-            reason = fault.DescendantsByLocalName("Value").LastOrDefault()?.Value.Trim() ?? string.Empty;
-        }
-
-        // Authentication failures are reported as SOAP faults by most cameras.
-        if (reason.Contains("auth", StringComparison.OrdinalIgnoreCase) || reason.Contains("NotAuthorized", StringComparison.OrdinalIgnoreCase))
-        {
-            return ProtocolText.Get("InvalidCredentials");
-        }
-
-        return ProtocolText.Format("OnvifFault", reason);
     }
 }

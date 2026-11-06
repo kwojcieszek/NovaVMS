@@ -1,14 +1,14 @@
-using NovaVMS.Core.Exceptions;
 using System.Collections.ObjectModel;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LibVLCSharp.Shared;
+using NovaVMS.App.Localization;
 using NovaVMS.App.Models;
 using NovaVMS.App.Services;
 using NovaVMS.Core.Abstractions;
+using NovaVMS.Core.Exceptions;
 using NovaVMS.Core.Models;
-using NovaVMS.App.Localization;
-using Avalonia.Threading;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -22,16 +22,20 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     private readonly IDeviceClientFactory _clientFactory;
     private readonly StatusBarService _statusBar;
     private readonly IDialogService _dialogs;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ActiveSavedViewName))]
     private Guid? _activeSavedViewId;
+
     private bool _isShutDown;
     private bool _isPageActive = true;
     private readonly Dictionary<VideoTileViewModel, int> _pendingPlayRequests = new();
     private Task _layoutChange = Task.CompletedTask;
     private int _layoutVersion;
+
     [ObservableProperty]
     private string? _activeGroup;
+
     private bool _checkingGroupLayout;
     private IReadOnlyList<CameraReference> _groupCameras = Array.Empty<CameraReference>();
     private HashSet<int> _emptySlots = new();
@@ -43,7 +47,6 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     private readonly CancellationTokenSource _lifetime = new();
     private readonly List<Task> _clientOpenings = new();
     private readonly DispatcherTimer _resizeStreamTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
-    public Task Disposal => _disposal ?? Task.CompletedTask;
 
     [ObservableProperty]
     private GridLayoutOption _selectedLayout = GridLayoutOption.Find(4);
@@ -68,6 +71,36 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     [ObservableProperty]
     private bool _showTileTitles = true;
 
+    /// <summary>
+    /// Only the camera grid fills the window; the header, tree and toolbars are hidden until Esc.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isVideoOnly;
+
+    private TimeSpan HiddenStreamTimeout => TimeSpan.FromSeconds(Math.Max(0, _configuration.Current.Settings.HiddenTileReleaseSeconds));
+
+    public Task Disposal => _disposal ?? Task.CompletedTask;
+
+    public IReadOnlyList<GridLayoutOption> Layouts => GridLayoutOption.All;
+
+    public ObservableCollection<VideoTileViewModel> Tiles { get; } = new();
+
+    public CameraReference? SelectedCamera => SelectedTile?.Camera;
+
+    public bool IsMaximized => MaximizedTile is not null;
+
+    public UserSessionService Session { get; }
+
+    public string ActiveSavedViewName => _configuration.Current.Views.FirstOrDefault(view => view.Id == ActiveSavedViewId)?.Name ?? string.Empty;
+
+    public bool StretchVideo => _configuration.Current.Settings.VideoAspectMode == VideoAspectMode.Fit;
+
+    /// <summary>
+    /// A group's tiles follow its configured cameras (edited in the settings); only views and
+    /// free layouts accept cameras dragged from the tree. A saved view also needs the permission to change views.
+    /// </summary>
+    public bool CanDropCameras => ActiveGroup is null && (ActiveSavedViewId is null || Session.CanEditViews);
+
     public LiveViewViewModel(
         LibVLC libVlc,
         ConfigurationService configuration,
@@ -86,42 +119,19 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
 
         _configuration.Changed += OnConfigurationChanged;
         Localizer.Instance.LanguageChanged += OnLanguageChanged;
+
         ApplyLayout(SelectedLayout);
     }
 
-    public IReadOnlyList<GridLayoutOption> Layouts => GridLayoutOption.All;
-
-    public ObservableCollection<VideoTileViewModel> Tiles { get; } = new();
-
-    public CameraReference? SelectedCamera => SelectedTile?.Camera;
-
-    public bool IsMaximized => MaximizedTile is not null;
-
-    public UserSessionService Session { get; }
-
-    /// <summary>
-    /// Only the camera grid fills the window; the header, tree and toolbars are hidden until Esc.
-    /// </summary>
-    [ObservableProperty]
-    private bool _isVideoOnly;
-
-    [RelayCommand]
-    private void ShowVideoOnly() => IsVideoOnly = true;
-    public string ActiveSavedViewName => _configuration.Current.Views.FirstOrDefault(view => view.Id == ActiveSavedViewId)?.Name ?? string.Empty;
-
-    public bool StretchVideo => _configuration.Current.Settings.VideoAspectMode == VideoAspectMode.Fit;
-
     public void ReportVideoHeight(VideoTileViewModel tile)
     {
-        if (_isShutDown || !Tiles.Contains(tile)) return;
+        if (_isShutDown || !Tiles.Contains(tile))
+        {
+            return;
+        }
+
         _resizeStreamTimer.Stop();
         _resizeStreamTimer.Start();
-    }
-
-    private void OnResizeStreamTick(object? sender, EventArgs e)
-    {
-        _resizeStreamTimer.Stop();
-        RefreshStreams();
     }
 
     public void ApplyDefaultLayout()
@@ -131,51 +141,92 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
 
     public async void ShowGroup(string key, IReadOnlyList<CameraReference> cameras)
     {
-        try { await ShowGroupAsync(key, cameras); }
-        catch (Exception exception) { DeviceOperationErrors.Report("Opening camera group", exception); }
+        try
+        {
+            await ShowGroupAsync(key, cameras);
+        }
+        catch (Exception exception)
+        {
+            DeviceOperationErrors.Report("Opening camera group", exception);
+        }
     }
 
     internal async Task ShowGroupAsync(string key, IReadOnlyList<CameraReference> cameras)
     {
         RememberSavedView();
+
         ActiveSavedViewId = null;
-        if (_isShutDown || (ActiveGroup == key && _restoringGroup)) return;
+
+        if (_isShutDown || (ActiveGroup == key && _restoringGroup))
+        {
+            return;
+        }
+
         if (ActiveGroup == key)
         {
             _groupCameras = cameras.ToArray();
+
             await CheckGroupLayoutAsync();
-            if (_isShutDown || ActiveGroup != key) return;
+
+            if (_isShutDown || ActiveGroup != key)
+            {
+                return;
+            }
+
             FillGroupSlots();
+
             return;
         }
+
         RememberGroup();
+
         var version = ++_groupVersion;
         _restoringGroup = true;
         ActiveGroup = key;
         _groupCameras = cameras.ToArray();
         var saved = _configuration.Current.GroupLiveViews.GetValueOrDefault(key)?.Copy();
+
         try
         {
             // Invalidate old openings and clear their pictures before changing the grid geometry.
             ClearTiles();
+
             _emptySlots = saved?.EmptySlots.ToHashSet() ?? new();
             MaximizedTile = null;
-            if (saved is not null) SelectedLayout = GridLayoutOption.Find(saved.LayoutId, saved.LayoutCount);
+
+            if (saved is not null)
+            {
+                SelectedLayout = GridLayoutOption.Find(saved.LayoutId, saved.LayoutCount);
+            }
+
             await CheckGroupLayoutAsync();
             await _layoutChange;
-            if (_isShutDown || version != _groupVersion) return;
+
+            if (_isShutDown || version != _groupVersion)
+            {
+                return;
+            }
+
             var slots = saved?.Cameras ?? cameras.Cast<CameraReference?>().ToList();
             var targets = Tiles.Select((_, index) => index < slots.Count ? slots[index] : null).ToList();
             var available = _groupCameras.Where(camera => _configuration.FindCamera(camera) is not null).ToArray();
+
             AssignTiles(GroupCameraPlacement.Fill(targets, available, _emptySlots));
             OnPropertyChanged(nameof(SelectedCamera));
             FillGroupSlots();
+
             SelectedTile = Tiles.FirstOrDefault();
         }
-        catch (Exception exception) { DeviceOperationErrors.Report("Restoring group view", exception); }
+        catch (Exception exception)
+        {
+            DeviceOperationErrors.Report("Restoring group view", exception);
+        }
         finally
         {
-            if (version == _groupVersion) _restoringGroup = false;
+            if (version == _groupVersion)
+            {
+                _restoringGroup = false;
+            }
         }
     }
 
@@ -191,14 +242,18 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         }
 
         var removed = _configuration.Current.GroupLiveViews.Remove(key);
+
         if (ActiveGroup == key && !_restoringGroup)
         {
             _groupCameras = cameras.ToArray();
             _emptySlots = new();
             MaximizedTile = null;
             var available = _groupCameras.Where(camera => _configuration.FindCamera(camera) is not null).ToArray();
+
             AssignTiles(Tiles.Select((_, index) => index < available.Length ? available[index] : null).ToList());
+
             SelectedTile = Tiles.FirstOrDefault();
+
             OnPropertyChanged(nameof(SelectedCamera));
             CheckCurrentGroupLayout();
         }
@@ -209,9 +264,290 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         }
     }
 
+    public async Task ShowSavedViewAsync(Guid id)
+    {
+        RememberSavedView();
+
+        var view = _configuration.Current.Views.FirstOrDefault(candidate => candidate.Id == id)?.Copy();
+
+        if (view is null || _isShutDown)
+        {
+            return;
+        }
+
+        RememberGroup();
+
+        var version = ++_groupVersion;
+        ActiveGroup = null;
+        _groupCameras = Array.Empty<CameraReference>();
+        ActiveSavedViewId = null;
+        _restoringGroup = true;
+
+        try
+        {
+            ClearTiles();
+
+            MaximizedTile = null;
+            _emptySlots = view.Layout.EmptySlots.ToHashSet();
+            SelectedLayout = GridLayoutOption.Find(view.Layout.LayoutId, view.Layout.LayoutCount);
+
+            await _layoutChange;
+
+            if (_isShutDown || version != _groupVersion)
+            {
+                return;
+            }
+
+            AssignTiles(Tiles.Select((_, index) => index < view.Layout.Cameras.Count
+                && view.Layout.Cameras[index] is { } camera && _configuration.FindCamera(camera) is not null ? camera : null).ToList());
+
+            SelectedTile = Tiles.FirstOrDefault();
+
+            if (view.MaximizedTileIndex is { } maximized && maximized >= 0 && maximized < Tiles.Count)
+            {
+                MaximizedTile = Tiles[maximized];
+            }
+
+            ActiveSavedViewId = id;
+            _statusBar.Message = Localizer.Format("Views_Opened", view.Name);
+        }
+        finally
+        {
+            if (version == _groupVersion)
+            {
+                _restoringGroup = false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Restores the grid split when a single tile is maximized.
+    /// </summary>
+    [RelayCommand]
+    public void RestoreLayout()
+    {
+        if (!_isShutDown)
+        {
+            MaximizedTile = null;
+        }
+    }
+
+    /// <summary>
+    /// Opens a camera in the selected tile, or in the first free tile when the selected one is busy.
+    /// </summary>
+    public void OpenCamera(CameraReference camera)
+    {
+        var target = SelectedTile;
+
+        if (target is null || target.HasCamera || HasPendingPlay(target))
+        {
+            target = Tiles.FirstOrDefault(tile => !tile.HasCamera && !HasPendingPlay(tile)) ?? target ?? Tiles.FirstOrDefault();
+        }
+
+        if (target is null)
+        {
+            return;
+        }
+
+        PlayOnTile(target, camera);
+
+        SelectedTile = target;
+    }
+
+    /// <summary>
+    /// Shows given cameras (e.g. a whole group) in the currently selected split.
+    /// Cameras beyond the grid capacity are reported without changing the user's layout.
+    /// Nothing is reopened when exactly these cameras are already shown.
+    /// </summary>
+    public void ShowCameras(IReadOnlyList<CameraReference> cameras)
+    {
+        if (cameras.Count == 0 || IsShowing(cameras))
+        {
+            return;
+        }
+
+        MaximizedTile = null;
+
+        foreach (var tile in Tiles)
+        {
+            _emptySlots.Add(tile.Index);
+        }
+
+        AssignTiles(Tiles.Select((_, index) => index < cameras.Count ? cameras[index] : null).ToList());
+
+        SelectedTile = Tiles.FirstOrDefault();
+
+        OnPropertyChanged(nameof(SelectedCamera));
+
+        if (cameras.Count > Tiles.Count)
+        {
+            _statusBar.Message = Localizer.Format("Live_OpenedPartially", Tiles.Count, cameras.Count);
+        }
+    }
+
+    /// <summary>
+    /// Stops every stream before the window and its native video surfaces are destroyed.
+    /// </summary>
+    public void Shutdown()
+    {
+        if (_isShutDown)
+        {
+            return;
+        }
+
+        RememberSavedView();
+
+        _isShutDown = true;
+
+        _resizeStreamTimer.Stop();
+
+        _resizeStreamTimer.Tick -= OnResizeStreamTick;
+
+        RememberGroup();
+        _lifetime.Cancel();
+
+        _configuration.Changed -= OnConfigurationChanged;
+        Localizer.Instance.LanguageChanged -= OnLanguageChanged;
+
+        foreach (var tile in Tiles)
+        {
+            tile.Close();
+        }
+    }
+
+    public void Dispose() => _disposal ??= DisposeCoreAsync();
+
+    public void SelectTile(VideoTileViewModel tile)
+    {
+        SelectedTile = tile;
+    }
+
+    public void ToggleMaximize(VideoTileViewModel tile)
+    {
+        if (_isShutDown || !Tiles.Contains(tile))
+        {
+            return;
+        }
+
+        SelectedTile = tile;
+        // Resize the live surface immediately. The tile keeps the outgoing stream playing
+        // while the replacement stream connects and renders its first pictures.
+        MaximizedTile = ReferenceEquals(MaximizedTile, tile) ? null : tile;
+    }
+
+    public async void ReportMainAspectRatio(CameraReference camera, string aspectRatio)
+    {
+        var channel = _configuration.FindCamera(camera)?.Channel;
+
+        if (channel is null || channel.MainAspectRatio == aspectRatio)
+        {
+            return;
+        }
+
+        channel.MainAspectRatio = aspectRatio;
+
+        try
+        {
+            await _configuration.SaveAsync();
+        }
+        catch (Exception exception) when (DeviceFailure.IsExpected(exception))
+        {
+            _statusBar.Message = DeviceOperationErrors.Report("Saving camera proportions", exception);
+        }
+    }
+
+    public void DropCameras(VideoTileViewModel tile, IReadOnlyList<CameraReference> cameras)
+    {
+        if (!CanDropCameras)
+        {
+            return;
+        }
+
+        if (cameras.Count == 1)
+        {
+            PlayOnTile(tile, cameras[0]);
+
+            SelectedTile = tile;
+
+            return;
+        }
+
+        ShowCameras(cameras);
+    }
+
+    /// <summary>
+    /// Called when the live view page is shown or hidden. Streams of a hidden page are released
+    /// after the tiles' grace period and reopened when the page is shown again.
+    /// </summary>
+    public void SetPageActive(bool active)
+    {
+        if (_isShutDown || _isPageActive == active)
+        {
+            return;
+        }
+
+        _isPageActive = active;
+
+        UpdateTileVisibility();
+    }
+
+    /// <summary>
+    /// Releases the streams of the hidden page at once, e.g. when a recording needs the recorder's bandwidth.
+    /// </summary>
+    public void ReleaseHiddenStreams()
+    {
+        if (_isShutDown || _isPageActive)
+        {
+            return;
+        }
+
+        foreach (var tile in Tiles)
+        {
+            tile.ReleaseHiddenStream();
+        }
+    }
+
+    public Task ReleaseHiddenStreamsAsync()
+    {
+        if (_isShutDown || _isPageActive)
+        {
+            return Task.CompletedTask;
+        }
+
+        return Task.WhenAll(Tiles.Select(tile => tile.ReleaseHiddenStreamAsync()));
+    }
+
+    public void RemoveViewCamera(Guid? viewId, int index)
+    {
+        if (!Session.CanEditViews || ActiveSavedViewId != viewId || index < 0 || index >= Tiles.Count)
+        {
+            return;
+        }
+
+        var tile = Tiles[index];
+
+        _assignments.Remove(tile);
+        _emptySlots.Add(index);
+        tile.Close();
+        OnPropertyChanged(nameof(SelectedCamera));
+    }
+
+    [RelayCommand]
+    private void ShowVideoOnly() => IsVideoOnly = true;
+
+    private void OnResizeStreamTick(object? sender, EventArgs e)
+    {
+        _resizeStreamTimer.Stop();
+        RefreshStreams();
+    }
+
     private void RememberGroup()
     {
-        if (ActiveGroup is null || _restoringGroup) return;
+        if (ActiveGroup is null || _restoringGroup)
+        {
+            return;
+        }
+
         _configuration.Current.GroupLiveViews[ActiveGroup] = new GroupLiveView
         {
             LayoutId = SelectedLayout.Id,
@@ -235,11 +571,24 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     private void RememberSavedView()
     {
         // Without the permission an open view can still be rearranged, but the change is not kept.
-        if (_isShutDown || _restoringGroup || _assigningTiles || !Session.CanEditViews) return;
+        if (_isShutDown || _restoringGroup || _assigningTiles || !Session.CanEditViews)
+        {
+            return;
+        }
+
         var view = _configuration.Current.Views.FirstOrDefault(candidate => candidate.Id == ActiveSavedViewId);
-        if (view is null) return;
+
+        if (view is null)
+        {
+            return;
+        }
+
         var maximized = MaximizedTile is { } tile && tile.Index < SelectedLayout.Count ? (int?)tile.Index : null;
-        if (SavedViewChanges.Apply(view, CaptureView(), maximized)) _ = SaveGroupViewsAsync();
+
+        if (SavedViewChanges.Apply(view, CaptureView(), maximized))
+        {
+            _ = SaveGroupViewsAsync();
+        }
     }
 
     /// <summary>
@@ -248,10 +597,19 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     [RelayCommand]
     private async Task AddNewViewAsync()
     {
-        if (_isShutDown || _restoringGroup || !Session.CanEditViews) return;
+        if (_isShutDown || _restoringGroup || !Session.CanEditViews)
+        {
+            return;
+        }
+
         var name = await _dialogs.PromptTextAsync(Localizer.Text("Views_AddNew"), Localizer.Text("Views_NamePrompt"),
             Localizer.Format("Views_DefaultName", _configuration.Current.Views.Count + 1));
-        if (string.IsNullOrWhiteSpace(name) || _isShutDown) return;
+
+        if (string.IsNullOrWhiteSpace(name) || _isShutDown)
+        {
+            return;
+        }
+
         var count = SelectedLayout.Count;
         var view = new SavedCameraView
         {
@@ -264,246 +622,132 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
                 EmptySlots = Enumerable.Range(0, count).ToHashSet()
             }
         };
+
         _configuration.Current.Views.Add(view);
         await _configuration.SaveAsync();
         await ShowSavedViewAsync(view.Id);
     }
 
-    public async Task ShowSavedViewAsync(Guid id)
-    {
-        RememberSavedView();
-        var view = _configuration.Current.Views.FirstOrDefault(candidate => candidate.Id == id)?.Copy();
-        if (view is null || _isShutDown) return;
-        RememberGroup();
-        var version = ++_groupVersion;
-        ActiveGroup = null;
-        _groupCameras = Array.Empty<CameraReference>();
-        ActiveSavedViewId = null;
-        _restoringGroup = true;
-        try
-        {
-            ClearTiles();
-            MaximizedTile = null;
-            _emptySlots = view.Layout.EmptySlots.ToHashSet();
-            SelectedLayout = GridLayoutOption.Find(view.Layout.LayoutId, view.Layout.LayoutCount);
-            await _layoutChange;
-            if (_isShutDown || version != _groupVersion) return;
-            AssignTiles(Tiles.Select((_, index) => index < view.Layout.Cameras.Count
-                && view.Layout.Cameras[index] is { } camera && _configuration.FindCamera(camera) is not null ? camera : null).ToList());
-            SelectedTile = Tiles.FirstOrDefault();
-            if (view.MaximizedTileIndex is { } maximized && maximized >= 0 && maximized < Tiles.Count)
-                MaximizedTile = Tiles[maximized];
-            ActiveSavedViewId = id;
-            _statusBar.Message = Localizer.Format("Views_Opened", view.Name);
-        }
-        finally
-        {
-            if (version == _groupVersion) _restoringGroup = false;
-        }
-    }
-
     private async Task SaveGroupViewsAsync()
     {
-        try { await _configuration.SaveAsync(); }
-        catch (Exception exception) { DeviceOperationErrors.Report("Saving group views", exception); }
+        try
+        {
+            await _configuration.SaveAsync();
+        }
+        catch (Exception exception)
+        {
+            DeviceOperationErrors.Report("Saving group views", exception);
+        }
     }
 
     private void FillGroupSlots()
     {
-        if (_isShutDown || ActiveGroup is null) return;
+        if (_isShutDown || ActiveGroup is null)
+        {
+            return;
+        }
+
         var current = Tiles.Select(tile => _assignments.GetValueOrDefault(tile) ?? tile.Camera).ToArray();
         var cameras = _groupCameras.Where(camera => _configuration.FindCamera(camera) is not null).ToArray();
         var filled = GroupCameraPlacement.Fill(current, cameras, _emptySlots);
-        if (!current.SequenceEqual(filled)) AssignTiles(filled);
+
+        if (!current.SequenceEqual(filled))
+        {
+            AssignTiles(filled);
+        }
     }
 
     private async Task CheckGroupLayoutAsync()
     {
-        if (_isShutDown || ActiveGroup is null || _checkingGroupLayout) return;
+        if (_isShutDown || ActiveGroup is null || _checkingGroupLayout)
+        {
+            return;
+        }
+
         var cameraCount = _groupCameras.Distinct().Count(camera => _configuration.FindCamera(camera) is not null);
         var layout = SelectedLayout;
         var suggested = GroupLayoutCapacity.Suggest(_configuration.Current.Settings, layout, cameraCount);
-        if (suggested is null) return;
+
+        if (suggested is null)
+        {
+            return;
+        }
+
         if (suggested.Count <= layout.Count)
         {
             _statusBar.Message = Localizer.Format("Live_GroupLayoutCapacityMaximum", cameraCount, layout.Count);
+
             return;
         }
+
         var version = _groupVersion;
         var key = ActiveGroup;
         _checkingGroupLayout = true;
+
         try
         {
             var accepted = await _dialogs.ConfirmAsync(Localizer.Text("Live_GroupLayoutCapacityTitle"),
                 Localizer.Format("Live_GroupLayoutCapacityConfirm", cameraCount, layout.Count, suggested.Count));
+
             if (accepted && !_isShutDown && version == _groupVersion && key == ActiveGroup
                 && ReferenceEquals(layout, SelectedLayout) && _configuration.Current.Settings.WarnWhenGroupExceedsLayout)
             {
                 SelectedLayout = suggested;
+
                 await _layoutChange;
             }
         }
-        finally { _checkingGroupLayout = false; }
+        finally
+        {
+            _checkingGroupLayout = false;
+        }
     }
 
     private async void CheckCurrentGroupLayout()
     {
-        try { await CheckGroupLayoutAsync(); }
-        catch (Exception exception) { DeviceOperationErrors.Report("Checking group layout capacity", exception); }
-    }
-
-    /// <summary>
-    /// Restores the grid split when a single tile is maximized.
-    /// </summary>
-    [RelayCommand]
-    public void RestoreLayout()
-    {
-        if (!_isShutDown) MaximizedTile = null;
-    }
-
-    /// <summary>
-    /// Opens a camera in the selected tile, or in the first free tile when the selected one is busy.
-    /// </summary>
-    public void OpenCamera(CameraReference camera)
-    {
-        var target = SelectedTile;
-        if (target is null || target.HasCamera || HasPendingPlay(target))
+        try
         {
-            target = Tiles.FirstOrDefault(tile => !tile.HasCamera && !HasPendingPlay(tile)) ?? target ?? Tiles.FirstOrDefault();
+            await CheckGroupLayoutAsync();
         }
-
-        if (target is null)
+        catch (Exception exception)
         {
-            return;
-        }
-
-        PlayOnTile(target, camera);
-        SelectedTile = target;
-    }
-
-    /// <summary>
-    /// Shows given cameras (e.g. a whole group) in the currently selected split.
-    /// Cameras beyond the grid capacity are reported without changing the user's layout.
-    /// Nothing is reopened when exactly these cameras are already shown.
-    /// </summary>
-    public void ShowCameras(IReadOnlyList<CameraReference> cameras)
-    {
-        if (cameras.Count == 0 || IsShowing(cameras))
-        {
-            return;
-        }
-
-        MaximizedTile = null;
-        foreach (var tile in Tiles) _emptySlots.Add(tile.Index);
-        AssignTiles(Tiles.Select((_, index) => index < cameras.Count ? cameras[index] : null).ToList());
-
-        SelectedTile = Tiles.FirstOrDefault();
-        OnPropertyChanged(nameof(SelectedCamera));
-
-        if (cameras.Count > Tiles.Count)
-        {
-            _statusBar.Message = Localizer.Format("Live_OpenedPartially", Tiles.Count, cameras.Count);
+            DeviceOperationErrors.Report("Checking group layout capacity", exception);
         }
     }
-
-    /// <summary>
-    /// Stops every stream before the window and its native video surfaces are destroyed.
-    /// </summary>
-    public void Shutdown()
-    {
-        if (_isShutDown)
-        {
-            return;
-        }
-
-        RememberSavedView();
-        _isShutDown = true;
-        _resizeStreamTimer.Stop();
-        _resizeStreamTimer.Tick -= OnResizeStreamTick;
-        RememberGroup();
-        _lifetime.Cancel();
-        _configuration.Changed -= OnConfigurationChanged;
-        Localizer.Instance.LanguageChanged -= OnLanguageChanged;
-        foreach (var tile in Tiles)
-        {
-            tile.Close();
-        }
-    }
-
-    public void Dispose() => _disposal ??= DisposeCoreAsync();
 
     private async Task DisposeCoreAsync()
     {
         Shutdown();
+
         try
         {
             await _layoutChange;
             await Task.WhenAll(_clientOpenings);
         }
-        catch (Exception exception) { UnhandledExceptionLogger.Log("Finishing camera operations", exception); }
+        catch (Exception exception)
+        {
+            UnhandledExceptionLogger.Log("Finishing camera operations", exception);
+        }
+
         var tiles = Tiles.ToArray();
-        foreach (var tile in tiles) tile.Dispose();
+
+        foreach (var tile in tiles)
+        {
+            tile.Dispose();
+        }
+
         await Task.WhenAll(tiles.Select(tile => tile.Disposal));
         Tiles.Clear();
-    }
-
-    public void SelectTile(VideoTileViewModel tile)
-    {
-        SelectedTile = tile;
-    }
-
-    public void ToggleMaximize(VideoTileViewModel tile)
-    {
-        if (_isShutDown || !Tiles.Contains(tile)) return;
-        SelectedTile = tile;
-        // Resize the live surface immediately. The tile keeps the outgoing stream playing
-        // while the replacement stream connects and renders its first pictures.
-        MaximizedTile = ReferenceEquals(MaximizedTile, tile) ? null : tile;
-    }
-
-    public async void ReportMainAspectRatio(CameraReference camera, string aspectRatio)
-    {
-        var channel = _configuration.FindCamera(camera)?.Channel;
-        if (channel is null || channel.MainAspectRatio == aspectRatio)
-        {
-            return;
-        }
-
-        channel.MainAspectRatio = aspectRatio;
-        try { await _configuration.SaveAsync(); }
-        catch (Exception exception) when (DeviceFailure.IsExpected(exception))
-        {
-            _statusBar.Message = DeviceOperationErrors.Report("Saving camera proportions", exception);
-        }
-    }
-
-    /// <summary>
-    /// A group's tiles follow its configured cameras (edited in the settings); only views and
-    /// free layouts accept cameras dragged from the tree. A saved view also needs the permission to change views.
-    /// </summary>
-    public bool CanDropCameras => ActiveGroup is null && (ActiveSavedViewId is null || Session.CanEditViews);
-
-    public void DropCameras(VideoTileViewModel tile, IReadOnlyList<CameraReference> cameras)
-    {
-        if (!CanDropCameras)
-        {
-            return;
-        }
-
-        if (cameras.Count == 1)
-        {
-            PlayOnTile(tile, cameras[0]);
-            SelectedTile = tile;
-            return;
-        }
-
-        ShowCameras(cameras);
     }
 
     [RelayCommand]
     private void CloseAll()
     {
-        foreach (var tile in Tiles) _emptySlots.Add(tile.Index);
+        foreach (var tile in Tiles)
+        {
+            _emptySlots.Add(tile.Index);
+        }
+
         ClearTiles();
         RememberSavedView();
     }
@@ -515,18 +759,28 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     private void AssignTiles(IReadOnlyList<CameraReference?> cameras)
     {
         _assigningTiles = true;
-        try { AssignTilesCore(cameras); }
-        finally { _assigningTiles = false; }
+
+        try
+        {
+            AssignTilesCore(cameras);
+        }
+        finally
+        {
+            _assigningTiles = false;
+        }
+
         RememberSavedView();
     }
 
     private void AssignTilesCore(IReadOnlyList<CameraReference?> cameras)
     {
         _assignments.Clear();
+
         for (var index = 0; index < Tiles.Count; index++)
         {
             var tile = Tiles[index];
             var camera = index < cameras.Count ? cameras[index] : null;
+
             if (camera is null)
             {
                 tile.Close();
@@ -534,6 +788,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
             else if (Equals(tile.Camera, camera) && !HasPendingPlay(tile))
             {
                 _assignments[tile] = camera;
+
                 _emptySlots.Remove(tile.Index);
             }
             else
@@ -541,35 +796,6 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
                 PlayOnTile(tile, camera);
             }
         }
-    }
-
-    /// <summary>
-    /// Called when the live view page is shown or hidden. Streams of a hidden page are released
-    /// after the tiles' grace period and reopened when the page is shown again.
-    /// </summary>
-    public void SetPageActive(bool active)
-    {
-        if (_isShutDown || _isPageActive == active) return;
-        _isPageActive = active;
-        UpdateTileVisibility();
-    }
-
-    /// <summary>
-    /// Releases the streams of the hidden page at once, e.g. when a recording needs the recorder's bandwidth.
-    /// </summary>
-    public void ReleaseHiddenStreams()
-    {
-        if (_isShutDown || _isPageActive) return;
-        foreach (var tile in Tiles)
-        {
-            tile.ReleaseHiddenStream();
-        }
-    }
-
-    public Task ReleaseHiddenStreamsAsync()
-    {
-        if (_isShutDown || _isPageActive) return Task.CompletedTask;
-        return Task.WhenAll(Tiles.Select(tile => tile.ReleaseHiddenStreamAsync()));
     }
 
     private void UpdateTileVisibility()
@@ -583,6 +809,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     private void ClearTiles()
     {
         _assignments.Clear();
+
         foreach (var tile in Tiles)
         {
             tile.Close();
@@ -599,18 +826,9 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
             _assignments.Remove(SelectedTile);
             _emptySlots.Add(SelectedTile.Index);
         }
+
         SelectedTile?.Close();
         RememberSavedView();
-        OnPropertyChanged(nameof(SelectedCamera));
-    }
-
-    public void RemoveViewCamera(Guid? viewId, int index)
-    {
-        if (!Session.CanEditViews || ActiveSavedViewId != viewId || index < 0 || index >= Tiles.Count) return;
-        var tile = Tiles[index];
-        _assignments.Remove(tile);
-        _emptySlots.Add(index);
-        tile.Close();
         OnPropertyChanged(nameof(SelectedCamera));
     }
 
@@ -618,12 +836,14 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     private void ToggleAudio()
     {
         var selected = SelectedTile;
+
         if (selected is null)
         {
             return;
         }
 
         var enable = !selected.IsAudioEnabled;
+
         foreach (var tile in Tiles)
         {
             tile.IsAudioEnabled = false;
@@ -637,9 +857,11 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     private async Task TakeSnapshotAsync()
     {
         var tile = SelectedTile;
+
         if (tile is null || tile.Status != TileStatus.Playing)
         {
             _statusBar.Message = Localizer.Text("Live_SnapshotNeedsStream");
+
             return;
         }
 
@@ -665,6 +887,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     private async Task ToggleTileTitlesAsync()
     {
         _configuration.Current.Settings.ShowTileTitles = !ShowTileTitles;
+
         await _configuration.SaveAsync();
     }
 
@@ -683,6 +906,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         for (var index = 0; index < Tiles.Count; index++)
         {
             var expected = index < cameras.Count ? cameras[index] : null;
+
             if (!Equals(Tiles[index].Camera, expected))
             {
                 return false;
@@ -695,8 +919,10 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     partial void OnSelectedLayoutChanged(GridLayoutOption value)
     {
         MaximizedTile = null;
+
         ApplyLayout(value);
         RememberSavedView();
+
         if (!_restoringGroup)
         {
             RememberDefaultLayout(value);
@@ -706,9 +932,18 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
 
     private void RememberDefaultLayout(GridLayoutOption layout)
     {
-        if (_isShutDown) return;
+        if (_isShutDown)
+        {
+            return;
+        }
+
         var settings = _configuration.Current.Settings;
-        if (settings.DefaultLayoutId == layout.Id && settings.DefaultLayoutCount == layout.Count) return;
+
+        if (settings.DefaultLayoutId == layout.Id && settings.DefaultLayoutCount == layout.Count)
+        {
+            return;
+        }
+
         settings.DefaultLayoutId = layout.Id;
         settings.DefaultLayoutCount = layout.Count;
         _ = SaveDefaultLayoutAsync();
@@ -716,8 +951,14 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
 
     private async Task SaveDefaultLayoutAsync()
     {
-        try { await _configuration.SaveAsync(); }
-        catch (Exception exception) { DeviceOperationErrors.Report("Saving default camera layout", exception); }
+        try
+        {
+            await _configuration.SaveAsync();
+        }
+        catch (Exception exception)
+        {
+            DeviceOperationErrors.Report("Saving default camera layout", exception);
+        }
     }
 
     partial void OnSelectedTileChanged(VideoTileViewModel? oldValue, VideoTileViewModel? newValue)
@@ -759,32 +1000,44 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         var previous = _layoutChange;
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _layoutChange = completion.Task;
+
         try
         {
             await previous;
-            if (_isShutDown || version != _layoutVersion) return;
+
+            if (_isShutDown || version != _layoutVersion)
+            {
+                return;
+            }
+
             MaximizedTile = null;
 
             // Removed tiles stop their players in parallel; each one waits for its own native stop.
             var removed = Tiles.Skip(layout.Count).ToList();
+
             foreach (var tile in removed)
             {
                 tile.Dispose();
             }
 
             await Task.WhenAll(removed.Select(tile => tile.Disposal));
+
             foreach (var tile in removed)
             {
                 Tiles.Remove(tile);
                 _assignments.Remove(tile);
                 _pendingPlayRequests.Remove(tile);
+
                 if (ReferenceEquals(SelectedTile, tile))
                 {
                     SelectedTile = null;
                 }
             }
 
-            if (_isShutDown || version != _layoutVersion) return;
+            if (_isShutDown || version != _layoutVersion)
+            {
+                return;
+            }
 
             while (Tiles.Count < layout.Count)
             {
@@ -801,13 +1054,24 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
             SelectedTile ??= Tiles.FirstOrDefault();
 
             RefreshStreams();
-            if (!_restoringGroup) FillGroupSlots();
+
+            if (!_restoringGroup)
+            {
+                FillGroupSlots();
+            }
         }
-        catch (Exception exception) { DeviceOperationErrors.Report("Changing camera layout", exception); }
+        catch (Exception exception)
+        {
+            DeviceOperationErrors.Report("Changing camera layout", exception);
+        }
         finally
         {
             completion.TrySetResult();
-            if (version == _layoutVersion) RememberSavedView();
+
+            if (version == _layoutVersion)
+            {
+                RememberSavedView();
+            }
         }
     }
 
@@ -842,7 +1106,9 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     private void PlayOnTile(VideoTileViewModel tile, CameraReference reference)
     {
         tile.ShowLoading();
+
         _assignments[tile] = reference;
+
         _emptySlots.Remove(tile.Index);
         RememberSavedView();
         _clientOpenings.RemoveAll(task => task.IsCompleted);
@@ -857,9 +1123,11 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         }
 
         var camera = _configuration.FindCamera(reference);
+
         if (camera is null)
         {
             tile.Close();
+
             return;
         }
 
@@ -868,17 +1136,25 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         // Capture UI-owned state before starting an independent worker for this tile.
         var streamType = ResolveStreamType(tile);
         var device = camera.Device.ForHost(camera.Device.Host);
+
         try
         {
             var source = await LiveSourceLoader.OpenAsync(_clientFactory, device,
                 camera.Channel.Number, streamType, _lifetime.Token);
+
             if (_isShutDown || tile.PlayRequestVersion != requestVersion || !Tiles.Contains(tile)
-                || !ReferenceEquals(_configuration.FindCamera(reference)?.Device, camera.Device)) return;
+                || !ReferenceEquals(_configuration.FindCamera(reference)?.Device, camera.Device))
+            {
+                return;
+            }
+
             if (streamType != ResolveStreamType(tile))
             {
                 PlayOnTile(tile, reference);
+
                 return;
             }
+
             var request = new TilePlayRequest(
                 source,
                 streamType,
@@ -890,17 +1166,26 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
 
             tile.Play(reference, camera.FullName, request);
         }
-        catch (OperationCanceledException) when (_isShutDown) { }
+        catch (OperationCanceledException) when (_isShutDown)
+        {
+        }
         catch (Exception exception) when (DeviceFailure.IsExpected(exception))
         {
-            if (_isShutDown || tile.PlayRequestVersion != requestVersion) return;
+            if (_isShutDown || tile.PlayRequestVersion != requestVersion)
+            {
+                return;
+            }
+
             tile.Close();
+
             _statusBar.Message = DeviceOperationErrors.Report($"Opening camera: {camera.FullName}", exception);
         }
         finally
         {
             if (_pendingPlayRequests.TryGetValue(tile, out var pending) && pending == requestVersion)
+            {
                 _pendingPlayRequests.Remove(tile);
+            }
         }
 
         if (ReferenceEquals(tile, SelectedTile))
@@ -909,17 +1194,21 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         }
     }
 
-    private TimeSpan HiddenStreamTimeout => TimeSpan.FromSeconds(Math.Max(0, _configuration.Current.Settings.HiddenTileReleaseSeconds));
-
     private void OnConfigurationChanged(object? sender, EventArgs e)
     {
-        if (ActiveSavedViewId is { } viewId && !_configuration.Current.Views.Any(view => view.Id == viewId)) ActiveSavedViewId = null;
+        if (ActiveSavedViewId is { } viewId && !_configuration.Current.Views.Any(view => view.Id == viewId))
+        {
+            ActiveSavedViewId = null;
+        }
+
         OnPropertyChanged(nameof(ActiveSavedViewName));
+
         ShowTileTitles = _configuration.Current.Settings.ShowTileTitles;
 
         foreach (var tile in Tiles)
         {
             tile.HiddenStreamTimeout = HiddenStreamTimeout;
+
             if (tile.Camera is not null && _configuration.FindCamera(tile.Camera) is null)
             {
                 tile.Close();
@@ -952,6 +1241,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
             }
 
             var camera = _configuration.FindCamera(tile.Camera);
+
             if (camera is not null)
             {
                 tile.Rename(camera.FullName);

@@ -9,12 +9,18 @@ internal static class NativeVideoSurfaceOrder
     internal static bool ShowInFront(IntPtr front, IntPtr back)
     {
         if (!OperatingSystem.IsWindows() || front == IntPtr.Zero || back == IntPtr.Zero)
+        {
             return false;
+        }
+
         var frontHolder = GetParent(front);
         var backHolder = GetParent(back);
+
         if (frontHolder == IntPtr.Zero || backHolder == IntPtr.Zero || frontHolder == backHolder
             || GetParent(frontHolder) == IntPtr.Zero || GetParent(frontHolder) != GetParent(backHolder))
+        {
             return false;
+        }
 
         // Put only the other surface behind the selected one. Do not move either
         // surface, change visibility, activate a window or disturb other tiles.

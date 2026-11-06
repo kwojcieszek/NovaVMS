@@ -6,23 +6,6 @@ namespace NovaVMS.Infrastructure.Sync;
 
 internal sealed class MySqlDialect : ISqlDialect
 {
-    public DbConnection CreateConnection(SettingsSyncOptions options)
-    {
-        var builder = new MySqlConnectionStringBuilder
-        {
-            Server = options.Host.Trim(),
-            Port = checked((uint)options.Port),
-            Database = options.Database.Trim(),
-            UserID = options.UserName.Trim(),
-            Password = options.Password,
-            ConnectionTimeout = DatabaseRemoteSettingsStore.ConnectTimeoutSeconds,
-            DefaultCommandTimeout = DatabaseRemoteSettingsStore.CommandTimeoutSeconds,
-            ApplicationName = "NovaVMS"
-        };
-
-        return new MySqlConnection(builder.ConnectionString);
-    }
-
     public string CreateMetaTable =>
         "CREATE TABLE IF NOT EXISTS " + SettingsTables.Meta + " ("
         + "meta_key VARCHAR(64) NOT NULL PRIMARY KEY, "
@@ -46,4 +29,21 @@ internal sealed class MySqlDialect : ISqlDialect
         "INSERT IGNORE INTO " + SettingsTables.Meta + " (meta_key, meta_value) VALUES (@key, @value)";
 
     public string InsertVersion => SettingsTables.InsertVersionValues + "; SELECT LAST_INSERT_ID()";
+
+    public DbConnection CreateConnection(SettingsSyncOptions options)
+    {
+        var builder = new MySqlConnectionStringBuilder
+        {
+            Server = options.Host.Trim(),
+            Port = checked((uint)options.Port),
+            Database = options.Database.Trim(),
+            UserID = options.UserName.Trim(),
+            Password = options.Password,
+            ConnectionTimeout = DatabaseRemoteSettingsStore.ConnectTimeoutSeconds,
+            DefaultCommandTimeout = DatabaseRemoteSettingsStore.CommandTimeoutSeconds,
+            ApplicationName = "NovaVMS"
+        };
+
+        return new MySqlConnection(builder.ConnectionString);
+    }
 }

@@ -11,13 +11,6 @@ public sealed class ThemeOption : ObservableObject
 {
     private readonly string _labelKey;
 
-    private ThemeOption(ThemeMode value, string labelKey)
-    {
-        Value = value;
-        _labelKey = labelKey;
-        Localizer.Instance.LanguageChanged += (_, _) => OnPropertyChanged(nameof(Label));
-    }
-
     public static IReadOnlyList<ThemeOption> All { get; } = new List<ThemeOption>
     {
         new(ThemeMode.System, "Theme_System"),
@@ -28,6 +21,13 @@ public sealed class ThemeOption : ObservableObject
     public ThemeMode Value { get; }
 
     public string Label => Localizer.Text(_labelKey);
+
+    private ThemeOption(ThemeMode value, string labelKey)
+    {
+        Value = value;
+        _labelKey = labelKey;
+        Localizer.Instance.LanguageChanged += (_, _) => OnPropertyChanged(nameof(Label));
+    }
 
     public static ThemeOption Find(ThemeMode value)
     {

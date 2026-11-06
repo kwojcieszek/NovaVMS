@@ -76,33 +76,63 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
     public void Start()
     {
         _started = true;
+
         OnConfigurationChanged(this, EventArgs.Empty);
+    }
+
+    public void Dispose()
+    {
+        _timer.Stop();
+
+        _timer.Tick -= OnTimer;
+        _configuration.Changed -= OnConfigurationChanged;
+
+        _lifetime.Cancel();
+        _http.Dispose();
     }
 
     private void OnConfigurationChanged(object? sender, EventArgs e)
     {
-        if (!_started) return;
+        if (!_started)
+        {
+            return;
+        }
+
         var settings = _configuration.Current.Settings;
         var url = (settings.UpdateServerUrl ?? "").Trim();
         var automatic = settings.AutoCheckForUpdates || settings.AutoDownloadUpdates || settings.AutoInstallUpdates;
         var interval = TimeSpan.FromMinutes(settings.UpdateCheckIntervalMinutes);
-        if (_timer.Interval != interval) _timer.Interval = interval;
-        if (url == _lastUrl && automatic == _lastAutomatic && settings.AutoDownloadUpdates == _lastAutoDownload && settings.AutoInstallUpdates == _lastAutoInstall) return;
+
+        if (_timer.Interval != interval)
+        {
+            _timer.Interval = interval;
+        }
+
+        if (url == _lastUrl && automatic == _lastAutomatic && settings.AutoDownloadUpdates == _lastAutoDownload && settings.AutoInstallUpdates == _lastAutoInstall)
+        {
+            return;
+        }
+
         if (url != _lastUrl)
         {
             _operation?.Cancel();
+
             Available = null;
             IsDownloaded = false;
             _promptedUpdate = null;
         }
+
         _lastUrl = url;
         _lastAutomatic = automatic;
         _lastAutoDownload = settings.AutoDownloadUpdates;
         _lastAutoInstall = settings.AutoInstallUpdates;
+
         _timer.Stop();
+
         if (_lastAutomatic && url.Length > 0)
         {
             _timer.Start();
+
             _ = CheckAfterDelayAsync(url);
         }
     }
@@ -112,14 +142,23 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
         try
         {
             await Task.Delay(2000, _lifetime.Token);
-            if (url == _lastUrl && _lastAutomatic && !IsBusy) await CheckAsync();
+
+            if (url == _lastUrl && _lastAutomatic && !IsBusy)
+            {
+                await CheckAsync();
+            }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+        }
     }
 
     private void OnTimer(object? sender, EventArgs e)
     {
-        if (!IsBusy && _lastAutomatic) _ = CheckAsync();
+        if (!IsBusy && _lastAutomatic)
+        {
+            _ = CheckAsync();
+        }
     }
 
     private bool CanCheck() => !IsBusy && !_lifetime.IsCancellationRequested;
@@ -127,47 +166,87 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
     [RelayCommand(CanExecute = nameof(CanCheck))]
     private async Task CheckAsync()
     {
-        if (!CanCheck()) return;
+        if (!CanCheck())
+        {
+            return;
+        }
+
         var url = _configuration.Current.Settings.UpdateServerUrl;
         IsBusy = true;
         Progress = 0;
         StatusText = Localizer.Text("Updates_Checking");
+
         try
         {
-            if (!OperatingSystem.IsWindows()) throw new NotSupportedException(Localizer.Text("Updates_WindowsOnly"));
+            if (!OperatingSystem.IsWindows())
+            {
+                throw new NotSupportedException(Localizer.Text("Updates_WindowsOnly"));
+            }
+
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
             _operation = timeout;
+
             timeout.CancelAfter(TimeSpan.FromSeconds(30));
+
             var found = await UpdateCatalog.CheckAsync(_http, url, CurrentVersion, timeout.Token);
-            if (url != _configuration.Current.Settings.UpdateServerUrl) return;
+
+            if (url != _configuration.Current.Settings.UpdateServerUrl)
+            {
+                return;
+            }
+
             Available = found;
             IsDownloaded = false;
             StatusText = found is null ? Localizer.Text("Updates_Current") : AvailableText;
+
             if (found is not null)
             {
                 var cached = await _downloads.TryGetAsync(found, timeout.Token);
+
                 timeout.Token.ThrowIfCancellationRequested();
-                if (url != _configuration.Current.Settings.UpdateServerUrl) return;
+
+                if (url != _configuration.Current.Settings.UpdateServerUrl)
+                {
+                    return;
+                }
+
                 if (cached is not null)
                 {
                     IsDownloaded = true;
                     StatusText = Localizer.Format("Updates_Downloaded", found.VersionText);
                 }
                 else if (_configuration.Current.Settings.AutoDownloadUpdates || _configuration.Current.Settings.AutoInstallUpdates)
+                {
                     await DownloadAsync(found);
+                }
+
                 if (IsDownloaded && Available == found && _configuration.Current.Settings.AutoInstallUpdates)
+                {
                     await InstallCoreAsync(found, confirmed: true);
+                }
                 else if (IsDownloaded && _configuration.Current.Settings.AutoDownloadUpdates)
+                {
                     await PromptForDownloadedUpdateAsync(found);
+                }
             }
         }
-        catch (OperationCanceledException) { StatusText = Localizer.Text("Updates_Cancelled"); }
-        catch (Exception exception) { StatusText = Localizer.Format("Updates_Failed", exception.Message); }
+        catch (OperationCanceledException)
+        {
+            StatusText = Localizer.Text("Updates_Cancelled");
+        }
+        catch (Exception exception)
+        {
+            StatusText = Localizer.Format("Updates_Failed", exception.Message);
+        }
         finally
         {
             _operation = null;
             IsBusy = false;
-            if (url != _configuration.Current.Settings.UpdateServerUrl && _lastAutomatic) _ = CheckAfterDelayAsync(_lastUrl);
+
+            if (url != _configuration.Current.Settings.UpdateServerUrl && _lastAutomatic)
+            {
+                _ = CheckAfterDelayAsync(_lastUrl);
+            }
         }
     }
 
@@ -175,13 +254,20 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
 
     private async Task PromptForDownloadedUpdateAsync(ApplicationUpdate update)
     {
-        if (_lifetime.IsCancellationRequested || Available != update || _promptedUpdate == update) return;
+        if (_lifetime.IsCancellationRequested || Available != update || _promptedUpdate == update)
+        {
+            return;
+        }
+
         // A declined package stays available; do not repeat the prompt on every periodic check.
         _promptedUpdate = update;
         var accepted = await _dialogs.ConfirmAsync(Localizer.Text("Updates_Title"),
             Localizer.Format("Updates_InstallConfirm", update.VersionText));
+
         if (accepted && !_lifetime.IsCancellationRequested && Available == update)
+        {
             await InstallCoreAsync(update, confirmed: true);
+        }
     }
 
     private async Task<DownloadedUpdate> DownloadAsync(ApplicationUpdate update)
@@ -189,29 +275,47 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
         Progress = 0;
         StatusText = Localizer.Text("Updates_Downloading");
         using var download = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+
         download.CancelAfter(TimeSpan.FromMinutes(15));
+
         _operation = download;
+
         try
         {
             var progress = new Progress<double>(value =>
             {
                 if (ReferenceEquals(_operation, download) && !download.IsCancellationRequested)
+                {
                     Progress = Math.Min(99, value);
+                }
             });
             var package = await _downloads.GetAsync(update, progress, download.Token);
+
             download.Token.ThrowIfCancellationRequested();
+
             IsDownloaded = true;
             Progress = 100;
             StatusText = Localizer.Format("Updates_Downloaded", update.VersionText);
+
             return package;
         }
-        finally { if (ReferenceEquals(_operation, download)) _operation = null; }
+        finally
+        {
+            if (ReferenceEquals(_operation, download))
+            {
+                _operation = null;
+            }
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanInstall))]
     private async Task InstallAsync()
     {
-        if (Available is not { } update || !CanInstall()) return;
+        if (Available is not { } update || !CanInstall())
+        {
+            return;
+        }
+
         await InstallCoreAsync(update, confirmed: false);
     }
 
@@ -224,71 +328,138 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
         var package = Path.Combine(job, "package.zip");
         var handedOff = false;
         using var download = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+
         download.CancelAfter(TimeSpan.FromMinutes(15));
+
         _operation = download;
+
         try
         {
             Directory.CreateDirectory(job);
+
             var executable = Environment.ProcessPath;
+
             if (executable is null || !Path.GetFileName(executable).Equals("NovaVMS.exe", StringComparison.OrdinalIgnoreCase))
+            {
                 throw new IOException(Localizer.Text("Updates_RunExecutable"));
+            }
+
             var install = Path.GetDirectoryName(executable)!;
             // Check permissions before closing the running application.
             var writeTest = Path.Combine(install, ".novavms-write-test-" + Guid.NewGuid().ToString("N"));
-            using (new FileStream(writeTest, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose)) { }
+
+            using (new FileStream(writeTest, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose))
+            {
+            }
 
             var cached = await DownloadAsync(update);
             _operation = download;
             var hash = await Task.Run(() =>
             {
                 File.Copy(cached.PackagePath, package);
+
                 var actual = UpdatePackage.Sha256(package);
+
                 if (!actual.Equals(cached.Sha256, StringComparison.OrdinalIgnoreCase))
+                {
                     throw new InvalidDataException(Localizer.Text("Updates_ChecksumFailed"));
+                }
+
                 return actual;
             });
             Progress = 100;
+
             download.Token.ThrowIfCancellationRequested();
+
             if (!confirmed && !await _dialogs.ConfirmAsync(Localizer.Text("Updates_Title"), Localizer.Format("Updates_InstallConfirm", update.VersionText)))
             {
                 StatusText = Localizer.Format("Updates_Downloaded", update.VersionText);
+
                 return;
             }
+
             // Copy the installer out of the application directory so it can replace its own files.
             var helperSource = Path.Combine(AppContext.BaseDirectory, "updater");
             var helper = Path.Combine(job, "helper");
-            if (!File.Exists(Path.Combine(helperSource, "NovaVMS.Updater.exe"))) throw new IOException(Localizer.Text("Updates_HelperMissing"));
+
+            if (!File.Exists(Path.Combine(helperSource, "NovaVMS.Updater.exe")))
+            {
+                throw new IOException(Localizer.Text("Updates_HelperMissing"));
+            }
+
             foreach (var source in Directory.EnumerateFiles(helperSource, "*", SearchOption.AllDirectories))
             {
                 var target = UpdatePackage.SafePath(helper, Path.GetRelativePath(helperSource, source));
+
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                 File.Copy(source, target);
             }
-            var plan = new UpdatePlan { InstallDirectory = install, JobDirectory = job, PackagePath = package,
-                PackageSha256 = hash, Version = update.VersionText, Arguments = Environment.GetCommandLineArgs().Skip(1).ToArray() };
+
+            var plan = new UpdatePlan
+            {
+                InstallDirectory = install,
+                JobDirectory = job,
+                PackagePath = package,
+                PackageSha256 = hash,
+                Version = update.VersionText,
+                Arguments = Environment.GetCommandLineArgs().Skip(1).ToArray()
+            };
             var planPath = Path.Combine(job, "plan.json");
+
             await File.WriteAllTextAsync(planPath, JsonSerializer.Serialize(plan), download.Token);
             await _configuration.FlushAsync();
             download.Token.ThrowIfCancellationRequested();
-            if (Available != update) return;
+
+            if (Available != update)
+            {
+                return;
+            }
+
             var start = new ProcessStartInfo(Path.Combine(helper, "NovaVMS.Updater.exe"))
-                { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = helper };
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = helper
+            };
+
             start.ArgumentList.Add(planPath);
+
             using var process = Process.Start(start) ?? throw new IOException(Localizer.Text("Updates_HelperMissing"));
             handedOff = true;
             StatusText = Localizer.Text("Updates_Restarting");
+
             if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                foreach (var window in desktop.Windows.Where(window => window != desktop.MainWindow).ToArray()) window.Close();
+                foreach (var window in desktop.Windows.Where(window => window != desktop.MainWindow).ToArray())
+                {
+                    window.Close();
+                }
+
                 desktop.MainWindow?.Close(); // Normal shutdown flushes settings and stops native SDK/VLC workers.
             }
         }
-        catch (OperationCanceledException) { StatusText = Localizer.Text("Updates_Cancelled"); }
-        catch (Exception exception) { StatusText = Localizer.Format("Updates_Failed", exception.Message); }
+        catch (OperationCanceledException)
+        {
+            StatusText = Localizer.Text("Updates_Cancelled");
+        }
+        catch (Exception exception)
+        {
+            StatusText = Localizer.Format("Updates_Failed", exception.Message);
+        }
         finally
         {
             if (!handedOff && File.Exists(package))
-                try { File.Delete(package); } catch (IOException exception) { UnhandledExceptionLogger.Log("Cleaning cancelled update download", exception); }
+            {
+                try
+                {
+                    File.Delete(package);
+                }
+                catch (IOException exception)
+                {
+                    UnhandledExceptionLogger.Log("Cleaning cancelled update download", exception);
+                }
+            }
+
             _operation = null;
             IsBusy = false;
         }
@@ -296,13 +467,4 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
 
     [RelayCommand(CanExecute = nameof(IsBusy))]
     private void Cancel() => _operation?.Cancel();
-
-    public void Dispose()
-    {
-        _timer.Stop();
-        _timer.Tick -= OnTimer;
-        _configuration.Changed -= OnConfigurationChanged;
-        _lifetime.Cancel();
-        _http.Dispose();
-    }
 }

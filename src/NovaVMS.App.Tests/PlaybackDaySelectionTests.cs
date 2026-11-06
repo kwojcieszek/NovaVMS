@@ -1,11 +1,11 @@
-using Avalonia.Headless.XUnit;
 using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
 using Avalonia.LogicalTree;
-using Avalonia.Threading;
 using Avalonia.Media;
-using NovaVMS.App.Views;
+using Avalonia.Threading;
 using NovaVMS.App.Services;
 using NovaVMS.App.ViewModels;
+using NovaVMS.App.Views;
 using NovaVMS.Core.Models;
 using NovaVMS.Infrastructure.Storage;
 using Xunit;
@@ -23,8 +23,13 @@ public sealed class PlaybackDaySelectionTests
     {
         using var vlc = VideoPlayerFactory.CreateRecordingEngine("--vout=dummy", "--aout=dummy", "--avcodec-hw=none");
         var device = new Device { Channels = [new Channel { Number = 1 }] };
-        var configuration = new ConfigurationService(new MemoryConfigurationStore(new() { Devices = [device] }), new JsonConfigurationSerializer());
+        var configuration = new ConfigurationService(new MemoryConfigurationStore(new()
+        {
+            Devices = [device]
+        }), new JsonConfigurationSerializer());
+
         await configuration.LoadAsync();
+
         var searches = new List<DateTime>();
         var openings = new List<DateTime>();
         var bytes = NativePlaybackLifecycleTests.CreateVideo(250);
@@ -35,6 +40,7 @@ public sealed class PlaybackDaySelectionTests
                 client.SearchRecordings = (_, from, to, _) =>
                 {
                     searches.Add(from.Date);
+
                     return Task.FromResult<IReadOnlyList<RecordingSegment>>([new RecordingSegment
                     {
                         ChannelNumber = 1,
@@ -45,6 +51,7 @@ public sealed class PlaybackDaySelectionTests
                 client.OpenRecording = (_, start, _) =>
                 {
                     openings.Add(start);
+
                     return VideoSource.FromStream(() => new MemoryStream(bytes));
                 };
             }
@@ -52,15 +59,19 @@ public sealed class PlaybackDaySelectionTests
         var workspace = new PlaybackWorkspaceViewModel(vlc, configuration, factory, null!, new RecordingExporter(vlc));
         var playback = workspace.SelectedPlayback;
         Window? window = null;
+
         try
         {
             var view = new PlaybackView { DataContext = workspace };
             window = new Window { Width = 1600, Height = 1000, Content = view };
+
             window.Show();
             workspace.SetCamera(new CameraReference { DeviceId = device.Id, ChannelNumber = 1 });
             await (playback.SearchCommand.ExecutionTask ?? Task.CompletedTask);
+
             var calendar = view.GetLogicalDescendants().OfType<CalendarDatePicker>().First();
             var day = DateTime.Today.AddDays(-daysAgo);
+
             calendar.SetCurrentValue(CalendarDatePicker.SelectedDateProperty, day);
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(day, workspace.SelectedDate);
@@ -71,21 +82,36 @@ public sealed class PlaybackDaySelectionTests
             window.UpdateLayout();
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(day, searches[^1]);
+
             var timeline = view.GetLogicalDescendants().OfType<NovaVMS.App.Controls.TimelineBar>().Single();
+
             Assert.Equal(day, timeline.Day);
             Assert.Same(playback.Segments, timeline.Segments);
+
             var recording = Assert.Single(playback.Segments);
+
             Assert.Equal(day, recording.Start);
             Assert.Equal(day.AddDays(1).AddSeconds(-1), recording.End);
+
             var drawing = new DrawingGroup();
-            using (var context = drawing.Open()) timeline.Render(context);
+
+            using (var context = drawing.Open())
+            {
+                timeline.Render(context);
+            }
+
             Assert.Contains(drawing.Children.OfType<GeometryDrawing>(), item => Equals(item.Brush, timeline.SegmentBrush));
 
             await workspace.SeekCommand.ExecuteAsync(12 * 3600d);
             Assert.Equal(day.AddHours(12), Assert.Single(openings));
             Assert.True(playback.IsPlaying);
         }
-        finally { window?.Close(); workspace.Dispose(); await workspace.Disposal; }
+        finally
+        {
+            window?.Close();
+            workspace.Dispose();
+            await workspace.Disposal;
+        }
     }
 
     [AvaloniaFact]
@@ -93,8 +119,13 @@ public sealed class PlaybackDaySelectionTests
     {
         using var vlc = VideoPlayerFactory.CreateRecordingEngine("--vout=dummy", "--aout=dummy", "--avcodec-hw=none");
         var device = new Device { Channels = [new Channel { Number = 1 }] };
-        var configuration = new ConfigurationService(new MemoryConfigurationStore(new() { Devices = [device] }), new JsonConfigurationSerializer());
+        var configuration = new ConfigurationService(new MemoryConfigurationStore(new()
+        {
+            Devices = [device]
+        }), new JsonConfigurationSerializer());
+
         await configuration.LoadAsync();
+
         var bytes = NativePlaybackLifecycleTests.CreateVideo(250);
         var searches = new List<(DateTime From, DateTime To)>();
         var openings = new List<DateTime>();
@@ -106,22 +137,27 @@ public sealed class PlaybackDaySelectionTests
                 {
                     searches.Add((from, to));
                     await Task.Delay(200, token);
+
                     return [new RecordingSegment { ChannelNumber = 1, Start = from.Date.AddHours(-2), End = from.Date.AddHours(6) },
                         new RecordingSegment { ChannelNumber = 1, Start = from.Date.AddHours(8), End = from.Date.AddHours(12) }];
                 };
                 client.OpenRecording = (_, start, _) =>
                 {
                     openings.Add(start);
+
                     return VideoSource.FromStream(() => new MemoryStream(bytes));
                 };
             }
         };
         var playback = new PlaybackViewModel(vlc, configuration, factory, null!, new RecordingExporter(vlc));
+
         try
         {
             playback.SetCamera(new CameraReference { DeviceId = device.Id, ChannelNumber = 1 });
+
             var yesterday = DateTime.Today.AddDays(-1);
             playback.SelectedDate = yesterday;
+
             await Task.WhenAll(playback.SearchCommand.ExecutionTask ?? Task.CompletedTask);
             await WaitForAsync(() => playback.Segments.Count == 2);
             Assert.All(playback.Segments, segment => Assert.Equal(yesterday, segment.Start.Date));
@@ -143,7 +179,12 @@ public sealed class PlaybackDaySelectionTests
     private static async Task WaitForAsync(Func<bool> ready)
     {
         var timeout = System.Diagnostics.Stopwatch.StartNew();
-        while (!ready() && timeout.Elapsed < TimeSpan.FromSeconds(5)) await Task.Delay(20);
+
+        while (!ready() && timeout.Elapsed < TimeSpan.FromSeconds(5))
+        {
+            await Task.Delay(20);
+        }
+
         Assert.True(ready());
     }
 }

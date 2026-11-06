@@ -19,14 +19,17 @@ internal sealed class FakeDeviceClientFactory : IDeviceClientFactory
     public IDeviceClient Create(Device device)
     {
         var client = new FakeDeviceClient(device);
+
         ConfigureClient?.Invoke(client);
         Created.Add(client);
+
         return client;
     }
 
     public void ReleaseUnusedConnections(IReadOnlyCollection<Device> devices)
     {
         BeforeRelease?.Invoke();
+
         lock (Releases)
         {
             Releases.Add(devices);

@@ -11,24 +11,24 @@ namespace NovaVMS.App.Localization;
 /// </summary>
 public sealed class Localizer : INotifyPropertyChanged
 {
-    /// <summary>
-    /// Languages with a complete translation. The first one is the fallback.
-    /// </summary>
-    public static readonly IReadOnlyList<string> SupportedLanguages = new[] { "en", "pl" };
-
     // Avalonia refreshes indexer bindings on "Item"; "Item[]" is the name used by other XAML frameworks.
     private static readonly PropertyChangedEventArgs IndexerChanged = new("Item");
+
     private static readonly PropertyChangedEventArgs IndexerArrayChanged = new("Item[]");
 
     private readonly JsonTextCatalog _catalog = JsonTextCatalog.Shared;
     private CultureInfo _culture = ResolveCulture(string.Empty);
 
-    private Localizer()
-    {
-        ApplyCulture(_culture);
-    }
+    /// <summary>
+    /// Languages with a complete translation. The first one is the fallback.
+    /// </summary>
+    public static readonly IReadOnlyList<string> SupportedLanguages = new[] { "en", "pl" };
 
     public static Localizer Instance { get; } = new();
+
+    public CultureInfo Culture => _culture;
+
+    public string this[string key] => _catalog.Get(key, _culture);
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -37,9 +37,10 @@ public sealed class Localizer : INotifyPropertyChanged
     /// </summary>
     public event EventHandler? LanguageChanged;
 
-    public CultureInfo Culture => _culture;
-
-    public string this[string key] => _catalog.Get(key, _culture);
+    private Localizer()
+    {
+        ApplyCulture(_culture);
+    }
 
     public static string Text(string key)
     {
@@ -57,12 +58,14 @@ public sealed class Localizer : INotifyPropertyChanged
     public void SetLanguage(string languageCode)
     {
         var culture = ResolveCulture(languageCode);
+
         if (culture.Name == _culture.Name)
         {
             return;
         }
 
         _culture = culture;
+
         ApplyCulture(culture);
 
         PropertyChanged?.Invoke(this, IndexerChanged);
@@ -77,6 +80,7 @@ public sealed class Localizer : INotifyPropertyChanged
             : languageCode.Trim().ToLowerInvariant();
 
         var supported = SupportedLanguages.Contains(requested) ? requested : SupportedLanguages[0];
+
         return CultureInfo.GetCultureInfo(supported);
     }
 

@@ -8,8 +8,6 @@ namespace NovaVMS.Core.Models;
 /// </summary>
 public sealed class Channel
 {
-    internal Channel Copy() => (Channel)MemberwiseClone();
-
     /// <summary>
     /// Permanent identity of the camera. Views, groups and other references point to it, so they keep
     /// the right camera when the device reports its channels with different numbers or in a different order.
@@ -64,4 +62,6 @@ public sealed class Channel
     public string DisplayName => string.IsNullOrWhiteSpace(Name)
         ? string.Format(CultureInfo.CurrentCulture, DefaultNameFormat, Number)
         : Name;
+
+    internal Channel Copy() => (Channel)MemberwiseClone();
 }

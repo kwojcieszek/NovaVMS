@@ -11,13 +11,6 @@ public sealed class VideoAspectModeOption : ObservableObject
 {
     private readonly string _labelKey;
 
-    private VideoAspectModeOption(VideoAspectMode value, string labelKey)
-    {
-        Value = value;
-        _labelKey = labelKey;
-        Localizer.Instance.LanguageChanged += (_, _) => OnPropertyChanged(nameof(Label));
-    }
-
     public static IReadOnlyList<VideoAspectModeOption> All { get; } = new List<VideoAspectModeOption>
     {
         new(VideoAspectMode.Original, "Aspect_Original"),
@@ -27,6 +20,13 @@ public sealed class VideoAspectModeOption : ObservableObject
     public VideoAspectMode Value { get; }
 
     public string Label => Localizer.Text(_labelKey);
+
+    private VideoAspectModeOption(VideoAspectMode value, string labelKey)
+    {
+        Value = value;
+        _labelKey = labelKey;
+        Localizer.Instance.LanguageChanged += (_, _) => OnPropertyChanged(nameof(Label));
+    }
 
     public static VideoAspectModeOption Find(VideoAspectMode value)
     {

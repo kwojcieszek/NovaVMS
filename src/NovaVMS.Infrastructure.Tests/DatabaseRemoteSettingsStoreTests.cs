@@ -23,7 +23,12 @@ public sealed class DatabaseRemoteSettingsStoreTests
     public async Task CreatesTablesAndRoundTripsEncryptedVersions(SettingsDatabaseType type)
     {
         var options = await PrepareAsync(type);
-        if (options is null) return;
+
+        if (options is null)
+        {
+            return;
+        }
+
         var instanceId = Guid.NewGuid();
         using var store = Create(options);
 
@@ -44,12 +49,14 @@ public sealed class DatabaseRemoteSettingsStoreTests
         Assert.Equal(Environment.MachineName, second.Version.MachineName);
 
         var versions = await store.ListAsync();
+
         Assert.Equal([second.Version.Id, first.Version.Id], versions.Select(version => version.Id));
         Assert.Equal(second.Version.Id, (await store.GetLatestAsync())?.Id);
         Assert.True(Math.Abs((versions[0].CreatedAt - DateTimeOffset.UtcNow).TotalMinutes) < 5);
 
         var archived = await store.DownloadAsync(first.Version.Id);
         var device = Assert.Single(archived.Devices);
+
         Assert.Equal("first", device.Name);
         Assert.Equal("unique-password-marker", device.Password);
     }
@@ -59,7 +66,12 @@ public sealed class DatabaseRemoteSettingsStoreTests
     public async Task KeepsOnlyRetainedVersions(SettingsDatabaseType type)
     {
         var options = await PrepareAsync(type);
-        if (options is null) return;
+
+        if (options is null)
+        {
+            return;
+        }
+
         using var store = Create(options);
 
         for (var index = 0; index < 5; index++)
@@ -68,6 +80,7 @@ public sealed class DatabaseRemoteSettingsStoreTests
         }
 
         var versions = await store.ListAsync();
+
         Assert.Equal(3, versions.Count);
         Assert.Equal("camera 4", Assert.Single((await store.DownloadAsync(versions[0].Id)).Devices).Name);
         Assert.Equal("camera 2", Assert.Single((await store.DownloadAsync(versions[2].Id)).Devices).Name);
@@ -78,7 +91,12 @@ public sealed class DatabaseRemoteSettingsStoreTests
     public async Task WrongEncryptionPasswordIsRejected(SettingsDatabaseType type)
     {
         var options = await PrepareAsync(type);
-        if (options is null) return;
+
+        if (options is null)
+        {
+            return;
+        }
+
         using (var store = Create(options))
         {
             await store.UploadAsync(Configuration("camera", "password"), Guid.NewGuid(), 10);
@@ -89,6 +107,7 @@ public sealed class DatabaseRemoteSettingsStoreTests
         using var other = Create(wrong);
 
         var exception = await Assert.ThrowsAsync<SettingsSyncException>(() => other.InitializeAsync());
+
         Assert.Equal(SettingsSyncFailure.WrongEncryptionPassword, exception.Failure);
     }
 
@@ -97,10 +116,16 @@ public sealed class DatabaseRemoteSettingsStoreTests
     public async Task MissingVersionIsReported(SettingsDatabaseType type)
     {
         var options = await PrepareAsync(type);
-        if (options is null) return;
+
+        if (options is null)
+        {
+            return;
+        }
+
         using var store = Create(options);
 
         var exception = await Assert.ThrowsAsync<SettingsSyncException>(() => store.DownloadAsync(123456));
+
         Assert.Equal(SettingsSyncFailure.VersionNotFound, exception.Failure);
     }
 
@@ -118,12 +143,14 @@ public sealed class DatabaseRemoteSettingsStoreTests
         using var store = Create(options);
 
         var exception = await Assert.ThrowsAsync<SettingsSyncException>(() => store.InitializeAsync());
+
         Assert.Equal(SettingsSyncFailure.ConnectionFailed, exception.Failure);
     }
 
     private static DatabaseRemoteSettingsStore Create(SettingsSyncOptions options)
     {
         ISqlDialect dialect = options.DatabaseType == SettingsDatabaseType.MySql ? new MySqlDialect() : new PostgreSqlDialect();
+
         return new DatabaseRemoteSettingsStore(dialect, options, new JsonConfigurationSerializer());
     }
 
@@ -136,6 +163,7 @@ public sealed class DatabaseRemoteSettingsStoreTests
     {
         var variable = type == SettingsDatabaseType.MySql ? "NOVAVMS_TEST_MYSQL" : "NOVAVMS_TEST_POSTGRES";
         var value = Environment.GetEnvironmentVariable(variable);
+
         if (string.IsNullOrWhiteSpace(value))
         {
             return null;
@@ -156,11 +184,14 @@ public sealed class DatabaseRemoteSettingsStoreTests
 
         ISqlDialect dialect = type == SettingsDatabaseType.MySql ? new MySqlDialect() : new PostgreSqlDialect();
         await using var connection = dialect.CreateConnection(options);
+
         await connection.OpenAsync();
+
         foreach (var table in new[] { SettingsTables.Versions, SettingsTables.Meta })
         {
             await using var command = connection.CreateCommand();
             command.CommandText = "DROP TABLE IF EXISTS " + table;
+
             await command.ExecuteNonQueryAsync();
         }
 

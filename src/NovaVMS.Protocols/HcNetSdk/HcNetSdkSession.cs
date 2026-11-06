@@ -10,6 +10,7 @@ internal sealed class HcNetSdkSession
 {
     // Offsets in NET_DVR_DEVICEINFO_V30.
     private const int SerialNumberLength = 48;
+
     private const int AnalogChannelCountOffset = 52;
     private const int StartChannelOffset = 53;
     private const int IpChannelCountOffset = 55;
@@ -20,22 +21,6 @@ internal sealed class HcNetSdkSession
     /// Size reserved for NET_DVR_DEVICEINFO_V30 (80 bytes) with a safety margin.
     /// </summary>
     public const int DeviceInfoBufferSize = 256;
-
-    public HcNetSdkSession(int userId, string host, int port, IntPtr deviceInfo)
-    {
-        UserId = userId;
-        Host = host;
-        Port = port;
-
-        var serial = new byte[SerialNumberLength];
-        Marshal.Copy(deviceInfo, serial, 0, serial.Length);
-        SerialNumber = Encoding.ASCII.GetString(serial).TrimEnd('\0', ' ');
-
-        AnalogChannelCount = Marshal.ReadByte(deviceInfo, AnalogChannelCountOffset);
-        StartChannel = Math.Max(1, (int)Marshal.ReadByte(deviceInfo, StartChannelOffset));
-        IpChannelCount = Marshal.ReadByte(deviceInfo, IpChannelCountOffset) + (Marshal.ReadByte(deviceInfo, IpChannelCountHighOffset) << 8);
-        StartDigitalChannel = Marshal.ReadByte(deviceInfo, StartDigitalChannelOffset);
-    }
 
     public int UserId { get; }
 
@@ -54,6 +39,24 @@ internal sealed class HcNetSdkSession
     public int StartDigitalChannel { get; }
 
     public int ChannelCount => AnalogChannelCount + IpChannelCount;
+
+    public HcNetSdkSession(int userId, string host, int port, IntPtr deviceInfo)
+    {
+        UserId = userId;
+        Host = host;
+        Port = port;
+
+        var serial = new byte[SerialNumberLength];
+
+        Marshal.Copy(deviceInfo, serial, 0, serial.Length);
+
+        SerialNumber = Encoding.ASCII.GetString(serial).TrimEnd('\0', ' ');
+
+        AnalogChannelCount = Marshal.ReadByte(deviceInfo, AnalogChannelCountOffset);
+        StartChannel = Math.Max(1, (int)Marshal.ReadByte(deviceInfo, StartChannelOffset));
+        IpChannelCount = Marshal.ReadByte(deviceInfo, IpChannelCountOffset) + (Marshal.ReadByte(deviceInfo, IpChannelCountHighOffset) << 8);
+        StartDigitalChannel = Marshal.ReadByte(deviceInfo, StartDigitalChannelOffset);
+    }
 
     /// <summary>
     /// Converts the channel number used by ISAPI and the interface (analog inputs first, then IP channels,

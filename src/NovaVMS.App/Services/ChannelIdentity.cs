@@ -20,8 +20,10 @@ internal static class ChannelIdentity
         var unmatchedCurrent = current.ToList();
 
         MatchBy(unmatchedKnown, unmatchedCurrent, SameStream);
+
         var knownNames = CountNames(known);
         var currentNames = CountNames(current);
+
         MatchBy(unmatchedKnown, unmatchedCurrent, (old, channel) =>
             !string.IsNullOrWhiteSpace(channel.Name)
             && string.Equals(old.Name.Trim(), channel.Name.Trim(), StringComparison.OrdinalIgnoreCase)
@@ -35,6 +37,7 @@ internal static class ChannelIdentity
         foreach (var channel in current.ToList())
         {
             var old = known.FirstOrDefault(candidate => isSame(candidate, channel));
+
             if (old is null)
             {
                 continue;
@@ -44,6 +47,7 @@ internal static class ChannelIdentity
             channel.IsFavorite = old.IsFavorite;
             // Prefer the encoder dimensions reported by the device; retain learned values as a fallback.
             channel.MainAspectRatio ??= old.MainAspectRatio;
+
             // The SDK fallback reports channels without names.
             if (string.IsNullOrWhiteSpace(channel.Name))
             {

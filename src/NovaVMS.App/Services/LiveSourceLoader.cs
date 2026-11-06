@@ -11,7 +11,9 @@ internal static class LiveSourceLoader
         => Task.Run(async () =>
         {
             using var client = await factory.CreateAsync(device, cancellationToken: cancellationToken).ConfigureAwait(false);
+
             cancellationToken.ThrowIfCancellationRequested();
+
             return await client.GetLiveSourceAsync(channel, streamType, cancellationToken).ConfigureAwait(false);
         }, cancellationToken);
 }

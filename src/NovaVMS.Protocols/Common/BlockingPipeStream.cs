@@ -17,19 +17,6 @@ internal class BlockingPipeStream : Stream
     private long _bufferedBytes;
     private bool _isCompleted;
 
-    /// <param name="maxBufferedBytes">Buffer limit.</param>
-    /// <param name="dropWhenFull">
-    /// True for live video: when the reader falls behind, buffered data is dropped to keep the delay low.
-    /// False for recordings: the producer waits until the reader catches up.
-    /// </param>
-    /// <param name="idleTimeout">Time without data after which the stream ends.</param>
-    public BlockingPipeStream(long maxBufferedBytes, bool dropWhenFull, TimeSpan idleTimeout)
-    {
-        _maxBufferedBytes = maxBufferedBytes;
-        _dropWhenFull = dropWhenFull;
-        _idleTimeout = idleTimeout;
-    }
-
     public override bool CanRead => true;
 
     public override bool CanSeek => false;
@@ -42,6 +29,19 @@ internal class BlockingPipeStream : Stream
     {
         get => throw new NotSupportedException();
         set => throw new NotSupportedException();
+    }
+
+    /// <param name="maxBufferedBytes">Buffer limit.</param>
+    /// <param name="dropWhenFull">
+    /// True for live video: when the reader falls behind, buffered data is dropped to keep the delay low.
+    /// False for recordings: the producer waits until the reader catches up.
+    /// </param>
+    /// <param name="idleTimeout">Time without data after which the stream ends.</param>
+    public BlockingPipeStream(long maxBufferedBytes, bool dropWhenFull, TimeSpan idleTimeout)
+    {
+        _maxBufferedBytes = maxBufferedBytes;
+        _dropWhenFull = dropWhenFull;
+        _idleTimeout = idleTimeout;
     }
 
     /// <summary>
@@ -66,6 +66,7 @@ internal class BlockingPipeStream : Stream
                 if (_dropWhenFull)
                 {
                     _chunks.Clear();
+
                     _bufferedBytes = 0;
                 }
                 else
@@ -83,7 +84,9 @@ internal class BlockingPipeStream : Stream
             }
 
             _chunks.Enqueue(chunk);
+
             _bufferedBytes += chunk.Length;
+
             Monitor.PulseAll(_syncRoot);
         }
     }
@@ -96,6 +99,7 @@ internal class BlockingPipeStream : Stream
         lock (_syncRoot)
         {
             _isCompleted = true;
+
             Monitor.PulseAll(_syncRoot);
         }
     }
@@ -121,6 +125,7 @@ internal class BlockingPipeStream : Stream
                     _current = _chunks.Dequeue();
                     _currentOffset = 0;
                     _bufferedBytes -= _current.Length;
+
                     Monitor.PulseAll(_syncRoot);
                     break;
                 }
@@ -133,13 +138,17 @@ internal class BlockingPipeStream : Stream
                 if (!Monitor.Wait(_syncRoot, _idleTimeout))
                 {
                     _isCompleted = true;
+
                     return 0;
                 }
             }
 
             var length = Math.Min(buffer.Length, _current.Length - _currentOffset);
+
             _current.AsSpan(_currentOffset, length).CopyTo(buffer);
+
             _currentOffset += length;
+
             if (_currentOffset >= _current.Length)
             {
                 _current = null;

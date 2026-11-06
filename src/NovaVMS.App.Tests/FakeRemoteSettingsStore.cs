@@ -10,16 +10,18 @@ internal sealed class FakeRemoteSettingsStore : IRemoteSettingsStore, IRemoteSet
 {
     private readonly List<(SettingsVersionInfo Info, AppConfiguration Configuration)> _versions = new();
 
+    public int Count => _versions.Count;
+
     public IRemoteSettingsStore Create(SettingsSyncOptions options) => this;
 
     public SettingsVersionInfo Add(AppConfiguration configuration, Guid instanceId, string machineName = "OTHER-PC")
     {
         var info = new SettingsVersionInfo(_versions.Count + 1, DateTimeOffset.UtcNow, instanceId, machineName, "10.0.0.9", "user", "0.1.0", Guid.NewGuid().ToString("N"));
+
         _versions.Add((info, configuration));
+
         return info;
     }
-
-    public int Count => _versions.Count;
 
     public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 

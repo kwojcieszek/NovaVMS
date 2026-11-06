@@ -13,18 +13,32 @@ public sealed class ConfigurationAsyncTests
     {
         var store = new DelayedStore();
         var configuration = new ConfigurationService(store, new JsonConfigurationSerializer());
-        configuration.Current.Devices.Add(new Device { Name = "first", Host = "primary", SecondaryHost = "secondary",
-            Channels = [new Channel { Number = 1, Name = "first camera" }] });
+
+        configuration.Current.Devices.Add(new Device
+        {
+            Name = "first",
+            Host = "primary",
+            SecondaryHost = "secondary",
+            Channels = [new Channel { Number = 1, Name = "first camera" }]
+        });
+
         var camera = new CameraReference { DeviceId = configuration.Current.Devices[0].Id, ChannelNumber = 1 };
+
         configuration.Current.Groups.Add(new CameraGroup { Name = "first group", Cameras = [camera] });
+
         configuration.Current.Settings.Theme = ThemeMode.Dark;
         var first = configuration.SaveAsync();
+
         await store.Entered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+
         configuration.Current.Devices[0].Name = "second";
         configuration.Current.Devices[0].Channels[0].Name = "second camera";
+
         configuration.Current.Groups[0].Cameras.Clear();
+
         configuration.Current.Settings.Theme = ThemeMode.Light;
         var second = configuration.SaveAsync();
+
         Assert.False(first.IsCompleted);
         Assert.False(second.IsCompleted);
         store.Release.SetResult();
@@ -46,6 +60,7 @@ public sealed class ConfigurationAsyncTests
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public List<AppConfiguration> Saved { get; } = new();
         public Task<AppConfiguration> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(new AppConfiguration());
+
         public async Task SaveAsync(AppConfiguration configuration, CancellationToken cancellationToken = default)
         {
             Entered.TrySetResult();

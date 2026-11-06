@@ -16,14 +16,22 @@ public sealed class AsyncWorkQueueTests
         {
             order.Add("stop");
             entered.SetResult();
-            if (!release.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException();
+
+            if (!release.Wait(TimeSpan.FromSeconds(5)))
+            {
+                throw new TimeoutException();
+            }
+
             order.Add("stopped");
         });
+
         try
         {
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(3));
-            var play = queue.RunAsync(() => { order.Add("play"); });
-            var dispose = queue.RunAsync(() => { order.Add("dispose"); });
+
+            var play = queue.RunAsync(() => order.Add("play"));
+            var dispose = queue.RunAsync(() => order.Add("dispose"));
+
             Assert.False(stop.IsCompleted);
             Assert.False(play.IsCompleted);
             Assert.False(dispose.IsCompleted);
@@ -31,7 +39,10 @@ public sealed class AsyncWorkQueueTests
             await Task.WhenAll(stop, play, dispose).WaitAsync(TimeSpan.FromSeconds(3));
             Assert.Equal(new[] { "stop", "stopped", "play", "dispose" }, order);
         }
-        finally { release.Set(); }
+        finally
+        {
+            release.Set();
+        }
     }
 
     [Fact]
@@ -41,8 +52,17 @@ public sealed class AsyncWorkQueueTests
         var stopped = false;
         var disposed = false;
         var failed = queue.RunAsync((Action)(() => throw new IOException("Native open failed")));
-        var stop = queue.RunAsync(() => { stopped = true; });
-        var dispose = queue.RunAsync(() => { Assert.True(stopped); disposed = true; });
+        var stop = queue.RunAsync(() =>
+        {
+            stopped = true;
+        });
+        var dispose = queue.RunAsync(() =>
+        {
+            Assert.True(stopped);
+
+            disposed = true;
+        });
+
         await Assert.ThrowsAsync<IOException>(() => failed);
         await Task.WhenAll(stop, dispose).WaitAsync(TimeSpan.FromSeconds(3));
         Assert.True(disposed);
@@ -55,8 +75,19 @@ public sealed class AsyncWorkQueueTests
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var firstFinished = false;
         var secondRan = false;
-        var first = queue.RunAsync(async () => { await release.Task; firstFinished = true; });
-        var second = queue.RunAsync(() => { Assert.True(firstFinished); secondRan = true; });
+        var first = queue.RunAsync(async () =>
+        {
+            await release.Task;
+
+            firstFinished = true;
+        });
+        var second = queue.RunAsync(() =>
+        {
+            Assert.True(firstFinished);
+
+            secondRan = true;
+        });
+
         Assert.False(secondRan);
         Assert.False(queue.WhenIdle.IsCompleted);
         release.SetResult();
@@ -70,12 +101,18 @@ public sealed class AsyncWorkQueueTests
         var queue = new AsyncWorkQueue();
         var original = SynchronizationContext.Current;
         Task<SynchronizationContext?> work;
+
         try
         {
             SynchronizationContext.SetSynchronizationContext(new RejectingContext());
+
             work = queue.RunAsync(() => SynchronizationContext.Current);
         }
-        finally { SynchronizationContext.SetSynchronizationContext(original); }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(original);
+        }
+
         Assert.Null(await work.WaitAsync(TimeSpan.FromSeconds(3)));
     }
 

@@ -8,14 +8,14 @@ namespace NovaVMS.App.Models;
 /// </summary>
 public sealed class DeviceFilterOption
 {
+    public Device? Device { get; }
+
+    public string Label => Device?.DisplayName ?? Localizer.Text("Groups_AllDevices");
+
     public DeviceFilterOption(Device? device)
     {
         Device = device;
     }
-
-    public Device? Device { get; }
-
-    public string Label => Device?.DisplayName ?? Localizer.Text("Groups_AllDevices");
 
     public bool Matches(CameraDescriptor camera)
     {

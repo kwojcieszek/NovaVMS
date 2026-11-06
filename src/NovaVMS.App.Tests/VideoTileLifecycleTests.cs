@@ -11,6 +11,8 @@ namespace NovaVMS.App.Tests;
 [Collection("Tile attachment")]
 public sealed class VideoTileLifecycleTests : ITileHost
 {
+    public bool CanDropCameras => false;
+
     [AvaloniaFact]
     public async Task ClosingWhileNativeMediaOpensWaitsForTheOpeningAndReleasesBothPlayers()
     {
@@ -21,10 +23,16 @@ public sealed class VideoTileLifecycleTests : ITileHost
         var source = VideoSource.FromStream(() =>
         {
             entered.TrySetResult();
-            if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
+
+            if (!release.Wait(TimeSpan.FromSeconds(10)))
+            {
+                throw new TimeoutException();
+            }
+
             return stream;
         });
         var tile = new VideoTileViewModel(vlc, 0, this);
+
         try
         {
             tile.SetViewReady(true);
@@ -44,12 +52,27 @@ public sealed class VideoTileLifecycleTests : ITileHost
             tile.Dispose();
             Dispatcher.UIThread.RunJobs();
         }
-        finally { release.Set(); tile.Dispose(); await tile.Disposal; }
+        finally
+        {
+            release.Set();
+            tile.Dispose();
+            await tile.Disposal;
+        }
     }
 
-    public void SelectTile(VideoTileViewModel tile) { }
-    public void ToggleMaximize(VideoTileViewModel tile) { }
-    public bool CanDropCameras => false;
-    public void DropCameras(VideoTileViewModel tile, IReadOnlyList<CameraReference> cameras) { }
-    public void ReportMainAspectRatio(CameraReference camera, string aspectRatio) { }
+    public void SelectTile(VideoTileViewModel tile)
+    {
+    }
+
+    public void ToggleMaximize(VideoTileViewModel tile)
+    {
+    }
+
+    public void DropCameras(VideoTileViewModel tile, IReadOnlyList<CameraReference> cameras)
+    {
+    }
+
+    public void ReportMainAspectRatio(CameraReference camera, string aspectRatio)
+    {
+    }
 }

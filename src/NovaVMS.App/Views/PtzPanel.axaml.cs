@@ -37,12 +37,14 @@ public partial class PtzPanel : UserControl
         }
 
         var button = (e.Source as Visual)?.FindAncestorOfType<Button>(includeSelf: true);
+
         if (button?.Tag is not PtzDirection direction || !button.IsEffectivelyEnabled)
         {
             return;
         }
 
         _isMoving = true;
+
         await viewModel.StartMoveAsync(direction);
     }
 
@@ -54,6 +56,7 @@ public partial class PtzPanel : UserControl
         }
 
         _isMoving = false;
+
         await viewModel.StopMoveAsync();
     }
 }

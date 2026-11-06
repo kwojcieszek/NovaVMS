@@ -12,6 +12,7 @@ public sealed class MaxFrameRateTests
     public void DefaultsMeanNoLimit()
     {
         var settings = new AppSettings();
+
         Assert.Equal(0, settings.GetMaxFrameRate(StreamType.Sub));
         Assert.Equal(0, settings.GetMaxFrameRate(StreamType.Main));
     }
@@ -21,6 +22,7 @@ public sealed class MaxFrameRateTests
     {
         var store = new MemoryConfigurationStore(new AppConfiguration());
         var configuration = new ConfigurationService(store, new JsonConfigurationSerializer());
+
         using (var page = new GeneralSettingsViewModel(configuration, new LocalSettingsService(new MemoryLocalSettingsStore()), null!, null!))
         {
             // Each change is saved and announced before the next, as on the UI thread; the announcement
@@ -30,6 +32,7 @@ public sealed class MaxFrameRateTests
         }
 
         var settings = store.Stored.Settings;
+
         Assert.Equal(10, settings.GetMaxFrameRate(StreamType.Sub));
         Assert.Equal(60, settings.GetMaxFrameRate(StreamType.Main));
     }
@@ -39,6 +42,7 @@ public sealed class MaxFrameRateTests
         var changed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         void OnChanged(object? sender, EventArgs e) => changed.TrySetResult();
         configuration.Changed += OnChanged;
+
         try
         {
             change();

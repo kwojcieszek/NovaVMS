@@ -43,12 +43,14 @@ internal sealed class IsapiPtzService
     public async Task<IReadOnlyList<PtzPreset>> GetPresetsAsync(int channelNumber, CancellationToken cancellationToken)
     {
         XDocument? document = null;
+
         await ExecuteWithFallbackAsync(channelNumber, async basePath =>
         {
             document = await _transport.GetXmlAsync($"{basePath}/presets", cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
         var presets = new List<PtzPreset>();
+
         if (document is null)
         {
             return presets;
@@ -85,9 +87,11 @@ internal sealed class IsapiPtzService
     private async Task ExecuteWithFallbackAsync(int channelNumber, Func<string, Task> operation)
     {
         var directPath = $"ISAPI/PTZCtrl/channels/{channelNumber}";
+
         if (_device.Type is not (DeviceType.Nvr or DeviceType.Dvr))
         {
             await operation(directPath).ConfigureAwait(false);
+
             return;
         }
 

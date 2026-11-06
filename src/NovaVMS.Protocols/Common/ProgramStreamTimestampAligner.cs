@@ -13,42 +13,62 @@ internal sealed class ProgramStreamTimestampAligner
     private const byte PackHeader = 0xBA;
     private const byte EndCode = 0xB9;
 
+    private const int MaxPendingBytes = 8 * 1024 * 1024;
+
     private long? _lastVideoTimestamp;
     private long _audioCorrection;
     private byte[] _pending = [];
     private bool _passthrough;
-    private const int MaxPendingBytes = 8 * 1024 * 1024;
 
     public byte[] Process(byte[] chunk)
     {
-        if (_passthrough) return chunk;
+        if (_passthrough)
+        {
+            return chunk;
+        }
+
         var data = chunk;
+
         if (_pending.Length > 0)
         {
             data = new byte[_pending.Length + chunk.Length];
+
             _pending.CopyTo(data, 0);
             chunk.CopyTo(data, _pending.Length);
+
             _pending = [];
         }
 
         var offset = 0;
         List<(int Offset, int Length)>? leadingAudio = null;
+
         while (offset + 4 <= data.Length)
         {
             if (!IsPacketStart(data, offset))
             {
                 // Transport streams and elementary streams must reach the player unchanged.
                 _passthrough = true;
+
                 return data;
             }
 
             var streamId = data[offset + 3];
+
             if (streamId == PackHeader)
             {
-                if (offset + 14 > data.Length) break;
+                if (offset + 14 > data.Length)
+                {
+                    break;
+                }
+
                 var packLength = (data[offset + 4] & 0xC0) == 0x40
                     ? 14 + (data[offset + 13] & 0x07) : 12;
-                if (offset + packLength > data.Length) break;
+
+                if (offset + packLength > data.Length)
+                {
+                    break;
+                }
+
                 offset += packLength;
                 continue;
             }
@@ -59,26 +79,49 @@ internal sealed class ProgramStreamTimestampAligner
                 continue;
             }
 
-            if (offset + 6 > data.Length) break;
+            if (offset + 6 > data.Length)
+            {
+                break;
+            }
+
             var packetLength = 6 + ((data[offset + 4] << 8) | data[offset + 5]);
+
             if (packetLength == 6 && IsVideo(streamId))
             {
                 // A zero-length video PES packet ends at the next program-stream start code.
                 var next = offset + 6;
-                while (next + 4 <= data.Length && !IsPacketStart(data, next)) next++;
-                if (next + 4 > data.Length) break;
+
+                while (next + 4 <= data.Length && !IsPacketStart(data, next))
+                {
+                    next++;
+                }
+
+                if (next + 4 > data.Length)
+                {
+                    break;
+                }
+
                 packetLength = next - offset;
             }
-            if (offset + packetLength > data.Length) break;
+
+            if (offset + packetLength > data.Length)
+            {
+                break;
+            }
 
             if (IsVideo(streamId))
             {
                 if (TryReadTimestamp(data, offset, packetLength, out var timestamp))
                 {
                     _lastVideoTimestamp = timestamp;
+
                     if (leadingAudio is not null)
                     {
-                        foreach (var packet in leadingAudio) AlignAudio(data, packet.Offset, packet.Length);
+                        foreach (var packet in leadingAudio)
+                        {
+                            AlignAudio(data, packet.Offset, packet.Length);
+                        }
+
                         leadingAudio = null;
                     }
                 }
@@ -86,53 +129,44 @@ internal sealed class ProgramStreamTimestampAligner
             else if (IsAudio(streamId))
             {
                 if (_lastVideoTimestamp is null)
+                {
                     (leadingAudio ??= []).Add((offset, packetLength));
+                }
                 else
+                {
                     AlignAudio(data, offset, packetLength);
+                }
             }
 
             offset += packetLength;
         }
 
         // Do not send an unrelated audio clock to the player before the first video timestamp arrives.
-        if (_lastVideoTimestamp is null) offset = 0;
+        if (_lastVideoTimestamp is null)
+        {
+            offset = 0;
+        }
+
         if (data.Length - offset > MaxPendingBytes)
         {
             // Bound memory use even for malformed input without dropping compressed video bytes.
             _passthrough = true;
+
             return data;
         }
-        if (offset == data.Length) return data;
+
+        if (offset == data.Length)
+        {
+            return data;
+        }
+
         _pending = data[offset..];
+
         return data[..offset];
     }
 
     private static bool IsPacketStart(byte[] data, int offset) =>
         data[offset] == 0 && data[offset + 1] == 0 && data[offset + 2] == 1 && data[offset + 3] >= EndCode;
-
-    private void AlignAudio(byte[] data, int offset, int packetLength)
-    {
-        if (_lastVideoTimestamp is not { } video || !TryReadTimestamp(data, offset, packetLength, out var timestamp))
-        {
-            return;
-        }
-
-        if (Math.Abs(ToSigned(timestamp - _audioCorrection - video)) > MaxAudioDrift)
-        {
-            _audioCorrection = ToSigned(timestamp - video);
-        }
-
-        if (_audioCorrection == 0)
-        {
-            return;
-        }
-
-        WriteTimestamp(data, offset + 9, timestamp - _audioCorrection);
-        if (HasDecodingTimestamp(data, offset, packetLength))
-        {
-            WriteTimestamp(data, offset + 14, ReadTimestamp(data, offset + 14) - _audioCorrection);
-        }
-    }
 
     private static bool IsVideo(byte streamId)
     {
@@ -150,6 +184,7 @@ internal sealed class ProgramStreamTimestampAligner
     private static bool TryReadTimestamp(byte[] data, int offset, int packetLength, out long timestamp)
     {
         timestamp = 0;
+
         if (packetLength < 14 || (data[offset + 6] & 0xC0) != 0x80 || (data[offset + 7] & 0x80) == 0
             || data[offset + 8] < 5 || 9 + data[offset + 8] > packetLength)
         {
@@ -157,6 +192,7 @@ internal sealed class ProgramStreamTimestampAligner
         }
 
         timestamp = ReadTimestamp(data, offset + 9);
+
         return true;
     }
 
@@ -192,6 +228,32 @@ internal sealed class ProgramStreamTimestampAligner
     private static long ToSigned(long difference)
     {
         var value = ((difference % ClockRange) + ClockRange) % ClockRange;
+
         return value >= ClockRange / 2 ? value - ClockRange : value;
+    }
+
+    private void AlignAudio(byte[] data, int offset, int packetLength)
+    {
+        if (_lastVideoTimestamp is not { } video || !TryReadTimestamp(data, offset, packetLength, out var timestamp))
+        {
+            return;
+        }
+
+        if (Math.Abs(ToSigned(timestamp - _audioCorrection - video)) > MaxAudioDrift)
+        {
+            _audioCorrection = ToSigned(timestamp - video);
+        }
+
+        if (_audioCorrection == 0)
+        {
+            return;
+        }
+
+        WriteTimestamp(data, offset + 9, timestamp - _audioCorrection);
+
+        if (HasDecodingTimestamp(data, offset, packetLength))
+        {
+            WriteTimestamp(data, offset + 14, ReadTimestamp(data, offset + 14) - _audioCorrection);
+        }
     }
 }

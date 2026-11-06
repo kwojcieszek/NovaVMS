@@ -14,17 +14,7 @@ public sealed partial class UserSessionService : ObservableObject
     private readonly LocalSettingsService _localSettings;
     private Guid? _userId;
 
-    public UserSessionService(ConfigurationService configuration, LocalSettingsService localSettings)
-    {
-        _configuration = configuration;
-        _localSettings = localSettings;
-        _configuration.Changed += (_, _) => Refresh();
-    }
-
-    /// <summary>
-    /// Raised after a login, a logout or a change of the logged-in user's permissions.
-    /// </summary>
-    public event EventHandler? Changed;
+    private UserPermissions Permissions => CurrentUser?.Permissions ?? UserPermissions.None;
 
     public UserAccount? CurrentUser => _userId is { } id ? _configuration.FindUser(id) : null;
 
@@ -49,19 +39,31 @@ public sealed partial class UserSessionService : ObservableObject
     public bool IsAutoLogin => IsLoggedIn
         && string.Equals(_localSettings.Current.AutoLoginUserName, UserName, StringComparison.OrdinalIgnoreCase);
 
-    private UserPermissions Permissions => CurrentUser?.Permissions ?? UserPermissions.None;
+    /// <summary>
+    /// Raised after a login, a logout or a change of the logged-in user's permissions.
+    /// </summary>
+    public event EventHandler? Changed;
+
+    public UserSessionService(ConfigurationService configuration, LocalSettingsService localSettings)
+    {
+        _configuration = configuration;
+        _localSettings = localSettings;
+        _configuration.Changed += (_, _) => Refresh();
+    }
 
     public bool Has(UserPermissions permission) => CurrentUser?.Has(permission) == true;
 
     public bool TryLogin(string userName, string password)
     {
         var user = string.IsNullOrWhiteSpace(userName) ? null : _configuration.FindUser(userName);
+
         if (user is null || !PasswordHasher.Verify(user, password))
         {
             return false;
         }
 
         SetUser(user.Id);
+
         return true;
     }
 
@@ -71,12 +73,14 @@ public sealed partial class UserSessionService : ObservableObject
     public bool TryAutoLogin()
     {
         var name = _localSettings.Current.AutoLoginUserName;
+
         if (string.IsNullOrWhiteSpace(name) || _configuration.FindUser(name) is not { } user)
         {
             return false;
         }
 
         SetUser(user.Id);
+
         return true;
     }
 
@@ -91,6 +95,7 @@ public sealed partial class UserSessionService : ObservableObject
     public async Task SetAutoLoginAsync(bool enabled)
     {
         _localSettings.Current.AutoLoginUserName = enabled && IsLoggedIn ? UserName : string.Empty;
+
         await _localSettings.SaveAsync();
         OnPropertyChanged(nameof(IsAutoLogin));
     }
@@ -98,6 +103,7 @@ public sealed partial class UserSessionService : ObservableObject
     private void SetUser(Guid? userId)
     {
         _userId = userId;
+
         NotifyAll();
     }
 

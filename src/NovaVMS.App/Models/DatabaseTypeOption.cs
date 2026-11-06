@@ -7,13 +7,6 @@ namespace NovaVMS.App.Models;
 /// </summary>
 public sealed class DatabaseTypeOption
 {
-    private DatabaseTypeOption(SettingsDatabaseType value, string label, int defaultPort)
-    {
-        Value = value;
-        Label = label;
-        DefaultPort = defaultPort;
-    }
-
     public static IReadOnlyList<DatabaseTypeOption> All { get; } = new List<DatabaseTypeOption>
     {
         new(SettingsDatabaseType.PostgreSql, "PostgreSQL", SettingsSyncOptions.DefaultPostgreSqlPort),
@@ -25,6 +18,13 @@ public sealed class DatabaseTypeOption
     public string Label { get; }
 
     public int DefaultPort { get; }
+
+    private DatabaseTypeOption(SettingsDatabaseType value, string label, int defaultPort)
+    {
+        Value = value;
+        Label = label;
+        DefaultPort = defaultPort;
+    }
 
     public static DatabaseTypeOption Find(SettingsDatabaseType value)
     {

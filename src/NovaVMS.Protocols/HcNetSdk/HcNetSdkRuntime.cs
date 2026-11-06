@@ -16,11 +16,14 @@ public static class HcNetSdkRuntime
 
     // NET_DVR_LOCAL_SDK_PATH: char sPath[256] followed by 128 reserved bytes.
     private const int SdkPathLength = 256;
+
     private const int SdkPathStructSize = 384;
 
     private static readonly object SyncRoot = new();
     private static IntPtr _libraryHandle;
     private static bool _isInitialized;
+
+    private static string LibraryFileName => OperatingSystem.IsWindows() ? "HCNetSDK.dll" : "libhcnetsdk.so";
 
     /// <summary>
     /// Folder with the SDK libraries; empty selects the "hcnetsdk" folder next to the application.
@@ -35,10 +38,29 @@ public static class HcNetSdkRuntime
 
     public static bool IsPlatformSupported => OperatingSystem.IsWindows() || OperatingSystem.IsLinux();
 
+    /// <summary>
+    /// SDK build version ("6.1.9.48"), or null when the SDK has not been loaded.
+    /// </summary>
+    public static string? LoadedVersion
+    {
+        get
+        {
+            if (!_isInitialized)
+            {
+                return null;
+            }
+
+            var version = HcNetSdkNative.GetSdkBuildVersion();
+
+            return $"{version >> 24}.{(version >> 16) & 0xFF}.{(version >> 8) & 0xFF}.{version & 0xFF}";
+        }
+    }
+
     public static string ResolveDirectory(string configuredDirectory)
     {
         var directory = string.IsNullOrWhiteSpace(configuredDirectory)
             ? DefaultFolderName : configuredDirectory.Trim();
+
         return Path.GetFullPath(directory, AppContext.BaseDirectory);
     }
 
@@ -53,27 +75,9 @@ public static class HcNetSdkRuntime
         }
 
         var path = Path.Combine(ResolveDirectory(configuredDirectory), LibraryFileName);
+
         return File.Exists(path) ? path : null;
     }
-
-    /// <summary>
-    /// SDK build version ("6.1.9.48"), or null when the SDK has not been loaded.
-    /// </summary>
-    public static string? LoadedVersion
-    {
-        get
-        {
-            if (!_isInitialized)
-            {
-                return null;
-            }
-
-            var version = HcNetSdkNative.GetSdkBuildVersion();
-            return $"{version >> 24}.{(version >> 16) & 0xFF}.{(version >> 8) & 0xFF}.{version & 0xFF}";
-        }
-    }
-
-    private static string LibraryFileName => OperatingSystem.IsWindows() ? "HCNetSDK.dll" : "libhcnetsdk.so";
 
     /// <summary>
     /// Stops all streams, logs out of all devices and releases the SDK.
@@ -84,6 +88,7 @@ public static class HcNetSdkRuntime
         // initialization lock, otherwise that opening and shutdown would wait for each other.
         HcNetSdkVideoStream.StopAll();
         HikvisionRtspVideoStream.StopAll();
+
         lock (SyncRoot)
         {
             if (!_isInitialized)
@@ -93,6 +98,7 @@ public static class HcNetSdkRuntime
 
             HcNetSdkSessionPool.LogoutAll();
             HcNetSdkNative.Cleanup();
+
             _isInitialized = false;
         }
     }
@@ -113,6 +119,7 @@ public static class HcNetSdkRuntime
 
             var directory = ResolveDirectory(LibraryDirectory);
             var libraryPath = Path.Combine(directory, LibraryFileName);
+
             if (!File.Exists(libraryPath))
             {
                 throw new DeviceCommunicationException(ProtocolText.Format("SdkNotFound", directory));
@@ -128,6 +135,7 @@ public static class HcNetSdkRuntime
 
             HcNetSdkNative.SetConnectTime(3000, 1);
             HcNetSdkNative.SetReconnect(10000, true);
+
             LoadedDirectory = directory;
             _isInitialized = true;
         }
@@ -171,12 +179,14 @@ public static class HcNetSdkRuntime
         }
 
         var crypto = Path.Combine(directory, "libcrypto.so.1.1");
+
         if (File.Exists(crypto))
         {
             SetPath(HcNetSdkConstants.InitConfigCryptoLibraryPath, crypto);
         }
 
         var ssl = Path.Combine(directory, "libssl.so.1.1");
+
         if (File.Exists(ssl))
         {
             SetPath(HcNetSdkConstants.InitConfigSslLibraryPath, ssl);
@@ -187,18 +197,22 @@ public static class HcNetSdkRuntime
     {
         var buffer = Marshal.AllocHGlobal(SdkPathStructSize);
         var text = Marshal.StringToHGlobalAnsi(path);
+
         try
         {
             var zeros = new byte[SdkPathStructSize];
+
             Marshal.Copy(zeros, 0, buffer, zeros.Length);
 
             var length = 0;
+
             while (length < SdkPathLength - 1 && Marshal.ReadByte(text, length) != 0)
             {
                 length++;
             }
 
             var bytes = new byte[length];
+
             Marshal.Copy(text, bytes, 0, length);
             Marshal.Copy(bytes, 0, buffer, length);
 

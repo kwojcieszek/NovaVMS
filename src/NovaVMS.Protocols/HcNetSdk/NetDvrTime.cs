@@ -15,9 +15,6 @@ internal struct NetDvrTime
     public uint Minute;
     public uint Second;
 
-    public readonly DateTime ToDateTime() => new((int)Year, (int)Month, (int)Day,
-        (int)Hour, (int)Minute, (int)Second, DateTimeKind.Unspecified);
-
     public static NetDvrTime From(DateTime value)
     {
         return new NetDvrTime
@@ -30,4 +27,7 @@ internal struct NetDvrTime
             Second = (uint)value.Second
         };
     }
+
+    public readonly DateTime ToDateTime() => new((int)Year, (int)Month, (int)Day,
+        (int)Hour, (int)Minute, (int)Second, DateTimeKind.Unspecified);
 }

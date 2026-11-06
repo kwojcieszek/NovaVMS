@@ -23,7 +23,9 @@ public sealed class AtomicFileTests : IDisposable
     {
         Directory.CreateDirectory(_directory);
         await File.WriteAllTextAsync(FilePath, "original");
+
         using var cancellation = new CancellationTokenSource();
+
         cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
@@ -38,7 +40,9 @@ public sealed class AtomicFileTests : IDisposable
     {
         // A directory at the destination deterministically prevents replacement.
         Directory.CreateDirectory(FilePath);
+
         var marker = Path.Combine(FilePath, "marker");
+
         await File.WriteAllTextAsync(marker, "original");
 
         var error = await Record.ExceptionAsync(() =>
@@ -52,6 +56,8 @@ public sealed class AtomicFileTests : IDisposable
     public void Dispose()
     {
         if (Directory.Exists(_directory))
+        {
             Directory.Delete(_directory, recursive: true);
+        }
     }
 }

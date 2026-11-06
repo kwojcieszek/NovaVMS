@@ -6,7 +6,13 @@ public sealed class GroupLiveView
     public int LayoutCount { get; set; } = 4;
     public List<CameraReference?> Cameras { get; set; } = new();
     public HashSet<int> EmptySlots { get; set; } = new();
-    public GroupLiveView Copy() => new() { LayoutId = LayoutId, LayoutCount = LayoutCount,
-        Cameras = Cameras.ToList(), EmptySlots = EmptySlots.ToHashSet() };
+
+    public GroupLiveView Copy() => new()
+    {
+        LayoutId = LayoutId,
+        LayoutCount = LayoutCount,
+        Cameras = Cameras.ToList(),
+        EmptySlots = EmptySlots.ToHashSet()
+    };
 }
 

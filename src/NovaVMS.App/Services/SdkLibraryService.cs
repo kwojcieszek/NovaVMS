@@ -13,6 +13,7 @@ public sealed class SdkLibraryService
     {
         _configuration = configuration;
         _configuration.Changed += OnConfigurationChanged;
+
         Apply();
     }
 

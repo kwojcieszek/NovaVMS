@@ -10,6 +10,7 @@ public sealed class RemoteSettingsStoreFactory : IRemoteSettingsStoreFactory
     public RemoteSettingsStoreFactory(IConfigurationSerializer serializer)
     {
         ArgumentNullException.ThrowIfNull(serializer);
+
         _serializer = serializer;
     }
 

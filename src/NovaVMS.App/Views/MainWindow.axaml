@@ -221,11 +221,19 @@
                     </MenuItem>
                   </ContextMenu>
                 </StackPanel.ContextMenu>
-                <mi:MaterialIcon Kind="ViewDashboard" Foreground="{DynamicResource NovaViewIcon}" IsVisible="{Binding IsViewsFolder}" />
-                <mi:MaterialIcon Kind="ViewGridOutline" Foreground="{DynamicResource NovaViewIcon}" IsVisible="{Binding IsSavedView}" />
-                <mi:MaterialIcon Kind="FolderStar" Foreground="{DynamicResource NovaAccent}" IsVisible="{Binding IsCustom}" />
-                <mi:MaterialIcon Kind="Server" IsVisible="{Binding IsDeviceGroup}" />
-                <mi:MaterialIcon Kind="Star" Foreground="{DynamicResource NovaFavoriteIcon}" IsVisible="{Binding IsFavorites}" />
+                <Panel VerticalAlignment="Center">
+                  <mi:MaterialIcon Kind="ViewDashboard" Foreground="{DynamicResource NovaViewIcon}" IsVisible="{Binding IsViewsFolder}" />
+                  <mi:MaterialIcon Kind="ViewGridOutline" Foreground="{DynamicResource NovaViewIcon}" IsVisible="{Binding IsSavedView}" />
+                  <mi:MaterialIcon Kind="FolderStar" Foreground="{DynamicResource NovaAccent}" IsVisible="{Binding IsCustom}" />
+                  <mi:MaterialIcon Kind="Server" IsVisible="{Binding IsDeviceGroup}" />
+                  <mi:MaterialIcon Kind="Star" Foreground="{DynamicResource NovaFavoriteIcon}" IsVisible="{Binding IsFavorites}" />
+                  <!-- Exclamation badge: at least one camera of the group is unavailable. -->
+                  <Border Classes="unavailableBadge"
+                          IsVisible="{Binding HasUnavailableCamera}"
+                          ToolTip.Tip="{l:Tr Tree_UnavailableCameras}">
+                    <TextBlock Text="!" />
+                  </Border>
+                </Panel>
                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
               </StackPanel>
             </TreeDataTemplate>

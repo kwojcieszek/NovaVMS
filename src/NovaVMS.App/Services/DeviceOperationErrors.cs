@@ -15,21 +15,36 @@ internal static class DeviceOperationErrors
         // Reconnecting tiles can repeat the same failure every few seconds.
         var signature = operation + "|" + exception.GetType().FullName + "|" + exception.Message;
         var now = DateTime.UtcNow;
+
         lock (Gate)
         {
             if (!Recent.TryGetValue(signature, out var previous) || now - previous >= TimeSpan.FromSeconds(30))
             {
-                if (Recent.Count >= 4096) Recent.Clear();
+                if (Recent.Count >= 4096)
+                {
+                    Recent.Clear();
+                }
+
                 Recent[signature] = now;
+
                 UnhandledExceptionLogger.Log(operation, exception);
             }
         }
+
         var message = exception is OperationCanceledException ? Localizer.Text("DeviceOperation_Timeout") : exception.Message;
+
         if (ErrorReported is not null)
         {
-            if (Dispatcher.UIThread.CheckAccess()) ErrorReported?.Invoke(message);
-            else Dispatcher.UIThread.Post(() => ErrorReported?.Invoke(message));
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                ErrorReported?.Invoke(message);
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(() => ErrorReported?.Invoke(message));
+            }
         }
+
         return message;
     }
 }

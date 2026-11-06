@@ -25,12 +25,14 @@ public sealed class CameraIdentityTests
         await configuration.LoadAsync();
 
         var yard = device.Channels[1].Id;
+
         Assert.Equal(yard, configuration.Current.Groups[0].Cameras[0].ChannelId);
         Assert.Equal(yard, configuration.Current.Views[0].Layout.Cameras[1]!.ChannelId);
         Assert.Equal(yard, configuration.Current.GroupLiveViews["key"].Cameras[0]!.ChannelId);
         Assert.Equal("Yard", configuration.FindCamera(configuration.Current.Views[0].Layout.Cameras[1]!)!.Channel.Name);
 
         using var stream = new MemoryStream();
+
         await new JsonConfigurationSerializer().SerializeAsync(stream, configuration.Current.CreateSnapshot());
         Assert.DoesNotContain("\"ChannelNumber\"", Encoding.UTF8.GetString(stream.ToArray()));
     }
@@ -97,6 +99,7 @@ public sealed class CameraIdentityTests
     {
         var deviceId = Guid.NewGuid();
         var channelId = Guid.NewGuid();
+
         Assert.Equal(new CameraReference { DeviceId = deviceId, ChannelId = channelId },
             new CameraReference { DeviceId = deviceId, ChannelId = channelId, ChannelNumber = 5 });
         Assert.NotEqual(new CameraReference { DeviceId = deviceId, ChannelId = channelId },

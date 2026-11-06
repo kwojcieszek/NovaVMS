@@ -35,25 +35,46 @@ public partial class MainWindow : Window
 
     protected override async void OnClosing(WindowClosingEventArgs e)
     {
-        if (_canClose) { base.OnClosing(e); return; }
+        if (_canClose)
+        {
+            base.OnClosing(e);
+
+            return;
+        }
+
         e.Cancel = true;
+
         base.OnClosing(e);
-        if (_shutdownStarted) return;
+
+        if (_shutdownStarted)
+        {
+            return;
+        }
+
         _shutdownStarted = true;
         // Releasing streams and devices can take several seconds; tell the user the application is closing.
         var progress = new BusyWindow("Shutdown_Title", "Shutdown_Message")
         {
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };
+
         progress.Show(this);
+
         try
         {
             // Await stops while surfaces and the dispatcher are still alive. Closing
             // the window first would race LibVLC callbacks and native window destruction.
             UnhandledExceptionLogger.IsShuttingDown = true;
+
             if (DataContext is MainWindowViewModel viewModel)
+            {
                 await viewModel.CompleteShutdownAsync();
-            if (Application.Current is App app) await app.DisposeServicesAsync();
+            }
+
+            if (Application.Current is App app)
+            {
+                await app.DisposeServicesAsync();
+            }
         }
         catch (Exception exception)
         {
@@ -62,7 +83,9 @@ public partial class MainWindow : Window
         finally
         {
             progress.Finish();
+
             _canClose = true;
+
             Close();
         }
     }
@@ -70,9 +93,11 @@ public partial class MainWindow : Window
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
+
         if (!_initialized && DataContext is MainWindowViewModel viewModel)
         {
             _initialized = true;
+
             viewModel.InitializeCommand.Execute(null);
         }
     }
@@ -80,32 +105,11 @@ public partial class MainWindow : Window
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
+
         if (DataContext is MainWindowViewModel viewModel)
         {
             viewModel.ExitRequested += (_, _) => Close();
             viewModel.Live.PropertyChanged += OnLivePropertyChanged;
-        }
-    }
-
-    private void OnLivePropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName != nameof(LiveViewViewModel.IsVideoOnly) || sender is not LiveViewViewModel live)
-        {
-            return;
-        }
-
-        // The resource column has a fixed (user-resizable) width; collapse it and restore the width afterwards.
-        var column = MainGrid.ColumnDefinitions[0];
-        if (live.IsVideoOnly)
-        {
-            _resourceColumnWidth = column.Width;
-            column.Width = new GridLength(0);
-            MainGrid.ColumnDefinitions[1].Width = new GridLength(0);
-        }
-        else
-        {
-            column.Width = _resourceColumnWidth;
-            MainGrid.ColumnDefinitions[1].Width = new GridLength(4);
         }
     }
 
@@ -124,6 +128,7 @@ public partial class MainWindow : Window
         else if (e.Key == Key.Escape && DataContext is MainWindowViewModel viewModel && viewModel.Live.IsMaximized)
         {
             viewModel.Live.RestoreLayout();
+
             e.Handled = true;
         }
 
@@ -135,6 +140,34 @@ public partial class MainWindow : Window
         return (source as StyledElement)?.DataContext as ResourceNodeViewModel;
     }
 
+    private static bool IsTreeButton(object? source)
+    {
+        return (source as Visual)?.FindAncestorOfType<Button>(includeSelf: true) is not null;
+    }
+
+    private void OnLivePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(LiveViewViewModel.IsVideoOnly) || sender is not LiveViewViewModel live)
+        {
+            return;
+        }
+
+        // The resource column has a fixed (user-resizable) width; collapse it and restore the width afterwards.
+        var column = MainGrid.ColumnDefinitions[0];
+
+        if (live.IsVideoOnly)
+        {
+            _resourceColumnWidth = column.Width;
+            column.Width = new GridLength(0);
+            MainGrid.ColumnDefinitions[1].Width = new GridLength(0);
+        }
+        else
+        {
+            column.Width = _resourceColumnWidth;
+            MainGrid.ColumnDefinitions[1].Width = new GridLength(4);
+        }
+    }
+
     private async void OnSettingsClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel viewModel)
@@ -143,6 +176,7 @@ public partial class MainWindow : Window
         }
 
         var settingsViewModel = viewModel.CreateSettings();
+
         if (settingsViewModel is null)
         {
             return;
@@ -182,6 +216,7 @@ public partial class MainWindow : Window
         if (GetNode(e.Source) is ResourceGroupNodeViewModel)
         {
             e.Handled = true;
+
             return;
         }
 
@@ -191,17 +226,13 @@ public partial class MainWindow : Window
         }
     }
 
-    private static bool IsTreeButton(object? source)
-    {
-        return (source as Visual)?.FindAncestorOfType<Button>(includeSelf: true) is not null;
-    }
-
     private void OnTreePointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (IsTreeButton(e.Source))
         {
             _dragStart = null;
             _dragNode = null;
+
             return;
         }
 
@@ -231,10 +262,12 @@ public partial class MainWindow : Window
         {
             _dragStart = null;
             _dragNode = null;
+
             return;
         }
 
         var delta = e.GetPosition(ResourceTree) - start;
+
         if (Math.Abs(delta.X) < DragThreshold && Math.Abs(delta.Y) < DragThreshold)
         {
             return;
@@ -243,6 +276,7 @@ public partial class MainWindow : Window
         var cameras = viewModel.Tree.GetCameras(_dragNode);
         _dragStart = null;
         _dragNode = null;
+
         if (cameras.Count == 0)
         {
             return;

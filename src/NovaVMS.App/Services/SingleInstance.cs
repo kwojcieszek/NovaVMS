@@ -9,11 +9,18 @@ internal sealed class SingleInstance : IDisposable
 {
     // "Global\" makes the lock shared by all user sessions on Windows; other systems ignore the prefix.
     private const string MutexName = @"Global\NovaVMS.SingleInstance";
+
     private const string PipeName = "NovaVMS.Activate";
+
     private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(2);
 
     private readonly Mutex _mutex;
     private readonly CancellationTokenSource _stop = new();
+
+    /// <summary>
+    /// The lock of this process, while it is the running instance.
+    /// </summary>
+    public static SingleInstance? Current { get; private set; }
 
     private SingleInstance(Mutex mutex)
     {
@@ -21,16 +28,12 @@ internal sealed class SingleInstance : IDisposable
     }
 
     /// <summary>
-    /// The lock of this process, while it is the running instance.
-    /// </summary>
-    public static SingleInstance? Current { get; private set; }
-
-    /// <summary>
     /// Takes the lock, or returns null when another instance holds it.
     /// </summary>
     public static SingleInstance? TryAcquire()
     {
         Mutex mutex;
+
         try
         {
             mutex = new Mutex(initiallyOwned: false, MutexName);
@@ -46,6 +49,7 @@ internal sealed class SingleInstance : IDisposable
             if (!mutex.WaitOne(TimeSpan.Zero))
             {
                 mutex.Dispose();
+
                 return null;
             }
         }
@@ -65,6 +69,7 @@ internal sealed class SingleInstance : IDisposable
         try
         {
             using var pipe = new NamedPipeClientStream(".", PipeName, PipeDirection.Out);
+
             pipe.Connect(ConnectTimeout);
             pipe.WriteByte(1);
         }
@@ -86,8 +91,11 @@ internal sealed class SingleInstance : IDisposable
                 {
                     await using var pipe = new NamedPipeServerStream(PipeName, PipeDirection.In, 1,
                         PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+
                     await pipe.WaitForConnectionAsync(_stop.Token).ConfigureAwait(false);
+
                     var buffer = new byte[1];
+
                     if (await pipe.ReadAsync(buffer, _stop.Token).ConfigureAwait(false) > 0)
                     {
                         activate();
@@ -109,6 +117,7 @@ internal sealed class SingleInstance : IDisposable
     public void Dispose()
     {
         _stop.Cancel();
+
         try
         {
             _mutex.ReleaseMutex();
@@ -119,6 +128,7 @@ internal sealed class SingleInstance : IDisposable
         }
 
         _mutex.Dispose();
+
         Current = null;
     }
 }

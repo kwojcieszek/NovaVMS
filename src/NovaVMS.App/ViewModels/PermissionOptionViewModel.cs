@@ -12,14 +12,14 @@ public sealed partial class PermissionOptionViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isChecked;
 
+    public UserPermissions Permission { get; }
+
+    public string Label => Localizer.Text($"Permission_{Permission}");
+
     public PermissionOptionViewModel(UserPermissions permission)
     {
         Permission = permission;
     }
-
-    public UserPermissions Permission { get; }
-
-    public string Label => Localizer.Text($"Permission_{Permission}");
 
     public void NotifyLabelChanged() => OnPropertyChanged(nameof(Label));
 }

@@ -20,6 +20,7 @@ public sealed class ThemeService
     public void Apply(ThemeMode mode)
     {
         var application = Application.Current;
+
         if (application is null)
         {
             return;

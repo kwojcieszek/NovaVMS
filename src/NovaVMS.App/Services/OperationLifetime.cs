@@ -13,10 +13,41 @@ internal sealed class OperationLifetime
     {
         lock (_gate)
         {
-            if (_stopping) return Task.FromCanceled<T>(new CancellationToken(true));
+            if (_stopping)
+            {
+                return Task.FromCanceled<T>(new CancellationToken(true));
+            }
+
             _active++;
         }
+
         return RunCoreAsync(operation, token);
+    }
+
+    public Task StopAsync()
+    {
+        lock (_gate)
+        {
+            if (_stopping)
+            {
+                return _drained.Task;
+            }
+
+            _stopping = true;
+        }
+
+        // Cancellation callbacks may finish operations: never invoke them while holding the gate.
+        _stop.Cancel();
+
+        lock (_gate)
+        {
+            if (_active == 0)
+            {
+                _drained.TrySetResult();
+            }
+
+            return _drained.Task;
+        }
     }
 
     private async Task<T> RunCoreAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken token)
@@ -24,30 +55,18 @@ internal sealed class OperationLifetime
         try
         {
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, _stop.Token);
+
             return await operation(linked.Token);
         }
         finally
         {
             lock (_gate)
             {
-                if (--_active == 0 && _stopping) _drained.TrySetResult();
+                if (--_active == 0 && _stopping)
+                {
+                    _drained.TrySetResult();
+                }
             }
-        }
-    }
-
-    public Task StopAsync()
-    {
-        lock (_gate)
-        {
-            if (_stopping) return _drained.Task;
-            _stopping = true;
-        }
-        // Cancellation callbacks may finish operations: never invoke them while holding the gate.
-        _stop.Cancel();
-        lock (_gate)
-        {
-            if (_active == 0) _drained.TrySetResult();
-            return _drained.Task;
         }
     }
 }

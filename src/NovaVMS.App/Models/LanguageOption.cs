@@ -10,13 +10,6 @@ public sealed class LanguageOption : ObservableObject
 {
     private readonly string? _nativeName;
 
-    private LanguageOption(string code, string? nativeName)
-    {
-        Code = code;
-        _nativeName = nativeName;
-        Localizer.Instance.LanguageChanged += (_, _) => OnPropertyChanged(nameof(Label));
-    }
-
     public static IReadOnlyList<LanguageOption> All { get; } = new List<LanguageOption>
     {
         new(string.Empty, null),
@@ -30,6 +23,13 @@ public sealed class LanguageOption : ObservableObject
     public string Code { get; }
 
     public string Label => _nativeName ?? Localizer.Text("Language_System");
+
+    private LanguageOption(string code, string? nativeName)
+    {
+        Code = code;
+        _nativeName = nativeName;
+        Localizer.Instance.LanguageChanged += (_, _) => OnPropertyChanged(nameof(Label));
+    }
 
     public static LanguageOption Find(string code)
     {

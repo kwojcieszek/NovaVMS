@@ -4,13 +4,13 @@ using System.Text;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NovaVMS.App.Localization;
 using NovaVMS.App.Models;
 using NovaVMS.App.Services;
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Exceptions;
 using NovaVMS.Core.Models;
 using NovaVMS.Infrastructure.Import;
-using NovaVMS.App.Localization;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -118,6 +118,19 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     public bool IsOptionalSdkProtocol => EditOptionalProtocol.Value == DeviceProtocol.HikvisionSdk;
     public bool IsOptionalNetworkProtocol => !IsOptionalSdkProtocol;
 
+    public ObservableCollection<DeviceRowViewModel> Devices { get; } = new();
+
+    public ObservableCollection<DiscoveredDevice> DiscoveredDevices { get; } = new();
+
+    public IReadOnlyList<ProtocolOption> Protocols => ProtocolOption.All;
+
+    /// <summary>
+    /// The Hikvision SDK protocol uses its own port instead of the HTTP and RTSP ports.
+    /// </summary>
+    public bool IsSdkProtocol => EditProtocol.Value == DeviceProtocol.HikvisionSdk;
+
+    public bool IsNetworkProtocol => !IsSdkProtocol;
+
     public DevicesSettingsViewModel(
         ConfigurationService configuration,
         DeviceSyncService sync,
@@ -136,6 +149,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         _csvReader = csvReader;
 
         LoadDevices();
+
         _configuration.Replaced += OnConfigurationReplaced;
 
         _stateTimer = new DispatcherTimer
@@ -143,13 +157,37 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
             Interval = StateCheckInterval
         };
         _stateTimer.Tick += OnStateTimerTick;
+
         _stateTimer.Start();
+
         Localizer.Instance.LanguageChanged += OnLanguageChanged;
 
         _ = CheckStatesAsync();
     }
 
-    public ObservableCollection<DeviceRowViewModel> Devices { get; } = new();
+    public void Dispose()
+    {
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        _isDisposed = true;
+
+        _stateCheckStop.Cancel();
+
+        _configuration.Replaced -= OnConfigurationReplaced;
+
+        _stateTimer.Stop();
+
+        _stateTimer.Tick -= OnStateTimerTick;
+        Localizer.Instance.LanguageChanged -= OnLanguageChanged;
+    }
+
+    private static string DeviceKey(Device device)
+    {
+        return ImportedCameraGroups.DeviceKey(device);
+    }
 
     private void LoadDevices()
     {
@@ -163,41 +201,18 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     private void OnConfigurationReplaced(object? sender, EventArgs e)
     {
         SelectedDevice = null;
+
         Devices.Clear();
         LoadDevices();
+
         _ = CheckStatesAsync();
-    }
-
-    public ObservableCollection<DiscoveredDevice> DiscoveredDevices { get; } = new();
-
-    public IReadOnlyList<ProtocolOption> Protocols => ProtocolOption.All;
-
-    /// <summary>
-    /// The Hikvision SDK protocol uses its own port instead of the HTTP and RTSP ports.
-    /// </summary>
-    public bool IsSdkProtocol => EditProtocol.Value == DeviceProtocol.HikvisionSdk;
-
-    public bool IsNetworkProtocol => !IsSdkProtocol;
-
-    public void Dispose()
-    {
-        if (_isDisposed)
-        {
-            return;
-        }
-
-        _isDisposed = true;
-        _stateCheckStop.Cancel();
-        _configuration.Replaced -= OnConfigurationReplaced;
-        _stateTimer.Stop();
-        _stateTimer.Tick -= OnStateTimerTick;
-        Localizer.Instance.LanguageChanged -= OnLanguageChanged;
     }
 
     [RelayCommand]
     private void NewDevice()
     {
         SelectedDevice = null;
+
         ClearForm();
     }
 
@@ -213,13 +228,17 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         if (EditSecondarySdkPort is < 1 or > 65535 || EditSecondaryHttpPort is < 1 or > 65535 || EditSecondaryRtspPort is < 1 or > 65535)
         {
             InfoText = Localizer.Text("Devices_InvalidSecondaryPort");
+
             return;
         }
+
         if (EditStreamEncryptionKey.Contains('\0') || Encoding.UTF8.GetByteCount(EditStreamEncryptionKey) > 128)
         {
             InfoText = Localizer.Text("Devices_StreamKeyInvalid");
+
             return;
         }
+
         var row = SelectedDevice;
         var device = row?.Device ?? new Device();
 
@@ -234,11 +253,13 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         device.RtspPort = EditRtspPort;
         device.SdkPort = EditSdkPort;
         device.UseHttps = EditUseHttps;
+
         if (device.Protocol != EditProtocol.Value)
         {
             // Stream addresses and profiles belong to the previous protocol. The channels themselves are kept,
             // so the cameras keep their identity in views and groups when they are read again.
             device.Protocol = EditProtocol.Value;
+
             foreach (var channel in device.Channels)
             {
                 channel.MainStreamUri = null;
@@ -246,6 +267,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
                 channel.ProfileToken = null;
             }
         }
+
         device.Username = EditUsername.Trim();
         device.Password = EditPassword;
         device.StreamEncryptionKey = EditStreamEncryptionKey;
@@ -265,7 +287,9 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         if (row is null)
         {
             _configuration.Current.Devices.Add(device);
+
             row = new DeviceRowViewModel(device, _clientFactory);
+
             Devices.Add(row);
         }
 
@@ -278,6 +302,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     private async Task RefreshChannelsAsync()
     {
         var row = SelectedDevice;
+
         if (row is null)
         {
             return;
@@ -292,6 +317,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     private async Task DeleteDeviceAsync()
     {
         var row = SelectedDevice;
+
         if (row is null)
         {
             return;
@@ -299,6 +325,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
 
         var device = row.Device;
         var confirmed = await _dialogs.ConfirmAsync(Localizer.Text("Devices_DeleteTitle"), Localizer.Format("Devices_DeleteConfirm", device.DisplayName));
+
         if (!confirmed)
         {
             return;
@@ -308,6 +335,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         await _configuration.SaveAsync();
 
         Devices.Remove(row);
+
         SelectedDevice = null;
         InfoText = Localizer.Format("Devices_Deleted", device.DisplayName);
     }
@@ -316,11 +344,13 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     private async Task DiscoverAsync()
     {
         DiscoveredDevices.Clear();
+
         InfoText = Localizer.Text("Devices_Searching");
 
         try
         {
             var found = await _discovery.DiscoverAsync(DiscoveryTimeout);
+
             foreach (var device in found)
             {
                 DiscoveredDevices.Add(device);
@@ -333,6 +363,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         catch (Exception exception) when (DeviceFailure.IsExpected(exception))
         {
             DeviceOperationErrors.Report("Device discovery", exception);
+
             InfoText = Localizer.Format("Devices_DiscoveryFailed", exception.Message);
         }
     }
@@ -341,6 +372,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     private async Task ImportCsvAsync()
     {
         DeviceCsvResult result;
+
         await using (var stream = await _dialogs.OpenCsvFileAsync(Localizer.Text("Devices_ImportCsvTitle")))
         {
             if (stream is null)
@@ -355,6 +387,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
             catch (FormatException exception)
             {
                 InfoText = Localizer.Format("Devices_ImportFailed", exception.Message);
+
                 return;
             }
         }
@@ -368,14 +401,25 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         try
         {
             var source = await _dialogs.OpenIvmsFileAsync(Localizer.Text("Devices_IvmsTitle"));
-            if (source is null) return;
+
+            if (source is null)
+            {
+                return;
+            }
+
             DeviceCsvResult result;
             IsBusy = true;
             InfoText = Localizer.Text("Devices_IvmsReading");
+
             await using (var content = source.Value.Content)
+
             await using (var setup = source.Value.Setup)
+            {
                 result = await new IvmsDeviceReader().ReadAsync(content, setup);
+            }
+
             IsBusy = false;
+
             await ImportDevicesAsync(result, replaceExisting: true);
         }
         catch (Exception exception) when (exception is FormatException or IOException or InvalidDataException
@@ -383,7 +427,10 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         {
             InfoText = Localizer.Format("Devices_ImportFailed", exception.Message);
         }
-        finally { IsBusy = false; }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private async Task ImportDevicesAsync(DeviceCsvResult result, bool replaceExisting = false)
@@ -401,6 +448,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
             InfoText = result.Devices.Count == 0
                 ? Localizer.Text("Devices_ImportEmpty")
                 : Localizer.Text("Devices_ImportAllExist");
+
             return;
         }
 
@@ -410,12 +458,14 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
             : result.Groups.Count > 0
             ? Localizer.Format("Devices_ImportDevicesGroupsConfirm", newDevices.Count, result.Groups.Count)
             : Localizer.Format("Devices_ImportConfirm", newDevices.Count);
+
         if (skipped > 0)
         {
             message += "\n" + Localizer.Format("Devices_ImportSkippedNote", skipped);
         }
 
         var title = Localizer.Text(replaceExisting ? "Devices_IvmsReplaceTitle" : "Devices_ImportTitle");
+
         if (!await _dialogs.ConfirmAsync(title, message))
         {
             return;
@@ -423,12 +473,15 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
 
         var rows = new List<DeviceRowViewModel>();
         int groupsImported;
+
         if (replaceExisting)
         {
             await _configuration.ReplaceDevicesAndGroupsAsync(newDevices, result.Groups);
             // Replacement creates a new object graph; synchronize those persisted instances.
             newDevices = _configuration.Current.Devices.ToList();
+
             rows.AddRange(Devices);
+
             groupsImported = result.Groups.Count;
         }
         else
@@ -436,26 +489,38 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
             foreach (var device in newDevices)
             {
                 _configuration.Current.Devices.Add(device);
+
                 var row = new DeviceRowViewModel(device, _clientFactory);
+
                 Devices.Add(row);
                 rows.Add(row);
+
                 // Imported channel names remain available even if the recorder is offline.
                 if (result.Groups.Count == 0)
+                {
                     _configuration.SyncDeviceGroup(device, allowCreate: device.Channels.Count > 0);
+                }
             }
+
             groupsImported = ImportedCameraGroups.Merge(_configuration.Current, result);
+
             await _configuration.SaveAsync();
         }
 
         IsBusy = true;
         InfoText = Localizer.Format("Devices_ImportConnecting", newDevices.Count);
         bool[] connected;
+
         try
         {
             connected = await Task.WhenAll(newDevices.Select(device => TryConnectImportedDeviceAsync(device, !replaceExisting)));
+
             await _configuration.SaveAsync();
         }
-        finally { IsBusy = false; }
+        finally
+        {
+            IsBusy = false;
+        }
 
         foreach (var row in rows)
         {
@@ -465,13 +530,19 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         _ = CheckStatesAsync();
 
         var summary = Localizer.Format("Devices_ImportSummary", newDevices.Count, connected.Count(success => success));
-        if (groupsImported > 0) summary += " " + Localizer.Format("Devices_ImportGroupsSummary", groupsImported);
+
+        if (groupsImported > 0)
+        {
+            summary += " " + Localizer.Format("Devices_ImportGroupsSummary", groupsImported);
+        }
+
         if (skipped > 0)
         {
             summary += Localizer.Format("Devices_ImportSkipped", skipped);
         }
 
         var notes = result.Warnings.Take(8).ToList();
+
         if (result.Warnings.Count > notes.Count)
         {
             notes.Add(Localizer.Format("Devices_ImportMoreNotes", result.Warnings.Count - notes.Count));
@@ -484,6 +555,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     private async Task SaveCsvTemplateAsync()
     {
         await using var stream = await _dialogs.SaveCsvFileAsync(Localizer.Text("Devices_SaveTemplateTitle"), "novavms-devices.csv");
+
         if (stream is null)
         {
             return;
@@ -503,22 +575,26 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         InfoText = Localizer.Text("Devices_TemplateSaved");
     }
 
-    private static string DeviceKey(Device device)
-    {
-        return ImportedCameraGroups.DeviceKey(device);
-    }
-
     private async Task<bool> TryConnectImportedDeviceAsync(Device device, bool allowCreateGroup = true)
     {
         var importedNames = device.Channels.ToDictionary(channel => channel.Number, channel => channel.Name);
         var result = await _sync.TrySyncAsync(device);
-        if (!result.Success) return false;
+
+        if (!result.Success)
+        {
+            return false;
+        }
+
         foreach (var channel in device.Channels)
         {
             if (importedNames.TryGetValue(channel.Number, out var name) && !string.IsNullOrWhiteSpace(name))
+            {
                 channel.Name = name;
+            }
         }
+
         _configuration.SyncDeviceGroup(device, allowCreate: allowCreateGroup);
+
         return true;
     }
 
@@ -537,6 +613,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         if (value is null)
         {
             ClearForm();
+
             return;
         }
 
@@ -556,6 +633,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         EditUseHttps = device.UseHttps;
         EditProtocol = ProtocolOption.Find(device.Protocol);
         HasOptionalProtocol = device.OptionalConnection is not null;
+
         LoadOptionalConnection(device.OptionalConnection ?? new DeviceConnectionSettings());
 
         EditUsername = device.Username;
@@ -574,6 +652,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         SelectedDevice = null;
         EditHost = value.Address;
         EditName = value.Name;
+
         if (Uri.TryCreate(value.ServiceAddress, UriKind.Absolute, out var serviceUri))
         {
             EditHttpPort = serviceUri.Port;
@@ -590,27 +669,39 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         try
         {
             var result = await _sync.TrySyncAsync(device);
+
             if (result.Success && result.Info is { } info)
             {
                 _configuration.SyncDeviceGroup(device, allowCreate: true);
+
                 InfoText = Localizer.Format("Devices_Connected", info.Model, info.SerialNumber, info.FirmwareVersion, device.Channels.Count);
             }
-            else InfoText = Localizer.Format("Devices_SavedNotConnected", result.ErrorMessage);
+            else
+            {
+                InfoText = Localizer.Format("Devices_SavedNotConnected", result.ErrorMessage);
+            }
         }
         finally
         {
-            try { await _configuration.SaveAsync(); }
+            try
+            {
+                await _configuration.SaveAsync();
+            }
             catch (Exception exception) when (DeviceFailure.IsExpected(exception))
             {
                 InfoText = DeviceOperationErrors.Report("Saving device configuration", exception);
             }
-            finally { IsBusy = false; }
+            finally
+            {
+                IsBusy = false;
+            }
         }
     }
 
     private void RefreshRow(DeviceRowViewModel row)
     {
         row.Refresh();
+
         var message = InfoText;
         SelectedDevice = row;
         FormTitle = row.Device.DisplayName;
@@ -628,6 +719,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         }
 
         _isCheckingStates = true;
+
         try
         {
             await Task.WhenAll(Devices.ToList().Select(CheckStateAsync));
@@ -640,25 +732,40 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
 
     private async Task CheckStateAsync(DeviceRowViewModel row)
     {
-        if (_isDisposed) return;
+        if (_isDisposed)
+        {
+            return;
+        }
+
         var signature = _clientFactory.GetConfiguredConnection(row.Device).GetConnectionSignature();
         var snapshot = _clientFactory.GetConfiguredConnection(row.Device);
+
         if (row.State != DeviceConnectionState.Online && row.State != DeviceConnectionState.Offline)
         {
             row.State = DeviceConnectionState.Checking;
         }
 
         bool reachable;
-        try { reachable = await DeviceAvailability.CheckAsync(_reachability, snapshot, _stateCheckStop.Token); }
-        catch (OperationCanceledException) when (_stateCheckStop.IsCancellationRequested) { return; }
+
+        try
+        {
+            reachable = await DeviceAvailability.CheckAsync(_reachability, snapshot, _stateCheckStop.Token);
+        }
+        catch (OperationCanceledException) when (_stateCheckStop.IsCancellationRequested)
+        {
+            return;
+        }
         catch (Exception exception) when (DeviceFailure.IsExpected(exception))
         {
             reachable = false;
+
             DeviceOperationErrors.Report($"Device availability: {row.Device.DisplayName}", exception);
         }
+
         if (!_isDisposed && Devices.Contains(row) && _clientFactory.GetConfiguredConnection(row.Device).GetConnectionSignature() == signature)
         {
             row.State = reachable ? DeviceConnectionState.Online : DeviceConnectionState.Offline;
+
             row.Refresh();
         }
     }
@@ -685,7 +792,9 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     private void ClearForm()
     {
         HasOptionalProtocol = false;
+
         LoadOptionalConnection(new DeviceConnectionSettings());
+
         FormTitle = Localizer.Text(NewDeviceTitleKey);
         EditName = string.Empty;
         EditHost = string.Empty;

@@ -15,19 +15,24 @@ namespace NovaVMS.Protocols.HcNetSdk;
 /// </summary>
 internal sealed class HikvisionStreamDecoder : IDisposable
 {
+    // SDK callbacks fragment high-resolution key frames into hundreds of small packets.
+    // Limit their total bytes as well as count; 128 fragments could reject a valid MAIN key frame.
+    internal const int MaximumQueuedPacketBytes = 16 * 1024 * 1024;
+
+    private const uint InputBufferFull = 11;
+
     private static readonly ConcurrentDictionary<int, HikvisionStreamDecoder> Ports = new();
     private static readonly PlayCtrlDecodeCallback Callback = OnDecoded;
+
+    private static readonly TimeSpan QueueRetryDelay = TimeSpan.FromMilliseconds(5);
+    private static readonly TimeSpan LiveInputTimeout = TimeSpan.FromSeconds(5);
+
     private readonly IPlayCtrlApi _api;
     private readonly byte[] _key;
     private readonly bool _playback;
     private readonly Action<byte[]> _output;
     private readonly Action<string> _failed;
-    // SDK callbacks fragment high-resolution key frames into hundreds of small packets.
-    // Limit their total bytes as well as count; 128 fragments could reject a valid MAIN key frame.
-    internal const int MaximumQueuedPacketBytes = 16 * 1024 * 1024;
-    private const uint InputBufferFull = 11;
-    private static readonly TimeSpan QueueRetryDelay = TimeSpan.FromMilliseconds(5);
-    private static readonly TimeSpan LiveInputTimeout = TimeSpan.FromSeconds(5);
+
     private readonly Channel<(uint Type, byte[] Bytes)> _packets = Channel.CreateBounded<(uint, byte[])>(8192);
     private long _queuedPacketBytes;
     private readonly CancellationTokenSource _stop = new();
@@ -43,14 +48,6 @@ internal sealed class HikvisionStreamDecoder : IDisposable
 
     public bool HasFrames => Volatile.Read(ref _hasFrames) != 0;
 
-    public static byte[] EncodeKey(string key)
-    {
-        if (string.IsNullOrEmpty(key) || key.Contains('\0') || Encoding.UTF8.GetByteCount(key) > 128)
-            throw new NotSupportedException(ProtocolText.Get("StreamKeyInvalid"));
-        // Do not trim, pad, hash, or log a user-supplied key. PlayCtrl interprets it.
-        return Encoding.UTF8.GetBytes(key);
-    }
-
     public HikvisionStreamDecoder(IPlayCtrlApi api, string key, bool playback, Action<byte[]> output, Action<string> failed)
     {
         _api = api;
@@ -61,21 +58,81 @@ internal sealed class HikvisionStreamDecoder : IDisposable
         _worker = Task.Run(RunAsync);
     }
 
+    public static byte[] EncodeKey(string key)
+    {
+        if (string.IsNullOrEmpty(key) || key.Contains('\0') || Encoding.UTF8.GetByteCount(key) > 128)
+        {
+            throw new NotSupportedException(ProtocolText.Get("StreamKeyInvalid"));
+        }
+
+        // Do not trim, pad, hash, or log a user-supplied key. PlayCtrl interprets it.
+        return Encoding.UTF8.GetBytes(key);
+    }
+
+    internal static byte[] ToYuv4Mpeg(IntPtr source, int size, PlayCtrlFrameInfo info, bool first)
+    {
+        if (source == IntPtr.Zero || info.Width is < 2 or > 8192 || info.Height is < 2 or > 8192
+            || info.Width % 2 != 0 || info.Height % 2 != 0)
+        {
+            throw new IOException("Invalid decoded video dimensions.");
+        }
+
+        var luma = checked(info.Width * info.Height);
+        var length = checked(luma + luma / 2);
+
+        if (size < length || length > 32 * 1024 * 1024)
+        {
+            throw new IOException("Invalid decoded video frame size.");
+        }
+
+        var fps = info.FrameRate is > 0 and <= 120 ? info.FrameRate : 25;
+        var header = Encoding.ASCII.GetBytes(first
+            ? $"YUV4MPEG2 W{info.Width} H{info.Height} F{fps}:1 Ip A1:1 C420jpeg\nFRAME\n"
+            : "FRAME\n");
+        var bytes = new byte[header.Length + length];
+
+        header.CopyTo(bytes, 0);
+        Marshal.Copy(source, bytes, header.Length, luma);
+        // YV12 is Y,V,U; YUV4MPEG2 C420 uses Y,U,V.
+        Marshal.Copy(IntPtr.Add(source, luma + luma / 4), bytes, header.Length + luma, luma / 4);
+        Marshal.Copy(IntPtr.Add(source, luma), bytes, header.Length + luma + luma / 4, luma / 4);
+
+        return bytes;
+    }
+
     public void Feed(uint type, byte[] bytes)
     {
-        if (bytes.Length == 0) return;
+        if (bytes.Length == 0)
+        {
+            return;
+        }
+
         while (Volatile.Read(ref _disposed) == 0 && !_stop.IsCancellationRequested)
         {
             var queuedBytes = Interlocked.Add(ref _queuedPacketBytes, bytes.Length);
+
             if ((queuedBytes <= MaximumQueuedPacketBytes || queuedBytes == bytes.Length)
-                && _packets.Writer.TryWrite((type, bytes))) return;
+                && _packets.Writer.TryWrite((type, bytes)))
+            {
+                return;
+            }
+
             Interlocked.Add(ref _queuedPacketBytes, -bytes.Length);
-            if (!_playback) break;
+
+            if (!_playback)
+            {
+                break;
+            }
+
             // Recorders send recordings faster than real time. Hold the SDK callback until the
             // decoder catches up instead of failing; live video must never block the callback.
             Thread.Sleep(QueueRetryDelay);
         }
-        if (!_playback) Fail(ProtocolText.Get("StreamDecoderBufferFull"));
+
+        if (!_playback)
+        {
+            Fail(ProtocolText.Get("StreamDecoderBufferFull"));
+        }
     }
 
     /// <summary>Releases an SDK callback held by <see cref="Feed"/> before the native transfer is stopped.</summary>
@@ -83,102 +140,59 @@ internal sealed class HikvisionStreamDecoder : IDisposable
     {
         lock (_stopGate)
         {
-            if (_disposed != 0) return;
+            if (_disposed != 0)
+            {
+                return;
+            }
+
             _stop.Cancel();
             _packets.Writer.TryComplete();
         }
     }
 
-    private async Task RunAsync()
+    public void Dispose()
     {
-        try
+        lock (_stopGate)
         {
-            if (!_api.GetPort(out var port)) throw new IOException(ProtocolText.Get("StreamDecoderPortFailed"));
-            _port = port;
-            Ports[_port] = this;
-            await foreach (var packet in _packets.Reader.ReadAllAsync(_stop.Token))
+            if (_disposed != 0)
             {
-                Interlocked.Add(ref _queuedPacketBytes, -packet.Bytes.Length);
-                if (packet.Type == HcNetSdkConstants.DataSystemHeader)
-                {
-                    // Recorders repeat their system header at recording-file boundaries.
-                    // An identical header does not change the decoder's format or encryption state.
-                    if (_opened)
-                    {
-                        if (_header.AsSpan().SequenceEqual(packet.Bytes)) continue;
-                        throw new IOException(ProtocolText.Get("StreamDecoderChanged"));
-                    }
-                    Require(_api.SetMode(_port, _playback ? 1u : 0u), "PlayM4_SetStreamOpenMode");
-                    Require(_api.OpenStream(_port, packet.Bytes, (uint)packet.Bytes.Length, 4 * 1024 * 1024), "PlayM4_OpenStream");
-                    _opened = true;
-                    _header = packet.Bytes.ToArray();
-                    // PlayM4_SetSecretKey measures key length in bits, not bytes.
-                    if (_key.Length > 0)
-                        Require(_api.SetKey(_port, 1, _key, checked(_key.Length * 8)), "PlayM4_SetSecretKey");
-                    Require(_api.SetCallback(_port, Callback, IntPtr.Zero, 0, IntPtr.Zero), "PlayM4_SetDecCallBackExMend");
-                    Require(_api.Play(_port, IntPtr.Zero), "PlayM4_Play");
-                    _playing = true;
-                }
-                else if (packet.Type == HcNetSdkConstants.DataStream)
-                {
-                    if (!_opened) throw new IOException(ProtocolText.Get("StreamDecoderHeaderMissing"));
-                    var wait = Stopwatch.StartNew();
-                    while (!_api.Input(_port, packet.Bytes, (uint)packet.Bytes.Length))
-                    {
-                        // A paused recording legitimately keeps PlayCtrl's input buffer full.
-                        if (_api.Error(_port) != InputBufferFull || (!_playback && wait.Elapsed > LiveInputTimeout))
-                            Require(false, "PlayM4_InputData");
-                        await Task.Delay(QueueRetryDelay, _stop.Token);
-                    }
-                }
+                return;
             }
-        }
-        catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
-        catch (Exception exception)
-        {
-            // No key or packet contents are included in error messages.
-            Fail(exception is IOException ? exception.Message : ProtocolText.Get("StreamDecryptionFailed"));
-        }
-        finally
-        {
-            if (_port >= 0)
-            {
-                if (_playing) _api.Stop(_port);
-                if (_opened) _api.Close(_port);
-                Ports.TryRemove(_port, out _);
-                _api.Free(_port);
-            }
-            CryptographicOperations.ZeroMemory(_key);
-        }
-    }
 
-    private void Require(bool success, string operation)
-    {
-        if (!success) throw new IOException($"{operation}: {ProtocolText.Format("StreamDecoderError", _api.Error(_port))}");
-    }
-
-    private void Fail(string message)
-    {
-        if (!_stop.IsCancellationRequested)
-        {
-            _failed(message);
+            Volatile.Write(ref _disposed, 1);
             _stop.Cancel();
             _packets.Writer.TryComplete();
         }
+
+        // The owning pipe is completed before disposal, releasing blocked frame callbacks.
+        _worker.GetAwaiter().GetResult();
+        _stop.Dispose();
     }
 
     private static void OnDecoded(int port, IntPtr buffer, int size, ref PlayCtrlFrameInfo info, IntPtr user, int reserved)
     {
-        if (!Ports.TryGetValue(port, out var decoder) || decoder._stop.IsCancellationRequested) return;
+        if (!Ports.TryGetValue(port, out var decoder) || decoder._stop.IsCancellationRequested)
+        {
+            return;
+        }
+
         try
         {
             // PlayCtrl frame type 3 is planar YV12; audio has types 100/101.
-            if (info.Type != 3) return;
+            if (info.Type != 3)
+            {
+                return;
+            }
+
             if (decoder._width != 0 && (info.Width != decoder._width || info.Height != decoder._height))
+            {
                 throw new IOException(ProtocolText.Get("StreamDecoderChanged"));
+            }
+
             var frame = ToYuv4Mpeg(buffer, size, info, !decoder.HasFrames);
             decoder._width = info.Width;
             decoder._height = info.Height;
+
             decoder._output(frame);
             Volatile.Write(ref decoder._hasFrames, 1);
         }
@@ -189,38 +203,120 @@ internal sealed class HikvisionStreamDecoder : IDisposable
         }
     }
 
-    internal static byte[] ToYuv4Mpeg(IntPtr source, int size, PlayCtrlFrameInfo info, bool first)
+    private async Task RunAsync()
     {
-        if (source == IntPtr.Zero || info.Width is < 2 or > 8192 || info.Height is < 2 or > 8192
-            || info.Width % 2 != 0 || info.Height % 2 != 0)
-            throw new IOException("Invalid decoded video dimensions.");
-        var luma = checked(info.Width * info.Height);
-        var length = checked(luma + luma / 2);
-        if (size < length || length > 32 * 1024 * 1024) throw new IOException("Invalid decoded video frame size.");
-        var fps = info.FrameRate is > 0 and <= 120 ? info.FrameRate : 25;
-        var header = Encoding.ASCII.GetBytes(first
-            ? $"YUV4MPEG2 W{info.Width} H{info.Height} F{fps}:1 Ip A1:1 C420jpeg\nFRAME\n"
-            : "FRAME\n");
-        var bytes = new byte[header.Length + length];
-        header.CopyTo(bytes, 0);
-        Marshal.Copy(source, bytes, header.Length, luma);
-        // YV12 is Y,V,U; YUV4MPEG2 C420 uses Y,U,V.
-        Marshal.Copy(IntPtr.Add(source, luma + luma / 4), bytes, header.Length + luma, luma / 4);
-        Marshal.Copy(IntPtr.Add(source, luma), bytes, header.Length + luma + luma / 4, luma / 4);
-        return bytes;
+        try
+        {
+            if (!_api.GetPort(out var port))
+            {
+                throw new IOException(ProtocolText.Get("StreamDecoderPortFailed"));
+            }
+
+            _port = port;
+            Ports[_port] = this;
+
+            await foreach (var packet in _packets.Reader.ReadAllAsync(_stop.Token))
+            {
+                Interlocked.Add(ref _queuedPacketBytes, -packet.Bytes.Length);
+
+                if (packet.Type == HcNetSdkConstants.DataSystemHeader)
+                {
+                    // Recorders repeat their system header at recording-file boundaries.
+                    // An identical header does not change the decoder's format or encryption state.
+                    if (_opened)
+                    {
+                        if (_header.AsSpan().SequenceEqual(packet.Bytes))
+                        {
+                            continue;
+                        }
+
+                        throw new IOException(ProtocolText.Get("StreamDecoderChanged"));
+                    }
+
+                    Require(_api.SetMode(_port, _playback ? 1u : 0u), "PlayM4_SetStreamOpenMode");
+                    Require(_api.OpenStream(_port, packet.Bytes, (uint)packet.Bytes.Length, 4 * 1024 * 1024), "PlayM4_OpenStream");
+
+                    _opened = true;
+                    _header = packet.Bytes.ToArray();
+
+                    // PlayM4_SetSecretKey measures key length in bits, not bytes.
+                    if (_key.Length > 0)
+                    {
+                        Require(_api.SetKey(_port, 1, _key, checked(_key.Length * 8)), "PlayM4_SetSecretKey");
+                    }
+
+                    Require(_api.SetCallback(_port, Callback, IntPtr.Zero, 0, IntPtr.Zero), "PlayM4_SetDecCallBackExMend");
+                    Require(_api.Play(_port, IntPtr.Zero), "PlayM4_Play");
+
+                    _playing = true;
+                }
+                else if (packet.Type == HcNetSdkConstants.DataStream)
+                {
+                    if (!_opened)
+                    {
+                        throw new IOException(ProtocolText.Get("StreamDecoderHeaderMissing"));
+                    }
+
+                    var wait = Stopwatch.StartNew();
+
+                    while (!_api.Input(_port, packet.Bytes, (uint)packet.Bytes.Length))
+                    {
+                        // A paused recording legitimately keeps PlayCtrl's input buffer full.
+                        if (_api.Error(_port) != InputBufferFull || (!_playback && wait.Elapsed > LiveInputTimeout))
+                        {
+                            Require(false, "PlayM4_InputData");
+                        }
+
+                        await Task.Delay(QueueRetryDelay, _stop.Token);
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException) when (_stop.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            // No key or packet contents are included in error messages.
+            Fail(exception is IOException ? exception.Message : ProtocolText.Get("StreamDecryptionFailed"));
+        }
+        finally
+        {
+            if (_port >= 0)
+            {
+                if (_playing)
+                {
+                    _api.Stop(_port);
+                }
+
+                if (_opened)
+                {
+                    _api.Close(_port);
+                }
+
+                Ports.TryRemove(_port, out _);
+                _api.Free(_port);
+            }
+
+            CryptographicOperations.ZeroMemory(_key);
+        }
     }
 
-    public void Dispose()
+    private void Require(bool success, string operation)
     {
-        lock (_stopGate)
+        if (!success)
         {
-            if (_disposed != 0) return;
-            Volatile.Write(ref _disposed, 1);
+            throw new IOException($"{operation}: {ProtocolText.Format("StreamDecoderError", _api.Error(_port))}");
+        }
+    }
+
+    private void Fail(string message)
+    {
+        if (!_stop.IsCancellationRequested)
+        {
+            _failed(message);
             _stop.Cancel();
             _packets.Writer.TryComplete();
         }
-        // The owning pipe is completed before disposal, releasing blocked frame callbacks.
-        _worker.GetAwaiter().GetResult();
-        _stop.Dispose();
     }
 }

@@ -10,22 +10,6 @@ public sealed class SettingsWindowViewModel : ViewModelBase, IDisposable
     private IDisposable? _scope;
     private bool _isDisposed;
 
-    public SettingsWindowViewModel(
-        DevicesSettingsViewModel devices,
-        GroupsSettingsViewModel groups,
-        GeneralSettingsViewModel general,
-        SyncSettingsViewModel sync,
-        UsersSettingsViewModel users,
-        UserSessionService session)
-    {
-        Devices = devices;
-        Groups = groups;
-        General = general;
-        Sync = sync;
-        Users = users;
-        Session = session;
-    }
-
     public ApplicationLogViewModel Log { get; } = new();
 
     public UsersSettingsViewModel Users { get; }
@@ -43,6 +27,22 @@ public sealed class SettingsWindowViewModel : ViewModelBase, IDisposable
 
     public SyncSettingsViewModel Sync { get; }
 
+    public SettingsWindowViewModel(
+        DevicesSettingsViewModel devices,
+        GroupsSettingsViewModel groups,
+        GeneralSettingsViewModel general,
+        SyncSettingsViewModel sync,
+        UsersSettingsViewModel users,
+        UserSessionService session)
+    {
+        Devices = devices;
+        Groups = groups;
+        General = general;
+        Sync = sync;
+        Users = users;
+        Session = session;
+    }
+
     /// <summary>
     /// Takes ownership of the dependency injection scope that created this window's pages.
     /// </summary>
@@ -59,6 +59,7 @@ public sealed class SettingsWindowViewModel : ViewModelBase, IDisposable
         }
 
         _isDisposed = true;
+
         Devices.Dispose();
         Groups.Dispose();
         General.Dispose();
@@ -68,6 +69,7 @@ public sealed class SettingsWindowViewModel : ViewModelBase, IDisposable
         // Releases the scope's references to the pages (their Dispose methods tolerate a second call).
         var scope = _scope;
         _scope = null;
+
         scope?.Dispose();
     }
 }

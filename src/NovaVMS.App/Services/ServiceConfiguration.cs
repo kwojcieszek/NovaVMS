@@ -67,15 +67,19 @@ internal static class ServiceConfiguration
         services.AddSingleton<Func<SettingsWindowViewModel>>(provider => () =>
         {
             var scope = provider.CreateScope();
+
             try
             {
                 var viewModel = scope.ServiceProvider.GetRequiredService<SettingsWindowViewModel>();
+
                 viewModel.OwnScope(scope);
+
                 return viewModel;
             }
             catch
             {
                 scope.Dispose();
+
                 throw;
             }
         });

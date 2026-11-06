@@ -15,8 +15,13 @@ public sealed class PlaybackBandwidthLimitTests
     {
         using var vlc = VideoPlayerFactory.CreateRecordingEngine("--vout=dummy", "--aout=dummy", "--avcodec-hw=none");
         var device = new Device { Channels = [new Channel { Number = 1 }] };
-        var configuration = new ConfigurationService(new MemoryConfigurationStore(new() { Devices = [device] }), new JsonConfigurationSerializer());
+        var configuration = new ConfigurationService(new MemoryConfigurationStore(new()
+        {
+            Devices = [device]
+        }), new JsonConfigurationSerializer());
+
         await configuration.LoadAsync();
+
         var bytes = NativePlaybackLifecycleTests.CreateVideo(250);
         var streams = new List<MemoryStream>();
         var rejected = 0;
@@ -29,20 +34,28 @@ public sealed class PlaybackBandwidthLimitTests
                 if (streams.Any(stream => stream.CanRead))
                 {
                     Interlocked.Increment(ref rejected);
+
                     throw new IOException("Hikvision SDK error 800.");
                 }
+
                 var stream = new MemoryStream(bytes);
+
                 streams.Add(stream);
+
                 return stream;
             })
         };
         var playback = new PlaybackViewModel(vlc, configuration, factory, null!, new RecordingExporter(vlc));
         playback.RecordingOpening += (_, _) => openings++;
+
         try
         {
             playback.FromTime = null; // Search is independent of this playback test.
+
             playback.SetCamera(new CameraReference { DeviceId = device.Id, ChannelNumber = 1 });
+
             playback.FromTime = TimeSpan.Zero;
+
             await playback.SeekCommand.ExecuteAsync(3600d);
             Assert.True(playback.IsPlaying);
 

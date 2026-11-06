@@ -15,6 +15,7 @@ public sealed class GroupLayoutCapacityTests
     public async Task OpeningGroupAsksOnlyWhenNeededAndRespectsAnswerAndSetting()
     {
         using var vlc = new LibVLC("--vout=dummy", "--aout=dummy", "--avcodec-hw=none");
+
         foreach (var (count, enabled, answer, expectedCount, prompts) in new[]
         {
             (6, true, true, 6, 1), (6, true, false, 4, 1),
@@ -25,16 +26,22 @@ public sealed class GroupLayoutCapacityTests
             configuration.Current.Settings.WarnWhenGroupExceedsLayout = enabled;
             var dialogs = new Dialogs { Answer = Task.FromResult(answer) };
             var live = new LiveViewViewModel(vlc, configuration, new FakeDeviceClientFactory(), new StatusBarService(), dialogs, session);
+
             try
             {
                 var cameras = configuration.Current.Groups[0].Cameras;
+
                 await live.ShowGroupAsync("test-group", cameras);
                 Assert.Equal(prompts, dialogs.Confirmations);
                 Assert.Equal(expectedCount, live.SelectedLayout.Count);
                 Assert.Equal(expectedCount, live.Tiles.Count);
                 Assert.Equal("test-group", live.ActiveGroup);
             }
-            finally { live.Dispose(); await live.Disposal; }
+            finally
+            {
+                live.Dispose();
+                await live.Disposal;
+            }
         }
     }
 
@@ -43,20 +50,32 @@ public sealed class GroupLayoutCapacityTests
     {
         using var vlc = new LibVLC("--vout=dummy", "--aout=dummy", "--avcodec-hw=none");
         var (configuration, session) = await CreateAsync(6);
-        configuration.Current.GroupLiveViews["test-group"] = new() { LayoutId = "standard-4", LayoutCount = 4 };
+        configuration.Current.GroupLiveViews["test-group"] = new()
+        {
+            LayoutId = "standard-4",
+            LayoutCount = 4
+        };
         var dialogs = new Dialogs();
         var live = new LiveViewViewModel(vlc, configuration, new FakeDeviceClientFactory(), new StatusBarService(), dialogs, session);
+
         try
         {
             live.SelectedLayout = NovaVMS.App.Models.GridLayoutOption.Find("standard-9");
+
             await live.ShowGroupAsync("test-group", configuration.Current.Groups[0].Cameras);
             Assert.Equal(1, dialogs.Confirmations);
             Assert.Equal(6, live.SelectedLayout.Count);
+
             live.SelectedLayout = NovaVMS.App.Models.GridLayoutOption.Find("standard-4");
+
             Assert.Equal(2, dialogs.Confirmations);
             Assert.Equal(6, live.SelectedLayout.Count);
         }
-        finally { live.Dispose(); await live.Disposal; }
+        finally
+        {
+            live.Dispose();
+            await live.Disposal;
+        }
     }
 
     [AvaloniaFact]
@@ -67,11 +86,15 @@ public sealed class GroupLayoutCapacityTests
         var answer = new TaskCompletionSource<bool>();
         var dialogs = new Dialogs { Answer = answer.Task };
         var live = new LiveViewViewModel(vlc, configuration, new FakeDeviceClientFactory(), new StatusBarService(), dialogs, session);
+
         try
         {
             var opening = live.ShowGroupAsync("test-group", configuration.Current.Groups[0].Cameras);
+
             Assert.False(opening.IsCompleted);
+
             var view = new SavedCameraView { Layout = new() { LayoutId = "standard-1", LayoutCount = 1 } };
+
             configuration.Current.Views.Add(view);
             await live.ShowSavedViewAsync(view.Id);
             answer.SetResult(true);
@@ -80,7 +103,12 @@ public sealed class GroupLayoutCapacityTests
             Assert.Equal(view.Id, live.ActiveSavedViewId);
             Assert.Equal(1, live.SelectedLayout.Count);
         }
-        finally { answer.TrySetResult(false); live.Dispose(); await live.Disposal; }
+        finally
+        {
+            answer.TrySetResult(false);
+            live.Dispose();
+            await live.Disposal;
+        }
     }
 
     [AvaloniaFact]
@@ -90,32 +118,50 @@ public sealed class GroupLayoutCapacityTests
         var (configuration, session) = await CreateAsync(6);
         var live = new LiveViewViewModel(vlc, configuration, new FakeDeviceClientFactory(), new StatusBarService(),
             new Dialogs(), session);
+
         try
         {
             await live.ShowGroupAsync("old-group", []);
+
             var camera = configuration.Current.Groups[0].Cameras[0];
             var tile = live.Tiles[0];
+
             tile.Play(camera, "Old camera", new NovaVMS.App.Models.TilePlayRequest(
                 VideoSource.FromUri(new Uri("rtsp://unused/stream")), StreamType.Sub, "", "", 100));
+
             var oldVersion = tile.PlayRequestVersion;
-            configuration.Current.GroupLiveViews["new-group"] = new() { LayoutId = "standard-6", LayoutCount = 6 };
+            configuration.Current.GroupLiveViews["new-group"] = new()
+            {
+                LayoutId = "standard-6",
+                LayoutCount = 6
+            };
             var checkedBeforeLayout = false;
             live.PropertyChanged += (_, e) =>
             {
-                if (e.PropertyName != nameof(LiveViewViewModel.SelectedLayout)) return;
+                if (e.PropertyName != nameof(LiveViewViewModel.SelectedLayout))
+                {
+                    return;
+                }
+
                 Assert.All(live.Tiles, current =>
                 {
                     Assert.Null(current.Camera);
                     Assert.True(current.IsVideoCovered);
                 });
                 Assert.True(tile.PlayRequestVersion > oldVersion);
+
                 checkedBeforeLayout = true;
             };
+
             await live.ShowGroupAsync("new-group", []);
             Assert.True(checkedBeforeLayout);
             Assert.Equal(camera, configuration.Current.GroupLiveViews["old-group"].Cameras[0]);
         }
-        finally { live.Dispose(); await live.Disposal; }
+        finally
+        {
+            live.Dispose();
+            await live.Disposal;
+        }
     }
 
     [AvaloniaFact]
@@ -127,11 +173,13 @@ public sealed class GroupLayoutCapacityTests
         var foreign = configuration.Current.Groups[0].Cameras.Skip(4).ToArray();
         configuration.Current.GroupLiveViews["test-group"] = new()
         {
-            LayoutId = "standard-4", LayoutCount = 4,
+            LayoutId = "standard-4",
+            LayoutCount = 4,
             Cameras = [foreign[0], foreign[1], foreign[0], foreign[1]]
         };
         var live = new LiveViewViewModel(vlc, configuration, new FakeDeviceClientFactory(), new StatusBarService(),
             new Dialogs(), session);
+
         try
         {
             await live.ShowGroupAsync("test-group", members);
@@ -144,20 +192,38 @@ public sealed class GroupLayoutCapacityTests
             Assert.Equal(new CameraReference?[] { foreign[0], foreign[1], null, null },
                 configuration.Current.GroupLiveViews["test-group"].Cameras);
         }
-        finally { live.Dispose(); await live.Disposal; }
+        finally
+        {
+            live.Dispose();
+            await live.Disposal;
+        }
     }
 
     private static async Task<(ConfigurationService, UserSessionService)> CreateAsync(int count)
     {
-        var device = new Device { Name = "Recorder", Channels = Enumerable.Range(1, count)
-            .Select(number => new Channel { Number = number, Name = $"Camera {number}" }).ToList() };
-        var group = new CameraGroup { Name = "Group", Cameras = device.Channels.Select(channel =>
-            new CameraReference { DeviceId = device.Id, ChannelNumber = channel.Number }).ToList() };
-        var configuration = new ConfigurationService(new MemoryConfigurationStore(new() { Devices = [device], Groups = [group] }),
+        var device = new Device
+        {
+            Name = "Recorder",
+            Channels = Enumerable.Range(1, count)
+            .Select(number => new Channel { Number = number, Name = $"Camera {number}" }).ToList()
+        };
+        var group = new CameraGroup
+        {
+            Name = "Group",
+            Cameras = device.Channels.Select(channel =>
+            new CameraReference { DeviceId = device.Id, ChannelNumber = channel.Number }).ToList()
+        };
+        var configuration = new ConfigurationService(new MemoryConfigurationStore(new()
+        {
+            Devices = [device],
+            Groups = [group]
+        }),
             new JsonConfigurationSerializer());
         var session = TestSessions.Create(configuration);
+
         await configuration.LoadAsync();
         TestSessions.LogInAsDefaultAdmin(session);
+
         return (configuration, session);
     }
 
@@ -165,7 +231,14 @@ public sealed class GroupLayoutCapacityTests
     {
         public Task<bool> Answer { get; init; } = Task.FromResult(true);
         public int Confirmations { get; private set; }
-        public Task<bool> ConfirmAsync(string title, string message) { Confirmations++; return Answer; }
+
+        public Task<bool> ConfirmAsync(string title, string message)
+        {
+            Confirmations++;
+
+            return Answer;
+        }
+
         public Task<string?> PromptTextAsync(string title, string message, string initialValue) => throw new NotSupportedException();
         public Task<bool> LoginAsync(UserSessionService session, string userName) => throw new NotSupportedException();
         public Task<Stream?> OpenJsonFileAsync(string title) => throw new NotSupportedException();

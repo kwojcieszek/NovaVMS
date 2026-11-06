@@ -5,8 +5,3 @@ public interface IDeviceConnectionClient
 {
     Task<DeviceConnectionResult> TryConnectAsync(CancellationToken cancellationToken = default);
 }
-
-public sealed record DeviceConnectionResult(Exception? Error)
-{
-    public bool Success => Error is null;
-}

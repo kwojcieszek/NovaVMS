@@ -8,8 +8,6 @@ namespace NovaVMS.Infrastructure.Sync;
 /// </summary>
 internal interface ISqlDialect
 {
-    DbConnection CreateConnection(SettingsSyncOptions options);
-
     string CreateMetaTable { get; }
 
     string CreateVersionsTable { get; }
@@ -23,4 +21,6 @@ internal interface ISqlDialect
     /// Inserts a version and returns its generated identifier.
     /// </summary>
     string InsertVersion { get; }
+
+    DbConnection CreateConnection(SettingsSyncOptions options);
 }

@@ -16,6 +16,7 @@ public sealed class DeviceCsvReader
     /// Port of the Hikvision SDK protocol. Unless the row selects the "SDK" protocol, it is replaced with the HTTP (ISAPI) port.
     /// </summary>
     private const int SdkPort = 8000;
+
     private const int DefaultHttpPort = 80;
     private const int DefaultRtspPort = 554;
     private const string DefaultUsername = "admin";
@@ -46,25 +47,10 @@ public sealed class DeviceCsvReader
         ArgumentNullException.ThrowIfNull(stream);
 
         using var buffer = new MemoryStream();
+
         await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
+
         return Parse(Decode(buffer.ToArray()));
-    }
-
-    /// <summary>
-    /// Decodes UTF-8 (with or without BOM). Spreadsheet programs often save CSV in the system ANSI code page
-    /// (e.g. Windows-1250 for Polish), so invalid UTF-8 falls back to that code page.
-    /// </summary>
-    private static string Decode(byte[] bytes)
-    {
-        var preamble = Encoding.UTF8.GetPreamble();
-        var offset = bytes.AsSpan().StartsWith(preamble) ? preamble.Length : 0;
-
-        if (System.Text.Unicode.Utf8.IsValid(bytes.AsSpan(offset)))
-            return Encoding.UTF8.GetString(bytes, offset, bytes.Length - offset);
-
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-        var codePage = CultureInfo.CurrentCulture.TextInfo.ANSICodePage;
-        return Encoding.GetEncoding(codePage).GetString(bytes);
     }
 
     public DeviceCsvResult Parse(string text)
@@ -80,6 +66,7 @@ public sealed class DeviceCsvReader
         }
 
         var columns = MapColumns(rows[0]);
+
         if (!columns.ContainsKey("host"))
         {
             throw new FormatException(ImportText.Get("NoHostColumn"));
@@ -94,6 +81,7 @@ public sealed class DeviceCsvReader
             var row = rows[index];
             var rowNumber = index + 1;
             var host = GetCell(row, columns, "host");
+
             if (string.IsNullOrWhiteSpace(host))
             {
                 warnings.Add(ImportText.Format("RowNoHost", rowNumber));
@@ -113,6 +101,7 @@ public sealed class DeviceCsvReader
             };
 
             var port = ParsePort(GetCell(row, columns, "port"));
+
             if (device.Protocol == DeviceProtocol.HikvisionSdk)
             {
                 device.SdkPort = port ?? SdkPort;
@@ -142,9 +131,31 @@ public sealed class DeviceCsvReader
         return new DeviceCsvResult(devices, warnings);
     }
 
+    /// <summary>
+    /// Decodes UTF-8 (with or without BOM). Spreadsheet programs often save CSV in the system ANSI code page
+    /// (e.g. Windows-1250 for Polish), so invalid UTF-8 falls back to that code page.
+    /// </summary>
+    private static string Decode(byte[] bytes)
+    {
+        var preamble = Encoding.UTF8.GetPreamble();
+        var offset = bytes.AsSpan().StartsWith(preamble) ? preamble.Length : 0;
+
+        if (System.Text.Unicode.Utf8.IsValid(bytes.AsSpan(offset)))
+        {
+            return Encoding.UTF8.GetString(bytes, offset, bytes.Length - offset);
+        }
+
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
+        var codePage = CultureInfo.CurrentCulture.TextInfo.ANSICodePage;
+
+        return Encoding.GetEncoding(codePage).GetString(bytes);
+    }
+
     private static char DetectDelimiter(string text)
     {
         var firstLine = text.Split('\n').FirstOrDefault(line => !string.IsNullOrWhiteSpace(line)) ?? string.Empty;
+
         return CandidateDelimiters
             .OrderByDescending(candidate => firstLine.Count(character => character == candidate))
             .First();
@@ -163,11 +174,13 @@ public sealed class DeviceCsvReader
         for (var index = 0; index < text.Length; index++)
         {
             var character = text[index];
+
             if (inQuotes)
             {
                 if (character == '"' && index + 1 < text.Length && text[index + 1] == '"')
                 {
                     cell.Append('"');
+
                     index++;
                 }
                 else if (character == '"')
@@ -196,6 +209,7 @@ public sealed class DeviceCsvReader
                 row.Add(cell.ToString().Trim());
                 cell.Clear();
                 rows.Add(row);
+
                 row = new List<string>();
             }
             else if (character != '\r')
@@ -206,15 +220,18 @@ public sealed class DeviceCsvReader
 
         row.Add(cell.ToString().Trim());
         rows.Add(row);
+
         return rows;
     }
 
     private static Dictionary<string, int> MapColumns(IReadOnlyList<string> header)
     {
         var columns = new Dictionary<string, int>();
+
         for (var index = 0; index < header.Count; index++)
         {
             var normalized = NormalizeHeader(header[index]);
+
             foreach (var (column, aliases) in ColumnAliases)
             {
                 if (!columns.ContainsKey(column) && aliases.Contains(normalized))
@@ -234,6 +251,7 @@ public sealed class DeviceCsvReader
     {
         var decomposed = header.Trim().ToLowerInvariant().Replace('ł', 'l').Normalize(NormalizationForm.FormD);
         var builder = new StringBuilder();
+
         foreach (var character in decomposed)
         {
             if (char.IsLetterOrDigit(character) && CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark)
@@ -280,6 +298,7 @@ public sealed class DeviceCsvReader
     private static bool ParseBoolean(string value)
     {
         var normalized = value.Trim().ToLowerInvariant();
+
         return normalized is "1" or "true" or "yes" or "tak";
     }
 }

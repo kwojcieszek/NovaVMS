@@ -2,8 +2,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
-using NovaVMS.App.Views;
 using NovaVMS.App.Localization;
+using NovaVMS.App.Views;
 
 namespace NovaVMS.App.Services;
 
@@ -19,48 +19,57 @@ public sealed class DialogService : IDialogService
         AppleUniformTypeIdentifiers = new[] { "public.json" }
     };
 
-    public async Task<string?> PromptTextAsync(string title, string message, string initialValue)
-    {
-        var owner = GetOwner();
-        if (owner is null)
-        {
-            return null;
-        }
-
-        var dialog = new TextInputDialog(title, message, initialValue);
-        return await ModalDialog.ShowAsync<string?>(dialog, owner);
-    }
-
-    public async Task<bool> ConfirmAsync(string title, string message)
-    {
-        var owner = GetOwner();
-        if (owner is null)
-        {
-            return false;
-        }
-
-        var dialog = new ConfirmDialog(title, message);
-        return await ModalDialog.ShowAsync<bool>(dialog, owner);
-    }
-
-    public async Task<bool> LoginAsync(UserSessionService session, string userName)
-    {
-        var owner = GetOwner();
-        if (owner is null)
-        {
-            return false;
-        }
-
-        var dialog = new LoginWindow(session, userName);
-        return await ModalDialog.ShowAsync<bool>(dialog, owner);
-    }
-
     private static FilePickerFileType CsvFileType => new(Localizer.Text("FileType_Csv"))
     {
         Patterns = new[] { "*.csv", "*.txt" },
         MimeTypes = new[] { "text/csv", "text/plain" },
         AppleUniformTypeIdentifiers = new[] { "public.comma-separated-values-text", "public.plain-text" }
     };
+
+    internal static Window? FindOwner(IEnumerable<Window> windows, Window? mainWindow)
+        => windows.FirstOrDefault(window => window.IsActive && window is not VideoOverlayWindow) ?? mainWindow;
+
+    public async Task<string?> PromptTextAsync(string title, string message, string initialValue)
+    {
+        var owner = GetOwner();
+
+        if (owner is null)
+        {
+            return null;
+        }
+
+        var dialog = new TextInputDialog(title, message, initialValue);
+
+        return await ModalDialog.ShowAsync<string?>(dialog, owner);
+    }
+
+    public async Task<bool> ConfirmAsync(string title, string message)
+    {
+        var owner = GetOwner();
+
+        if (owner is null)
+        {
+            return false;
+        }
+
+        var dialog = new ConfirmDialog(title, message);
+
+        return await ModalDialog.ShowAsync<bool>(dialog, owner);
+    }
+
+    public async Task<bool> LoginAsync(UserSessionService session, string userName)
+    {
+        var owner = GetOwner();
+
+        if (owner is null)
+        {
+            return false;
+        }
+
+        var dialog = new LoginWindow(session, userName);
+
+        return await ModalDialog.ShowAsync<bool>(dialog, owner);
+    }
 
     public Task<Stream?> OpenJsonFileAsync(string title)
     {
@@ -85,7 +94,12 @@ public sealed class DialogService : IDialogService
     public async Task<(Stream Content, Stream? Setup)?> OpenIvmsFileAsync(string title)
     {
         var owner = GetOwner();
-        if (owner is null) return null;
+
+        if (owner is null)
+        {
+            return null;
+        }
+
         var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = title,
@@ -93,17 +107,28 @@ public sealed class DialogService : IDialogService
             FileTypeFilter = new[] { new FilePickerFileType(Localizer.Text("FileType_Ivms"))
                 { Patterns = new[] { "*.zip", "Device", "Device.*" } }, FilePickerFileTypes.All }
         });
-        if (files.Count == 0) return null;
+
+        if (files.Count == 0)
+        {
+            return null;
+        }
+
         var file = files[0];
+
         if (file.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+        {
             return (await file.OpenReadAsync(), null);
+        }
 
         // A raw database cannot be decrypted without its original setup file.
         Stream? setup = null;
         var localPath = file.TryGetLocalPath();
         var siblingPath = localPath is null ? null : Path.Combine(Path.GetDirectoryName(localPath)!, "DESetup.xml");
+
         if (siblingPath is not null && File.Exists(siblingPath))
+        {
             setup = File.OpenRead(siblingPath);
+        }
         else
         {
             var companions = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -112,16 +137,31 @@ public sealed class DialogService : IDialogService
                 AllowMultiple = false,
                 FileTypeFilter = new[] { new FilePickerFileType("DESetup.xml") { Patterns = new[] { "*.xml" } } }
             });
-            if (companions.Count == 0) return null;
+
+            if (companions.Count == 0)
+            {
+                return null;
+            }
+
             setup = await companions[0].OpenReadAsync();
         }
-        try { return (await file.OpenReadAsync(), setup); }
-        catch { await setup.DisposeAsync(); throw; }
+
+        try
+        {
+            return (await file.OpenReadAsync(), setup);
+        }
+        catch
+        {
+            await setup.DisposeAsync();
+
+            throw;
+        }
     }
 
     public async Task<string?> PickFolderAsync(string title)
     {
         var owner = GetOwner();
+
         if (owner is null)
         {
             return null;
@@ -139,6 +179,7 @@ public sealed class DialogService : IDialogService
     private static async Task<Stream?> OpenFileAsync(string title, FilePickerFileType fileType)
     {
         var owner = GetOwner();
+
         if (owner is null)
         {
             return null;
@@ -162,6 +203,7 @@ public sealed class DialogService : IDialogService
     private static async Task<Stream?> SaveFileAsync(string title, string suggestedFileName, string extension, FilePickerFileType fileType)
     {
         var owner = GetOwner();
+
         if (owner is null)
         {
             return null;
@@ -193,7 +235,4 @@ public sealed class DialogService : IDialogService
 
         return FindOwner(desktop.Windows, desktop.MainWindow);
     }
-
-    internal static Window? FindOwner(IEnumerable<Window> windows, Window? mainWindow)
-        => windows.FirstOrDefault(window => window.IsActive && window is not VideoOverlayWindow) ?? mainWindow;
 }

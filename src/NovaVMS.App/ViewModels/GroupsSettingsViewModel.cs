@@ -1,10 +1,10 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NovaVMS.App.Localization;
 using NovaVMS.App.Models;
 using NovaVMS.App.Services;
 using NovaVMS.Core.Models;
-using NovaVMS.App.Localization;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -14,6 +14,7 @@ namespace NovaVMS.App.ViewModels;
 public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
 {
     private readonly ConfigurationService _configuration;
+
     // Set while the lists are rebuilt; the temporary loss of selection must not clear the name being typed.
     private bool _isRefreshing;
 
@@ -44,18 +45,7 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _editGroupName = string.Empty;
 
-    public GroupsSettingsViewModel(ConfigurationService configuration, GroupCameraPreviewViewModel preview)
-    {
-        _configuration = configuration;
-        Preview = preview;
-        _configuration.Changed += OnConfigurationChanged;
-        Refresh();
-    }
-
     public GroupCameraPreviewViewModel Preview { get; }
-
-    partial void OnSelectedAvailableCameraChanged(CameraDescriptor? value) { if (!_isRefreshing && value is not null) Preview.Select(value); }
-    partial void OnSelectedGroupCameraChanged(CameraDescriptor? value) { if (!_isRefreshing && value is not null) Preview.Select(value); }
 
     public ObservableCollection<CameraGroup> Groups { get; } = new();
 
@@ -70,17 +60,45 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     /// </summary>
     public ObservableCollection<DeviceFilterOption> DeviceFilters { get; } = new();
 
+    public GroupsSettingsViewModel(ConfigurationService configuration, GroupCameraPreviewViewModel preview)
+    {
+        _configuration = configuration;
+        Preview = preview;
+        _configuration.Changed += OnConfigurationChanged;
+
+        Refresh();
+    }
+
     public void Dispose()
     {
         _configuration.Changed -= OnConfigurationChanged;
+
         Preview.Dispose();
+    }
+
+    partial void OnSelectedAvailableCameraChanged(CameraDescriptor? value)
+    {
+        if (!_isRefreshing && value is not null)
+        {
+            Preview.Select(value);
+        }
+    }
+
+    partial void OnSelectedGroupCameraChanged(CameraDescriptor? value)
+    {
+        if (!_isRefreshing && value is not null)
+        {
+            Preview.Select(value);
+        }
     }
 
     [RelayCommand]
     private async Task AddGroupAsync()
     {
         var group = _configuration.CreateCustomGroup(Localizer.Format("Tree_DefaultGroupName", _configuration.Current.Groups.Count(candidate => candidate.IsCustom) + 1));
+
         await _configuration.SaveAsync();
+
         SelectedGroup = Groups.FirstOrDefault(candidate => candidate.Id == group.Id);
     }
 
@@ -88,13 +106,16 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     private async Task DeleteGroupAsync()
     {
         var group = SelectedGroup;
+
         if (group is null)
         {
             return;
         }
 
         _configuration.Current.Groups.Remove(group);
+
         SelectedGroup = null;
+
         await _configuration.SaveAsync();
     }
 
@@ -103,6 +124,7 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     {
         var group = SelectedGroup;
         var camera = SelectedAvailableCamera;
+
         if (group is null || camera is null)
         {
             return;
@@ -119,6 +141,7 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     {
         var group = SelectedGroup;
         var camera = SelectedGroupCamera;
+
         if (group is null || camera is null)
         {
             return;
@@ -132,25 +155,34 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     private async Task CreateGroupFromDeviceAsync()
     {
         var device = SelectedSourceDevice;
+
         if (device is null)
         {
             return;
         }
 
         var group = _configuration.CreateGroupFromDevice(device);
+
         await _configuration.SaveAsync();
+
         SelectedGroup = Groups.FirstOrDefault(candidate => candidate.Id == group.Id);
     }
 
     private bool CanMoveGroup(int offset)
     {
-        if (SelectedGroup is not { } group) return false;
+        if (SelectedGroup is not { } group)
+        {
+            return false;
+        }
+
         var groups = _configuration.Current.Groups;
         var index = groups.IndexOf(group);
+
         return index >= 0 && index + offset >= 0 && index + offset < groups.Count;
     }
 
     private bool CanMoveGroupUp() => CanMoveGroup(-1);
+
     private bool CanMoveGroupDown() => CanMoveGroup(1);
 
     [RelayCommand(CanExecute = nameof(CanMoveGroupUp))]
@@ -161,10 +193,15 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
 
     private async Task MoveGroupAsync(int offset)
     {
-        if (SelectedGroup is not { } group || !CanMoveGroup(offset)) return;
+        if (SelectedGroup is not { } group || !CanMoveGroup(offset))
+        {
+            return;
+        }
+
         var groups = _configuration.Current.Groups;
         var index = groups.IndexOf(group);
         (groups[index], groups[index + offset]) = (groups[index + offset], group);
+
         await _configuration.SaveAsync();
     }
 
@@ -196,14 +233,29 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
 
     private async Task MoveCameraAsync(int offset)
     {
-        if (SelectedGroup is not { } group || SelectedGroupCamera is not { } camera) return;
+        if (SelectedGroup is not { } group || SelectedGroupCamera is not { } camera)
+        {
+            return;
+        }
+
         var index = GroupCameras.IndexOf(camera);
         var target = index + offset;
-        if (index < 0 || target < 0 || target >= GroupCameras.Count) return;
+
+        if (index < 0 || target < 0 || target >= GroupCameras.Count)
+        {
+            return;
+        }
+
         var sourceIndex = group.Cameras.IndexOf(camera.Reference);
         var targetIndex = group.Cameras.IndexOf(GroupCameras[target].Reference);
-        if (sourceIndex < 0 || targetIndex < 0) return;
+
+        if (sourceIndex < 0 || targetIndex < 0)
+        {
+            return;
+        }
+
         var reference = group.Cameras[sourceIndex];
+
         group.Cameras.RemoveAt(sourceIndex);
         group.Cameras.Insert(targetIndex, reference);
         await _configuration.SaveAsync();
@@ -222,6 +274,7 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
         }
 
         _isRefreshing = true;
+
         try
         {
             RefreshAvailableCameras();
@@ -240,7 +293,9 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
         }
 
         Preview.Select(null);
+
         EditGroupName = value?.Name ?? string.Empty;
+
         RefreshGroupCameras();
     }
 
@@ -248,12 +303,14 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     partial void OnEditGroupNameChanged(string value)
     {
         var group = SelectedGroup;
+
         if (_isRefreshing || group is null || string.IsNullOrWhiteSpace(value))
         {
             return;
         }
 
         var name = value.Trim();
+
         if (string.Equals(group.Name, name, StringComparison.Ordinal))
         {
             return;
@@ -291,6 +348,7 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
         var filterDeviceId = AvailableDeviceFilter?.Device?.Id;
 
         _isRefreshing = true;
+
         try
         {
             RebuildLists(selectedGroupId, selectedDeviceId, filterDeviceId);
@@ -302,6 +360,7 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
 
         MoveGroupUpCommand.NotifyCanExecuteChanged();
         MoveGroupDownCommand.NotifyCanExecuteChanged();
+
         if (SelectedGroup is null)
         {
             EditGroupName = string.Empty;
@@ -313,12 +372,14 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     private void RebuildLists(Guid? selectedGroupId, Guid? selectedDeviceId, Guid? filterDeviceId)
     {
         Groups.Clear();
+
         foreach (var group in _configuration.Current.Groups)
         {
             Groups.Add(group);
         }
 
         Devices.Clear();
+
         foreach (var device in _configuration.Current.Devices)
         {
             Devices.Add(device);
@@ -326,12 +387,14 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
 
         DeviceFilters.Clear();
         DeviceFilters.Add(new DeviceFilterOption(null));
+
         foreach (var device in _configuration.Current.Devices)
         {
             DeviceFilters.Add(new DeviceFilterOption(device));
         }
 
         AvailableDeviceFilter = DeviceFilters.FirstOrDefault(option => option.Device?.Id == filterDeviceId) ?? DeviceFilters[0];
+
         RefreshAvailableCameras();
 
         SelectedGroup = Groups.FirstOrDefault(group => group.Id == selectedGroupId);
@@ -341,7 +404,9 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     private void RefreshAvailableCameras()
     {
         var selected = SelectedAvailableCamera?.Reference;
+
         AvailableCameras.Clear();
+
         foreach (var camera in _configuration.GetAllCameras())
         {
             if (AvailableDeviceFilter?.Matches(camera) != false)
@@ -356,9 +421,12 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     private void RefreshGroupCameras()
     {
         var selected = SelectedGroupCamera?.Reference;
+
         GroupCameras.Clear();
+
         SelectedGroupCamera = null;
         var group = SelectedGroup;
+
         if (group is null)
         {
             return;
@@ -367,12 +435,15 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
         foreach (var reference in group.Cameras)
         {
             var camera = _configuration.FindCamera(reference);
+
             if (camera is not null)
             {
                 GroupCameras.Add(camera);
             }
         }
+
         SelectedGroupCamera = GroupCameras.FirstOrDefault(camera => camera.Reference.Equals(selected));
+
         MoveCameraUpCommand.NotifyCanExecuteChanged();
         MoveCameraDownCommand.NotifyCanExecuteChanged();
     }

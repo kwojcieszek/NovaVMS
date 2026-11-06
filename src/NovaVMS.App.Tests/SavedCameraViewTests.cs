@@ -13,10 +13,15 @@ public sealed class SavedCameraViewTests
     public async Task ViewsAppearUnderFavoritesWithoutChangingGroupMembership()
     {
         var (configuration, tree) = await CreateAsync();
+
         Assert.True(tree.Groups[0].IsFavorites);
+
         var folder = tree.Groups[1];
+
         Assert.True(folder.IsViewsFolder);
+
         var view = Assert.Single(folder.Views);
+
         Assert.True(view.IsSavedView);
         Assert.Equal(configuration.Current.Views[0].Id, view.Id);
         Assert.Equal(configuration.Current.Views[0].Layout.Cameras.OfType<CameraReference>(), view.Cameras.Select(camera => camera.Reference));
@@ -31,15 +36,20 @@ public sealed class SavedCameraViewTests
     {
         var (configuration, _) = await CreateAsync();
         var snapshot = configuration.Current.CreateSnapshot();
+
         configuration.Current.Views[0].Layout.Cameras.Clear();
         configuration.Current.Views[0].Layout.EmptySlots.Clear();
+
         configuration.Current.Views[0].Name = "changed";
         using var stream = new MemoryStream();
         var serializer = new JsonConfigurationSerializer();
+
         await serializer.SerializeAsync(stream, snapshot);
+
         stream.Position = 0;
         var restored = await serializer.DeserializeAsync(stream);
         var view = Assert.Single(restored.Views);
+
         Assert.Equal("Entrance", view.Name);
         Assert.Equal("standard-6", view.Layout.LayoutId);
         Assert.Equal(6, view.Layout.LayoutCount);
@@ -54,6 +64,7 @@ public sealed class SavedCameraViewTests
     {
         var (configuration, tree) = await CreateAsync();
         var id = configuration.Current.Views[0].Id;
+
         await tree.RenameViewCommand.ExecuteAsync(tree.Groups[1].Views[0]);
         Assert.Equal(id, configuration.Current.Views[0].Id);
         Assert.Equal("Renamed view", configuration.Current.Views[0].Name);
@@ -68,10 +79,13 @@ public sealed class SavedCameraViewTests
     public async Task MovingSavedViewUpdatesTreeAndStoredOrder()
     {
         var (configuration, tree) = await CreateAsync();
+
         configuration.Current.Views.Add(new SavedCameraView { Name = "Parking" });
         await configuration.SaveAsync();
+
         var views = tree.Groups.Single(group => group.IsViewsFolder).Views;
         var entrance = views[0];
+
         Assert.False(tree.MoveViewUpCommand.CanExecute(entrance));
         await tree.MoveViewDownCommand.ExecuteAsync(entrance);
         Assert.Same(entrance, views[1]);
@@ -86,8 +100,11 @@ public sealed class SavedCameraViewTests
     {
         var (_, tree) = await CreateAsync();
         tree.SearchText = "camera";
+
         Assert.Single(tree.Groups.Single(group => group.IsViewsFolder).Views);
+
         tree.SearchText = "no match";
+
         Assert.Empty(tree.Groups.Single(group => group.IsViewsFolder).Views);
     }
 
@@ -97,10 +114,14 @@ public sealed class SavedCameraViewTests
         var (configuration, tree) = await CreateAsync();
         var view = configuration.Current.Views[0];
         var camera = view.Layout.Cameras[1]!;
+
         view.Layout.Cameras.Add(camera);
         await configuration.SaveAsync();
+
         var node = tree.Groups[1].Views[0].Cameras[0];
+
         Assert.True(node.CanRemoveFromView);
+
         CameraNodeViewModel? removed = null;
         tree.ViewCameraRemoved += (_, item) => removed = item;
 
@@ -122,21 +143,29 @@ public sealed class SavedCameraViewTests
     {
         var device = new Device { Host = "test.invalid", Channels = [new Channel { Number = 1, Name = "camera" }] };
         var reference = new CameraReference { DeviceId = device.Id, ChannelNumber = 1 };
-        var config = new AppConfiguration { Devices = [device], Views = [new SavedCameraView { Name = "Entrance",
+        var config = new AppConfiguration
+        {
+            Devices = [device],
+            Views = [new SavedCameraView { Name = "Entrance",
             MaximizedTileIndex = 1, Layout = new GroupLiveView { LayoutId = "standard-6", LayoutCount = 6,
-                Cameras = [null, reference], EmptySlots = [0] } }] };
+                Cameras = [null, reference], EmptySlots = [0] } }]
+        };
         var configuration = new ConfigurationService(new Store(config), new JsonConfigurationSerializer());
         var session = TestSessions.Create(configuration);
         var tree = new ResourceTreeViewModel(configuration, new DeviceSyncService(configuration, null!), new Dialogs(), session);
+
         await configuration.LoadAsync();
         TestSessions.LogInAsDefaultAdmin(session);
+
         return (configuration, tree);
     }
+
     private sealed class Store(AppConfiguration initial) : IConfigurationStore
     {
         public Task<AppConfiguration> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(initial);
         public Task SaveAsync(AppConfiguration configuration, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
+
     private sealed class Dialogs : IDialogService
     {
         public Task<string?> PromptTextAsync(string title, string message, string initialValue) => Task.FromResult<string?>("Renamed view");

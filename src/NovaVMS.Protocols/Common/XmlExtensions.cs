@@ -10,6 +10,7 @@ internal static class XmlExtensions
     public static string ChildValue(this XElement parent, string localName)
     {
         var child = parent.Elements().FirstOrDefault(element => element.Name.LocalName == localName);
+
         if (child is null)
         {
             return string.Empty;

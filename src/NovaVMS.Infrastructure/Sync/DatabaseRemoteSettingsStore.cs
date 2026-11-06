@@ -26,7 +26,6 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
     private const string SaltKey = "kdf_salt";
     private const string IterationsKey = "kdf_iterations";
     private const string KeyCheckKey = "key_check";
-    private static ReadOnlySpan<byte> KeyCheckPlaintext => "NovaVMS.Settings.KeyCheck.v1"u8;
 
     private readonly ISqlDialect _dialect;
     private readonly SettingsSyncOptions _options;
@@ -34,6 +33,8 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
     private readonly SemaphoreSlim _lock = new(1, 1);
     private SettingsPayloadCipher? _cipher;
     private bool _isDisposed;
+
+    private static ReadOnlySpan<byte> KeyCheckPlaintext => "NovaVMS.Settings.KeyCheck.v1"u8;
 
     public DatabaseRemoteSettingsStore(ISqlDialect dialect, SettingsSyncOptions options, IConfigurationSerializer serializer)
     {
@@ -51,6 +52,7 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
         return RunAsync(async connection =>
         {
             await EnsureCipherAsync(connection, cancellationToken).ConfigureAwait(false);
+
             return true;
         }, cancellationToken);
     }
@@ -60,6 +62,7 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
         return RunAsync(async connection =>
         {
             await EnsureCipherAsync(connection, cancellationToken).ConfigureAwait(false);
+
             return await ReadLatestAsync(connection, cancellationToken).ConfigureAwait(false);
         }, cancellationToken);
     }
@@ -69,8 +72,10 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
         return RunAsync<IReadOnlyList<SettingsVersionInfo>>(async connection =>
         {
             await EnsureCipherAsync(connection, cancellationToken).ConfigureAwait(false);
+
             await using var command = CreateCommand(connection,
                 "SELECT " + SettingsTables.VersionColumns + " FROM " + SettingsTables.Versions + " ORDER BY id DESC");
+
             return await ReadVersionsAsync(command, cancellationToken).ConfigureAwait(false);
         }, cancellationToken);
     }
@@ -84,13 +89,16 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
         {
             var cipher = await EnsureCipherAsync(connection, cancellationToken).ConfigureAwait(false);
             using var json = new MemoryStream();
+
             try
             {
                 await _serializer.SerializeAsync(json, configuration, cancellationToken).ConfigureAwait(false);
+
                 var plaintext = json.GetBuffer().AsMemory(0, checked((int)json.Length));
                 var hash = cipher.ComputeHash(plaintext.Span);
 
                 var latest = await ReadLatestAsync(connection, cancellationToken).ConfigureAwait(false);
+
                 if (latest is not null && string.Equals(latest.ContentHash, hash, StringComparison.Ordinal))
                 {
                     return new SettingsUploadResult(latest, false);
@@ -108,6 +116,7 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
                     hash);
 
                 await using var insert = CreateCommand(connection, _dialect.InsertVersion);
+
                 AddParameter(insert, "@createdAt", version.CreatedAt.UtcDateTime);
                 AddParameter(insert, "@instanceId", version.InstanceId.ToString("D"));
                 AddParameter(insert, "@machineName", version.MachineName);
@@ -116,10 +125,15 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
                 AddParameter(insert, "@appVersion", version.AppVersion);
                 AddParameter(insert, "@contentHash", version.ContentHash);
                 AddParameter(insert, "@payload", payload);
+
                 var id = Convert.ToInt64(await insert.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), CultureInfo.InvariantCulture);
 
                 await DeleteOldVersionsAsync(connection, retainedVersions, cancellationToken).ConfigureAwait(false);
-                return new SettingsUploadResult(version with { Id = id }, true);
+
+                return new SettingsUploadResult(version with
+                {
+                    Id = id
+                }, true);
             }
             finally
             {
@@ -134,7 +148,9 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
         {
             var cipher = await EnsureCipherAsync(connection, cancellationToken).ConfigureAwait(false);
             await using var command = CreateCommand(connection, "SELECT payload FROM " + SettingsTables.Versions + " WHERE id = @id");
+
             AddParameter(command, "@id", versionId);
+
             if (await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not byte[] payload)
             {
                 throw new SettingsSyncException(SettingsSyncFailure.VersionNotFound, $"Settings version {versionId} does not exist.");
@@ -143,10 +159,12 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
             var compressed = cipher.Decrypt(payload)
                 ?? throw new SettingsSyncException(SettingsSyncFailure.CorruptedData, $"Settings version {versionId} cannot be decrypted.");
             byte[]? plaintext = null;
+
             try
             {
                 plaintext = Decompress(compressed);
                 using var stream = new MemoryStream(plaintext, writable: false);
+
                 return await _serializer.DeserializeAsync(stream, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception) when (exception is InvalidDataException or System.Text.Json.JsonException)
@@ -156,6 +174,7 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
             finally
             {
                 CryptographicOperations.ZeroMemory(compressed);
+
                 if (plaintext is not null)
                 {
                     CryptographicOperations.ZeroMemory(plaintext);
@@ -167,8 +186,127 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
     public void Dispose()
     {
         _isDisposed = true;
+
         _cipher?.Dispose();
+
         _cipher = null;
+    }
+
+    private static async Task DeleteOldVersionsAsync(DbConnection connection, int retainedVersions, CancellationToken cancellationToken)
+    {
+        // The derived table lets MySQL read the table it deletes from; the offset is an integer, not user text.
+        var sql = "DELETE FROM " + SettingsTables.Versions + " WHERE id < ("
+            + "SELECT boundary.id FROM (SELECT id FROM " + SettingsTables.Versions
+            + " ORDER BY id DESC LIMIT 1 OFFSET " + (retainedVersions - 1).ToString(CultureInfo.InvariantCulture) + ") AS boundary)";
+
+        await ExecuteAsync(connection, sql, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<Dictionary<string, string>> ReadMetaAsync(DbConnection connection, CancellationToken cancellationToken)
+    {
+        await using var command = CreateCommand(connection, "SELECT meta_key, meta_value FROM " + SettingsTables.Meta);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        var meta = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            meta[reader.GetString(0)] = reader.GetString(1);
+        }
+
+        return meta;
+    }
+
+    private static async Task<List<SettingsVersionInfo>> ReadVersionsAsync(DbCommand command, CancellationToken cancellationToken)
+    {
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        var versions = new List<SettingsVersionInfo>();
+
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            // MySQL DATETIME has no time zone; values are always written in UTC.
+            var createdAt = DateTime.SpecifyKind(reader.GetDateTime(1), DateTimeKind.Utc);
+
+            versions.Add(new SettingsVersionInfo(
+                reader.GetInt64(0),
+                new DateTimeOffset(createdAt),
+                Guid.TryParse(reader.GetString(2), out var instanceId) ? instanceId : Guid.Empty,
+                reader.GetString(3),
+                reader.GetString(4),
+                reader.GetString(5),
+                reader.GetString(6),
+                reader.GetString(7)));
+        }
+
+        return versions;
+    }
+
+    private static async Task ExecuteAsync(DbConnection connection, string sql, CancellationToken cancellationToken)
+    {
+        await using var command = CreateCommand(connection, sql);
+
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static DbCommand CreateCommand(DbConnection connection, string sql)
+    {
+        var command = connection.CreateCommand();
+        command.CommandText = sql;
+        command.CommandTimeout = CommandTimeoutSeconds;
+
+        return command;
+    }
+
+    private static void AddParameter(DbCommand command, string name, object value)
+    {
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = name;
+        parameter.Value = value;
+
+        command.Parameters.Add(parameter);
+    }
+
+    private static byte[] Compress(ReadOnlySpan<byte> data)
+    {
+        using var output = new MemoryStream();
+
+        using (var gzip = new GZipStream(output, CompressionLevel.Optimal, leaveOpen: true))
+        {
+            gzip.Write(data);
+        }
+
+        return output.ToArray();
+    }
+
+    private static byte[] Decompress(byte[] data)
+    {
+        using var input = new MemoryStream(data, writable: false);
+        using var gzip = new GZipStream(input, CompressionMode.Decompress);
+        using var output = new MemoryStream();
+
+        gzip.CopyTo(output);
+
+        return output.ToArray();
+    }
+
+    private static string GetApplicationVersion()
+    {
+        var assembly = Assembly.GetEntryAssembly() ?? typeof(DatabaseRemoteSettingsStore).Assembly;
+        var informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+
+        if (!string.IsNullOrEmpty(informational))
+        {
+            // Drop the source revision suffix added by the SDK ("0.1.0+abcdef").
+            var plus = informational.IndexOf('+');
+
+            return plus < 0 ? informational : informational[..plus];
+        }
+
+        return assembly.GetName().Version?.ToString() ?? string.Empty;
+    }
+
+    private static string Limit(string value, int maxLength)
+    {
+        return value.Length <= maxLength ? value : value[..maxLength];
     }
 
     /// <summary>
@@ -178,10 +316,13 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
     {
         ObjectDisposedException.ThrowIf(_isDisposed, this);
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+
         try
         {
             await using var connection = _dialect.CreateConnection(_options);
+
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
             return await operation(connection).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is DbException or SocketException or TimeoutException or IOException or ArgumentException
@@ -214,6 +355,7 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
         await InsertMetaIfMissingAsync(connection, IterationsKey, KdfIterations.ToString(CultureInfo.InvariantCulture), cancellationToken).ConfigureAwait(false);
 
         var meta = await ReadMetaAsync(connection, cancellationToken).ConfigureAwait(false);
+
         if (!meta.TryGetValue(SchemaVersionKey, out var schemaVersion) || schemaVersion != SchemaVersion)
         {
             throw new SettingsSyncException(SettingsSyncFailure.UnsupportedSchema, $"Unsupported settings database schema version '{schemaVersion}'.");
@@ -221,6 +363,7 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
 
         byte[] salt;
         int iterations;
+
         try
         {
             salt = Convert.FromBase64String(meta[SaltKey]);
@@ -238,11 +381,14 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
 
         // Key derivation is deliberately slow; keep it off the UI thread.
         var cipher = await Task.Run(() => new SettingsPayloadCipher(_options.EncryptionPassword, salt, iterations), cancellationToken).ConfigureAwait(false);
+
         try
         {
             await InsertMetaIfMissingAsync(connection, KeyCheckKey, Convert.ToBase64String(cipher.Encrypt(KeyCheckPlaintext)), cancellationToken).ConfigureAwait(false);
+
             meta = await ReadMetaAsync(connection, cancellationToken).ConfigureAwait(false);
             byte[]? check = null;
+
             try
             {
                 check = cipher.Decrypt(Convert.FromBase64String(meta[KeyCheckKey]));
@@ -258,11 +404,13 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
             }
 
             _cipher = cipher;
+
             return cipher;
         }
         catch
         {
             cipher.Dispose();
+
             throw;
         }
     }
@@ -272,119 +420,16 @@ internal sealed class DatabaseRemoteSettingsStore : IRemoteSettingsStore
         await using var command = CreateCommand(connection,
             "SELECT " + SettingsTables.VersionColumns + " FROM " + SettingsTables.Versions + " ORDER BY id DESC LIMIT 1");
         var versions = await ReadVersionsAsync(command, cancellationToken).ConfigureAwait(false);
-        return versions.Count > 0 ? versions[0] : null;
-    }
 
-    private static async Task DeleteOldVersionsAsync(DbConnection connection, int retainedVersions, CancellationToken cancellationToken)
-    {
-        // The derived table lets MySQL read the table it deletes from; the offset is an integer, not user text.
-        var sql = "DELETE FROM " + SettingsTables.Versions + " WHERE id < ("
-            + "SELECT boundary.id FROM (SELECT id FROM " + SettingsTables.Versions
-            + " ORDER BY id DESC LIMIT 1 OFFSET " + (retainedVersions - 1).ToString(CultureInfo.InvariantCulture) + ") AS boundary)";
-        await ExecuteAsync(connection, sql, cancellationToken).ConfigureAwait(false);
+        return versions.Count > 0 ? versions[0] : null;
     }
 
     private async Task InsertMetaIfMissingAsync(DbConnection connection, string key, string value, CancellationToken cancellationToken)
     {
         await using var command = CreateCommand(connection, _dialect.InsertMetaIfMissing);
+
         AddParameter(command, "@key", key);
         AddParameter(command, "@value", value);
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task<Dictionary<string, string>> ReadMetaAsync(DbConnection connection, CancellationToken cancellationToken)
-    {
-        await using var command = CreateCommand(connection, "SELECT meta_key, meta_value FROM " + SettingsTables.Meta);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        var meta = new Dictionary<string, string>(StringComparer.Ordinal);
-        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-        {
-            meta[reader.GetString(0)] = reader.GetString(1);
-        }
-
-        return meta;
-    }
-
-    private static async Task<List<SettingsVersionInfo>> ReadVersionsAsync(DbCommand command, CancellationToken cancellationToken)
-    {
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        var versions = new List<SettingsVersionInfo>();
-        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-        {
-            // MySQL DATETIME has no time zone; values are always written in UTC.
-            var createdAt = DateTime.SpecifyKind(reader.GetDateTime(1), DateTimeKind.Utc);
-            versions.Add(new SettingsVersionInfo(
-                reader.GetInt64(0),
-                new DateTimeOffset(createdAt),
-                Guid.TryParse(reader.GetString(2), out var instanceId) ? instanceId : Guid.Empty,
-                reader.GetString(3),
-                reader.GetString(4),
-                reader.GetString(5),
-                reader.GetString(6),
-                reader.GetString(7)));
-        }
-
-        return versions;
-    }
-
-    private static async Task ExecuteAsync(DbConnection connection, string sql, CancellationToken cancellationToken)
-    {
-        await using var command = CreateCommand(connection, sql);
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private static DbCommand CreateCommand(DbConnection connection, string sql)
-    {
-        var command = connection.CreateCommand();
-        command.CommandText = sql;
-        command.CommandTimeout = CommandTimeoutSeconds;
-        return command;
-    }
-
-    private static void AddParameter(DbCommand command, string name, object value)
-    {
-        var parameter = command.CreateParameter();
-        parameter.ParameterName = name;
-        parameter.Value = value;
-        command.Parameters.Add(parameter);
-    }
-
-    private static byte[] Compress(ReadOnlySpan<byte> data)
-    {
-        using var output = new MemoryStream();
-        using (var gzip = new GZipStream(output, CompressionLevel.Optimal, leaveOpen: true))
-        {
-            gzip.Write(data);
-        }
-
-        return output.ToArray();
-    }
-
-    private static byte[] Decompress(byte[] data)
-    {
-        using var input = new MemoryStream(data, writable: false);
-        using var gzip = new GZipStream(input, CompressionMode.Decompress);
-        using var output = new MemoryStream();
-        gzip.CopyTo(output);
-        return output.ToArray();
-    }
-
-    private static string GetApplicationVersion()
-    {
-        var assembly = Assembly.GetEntryAssembly() ?? typeof(DatabaseRemoteSettingsStore).Assembly;
-        var informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-        if (!string.IsNullOrEmpty(informational))
-        {
-            // Drop the source revision suffix added by the SDK ("0.1.0+abcdef").
-            var plus = informational.IndexOf('+');
-            return plus < 0 ? informational : informational[..plus];
-        }
-
-        return assembly.GetName().Version?.ToString() ?? string.Empty;
-    }
-
-    private static string Limit(string value, int maxLength)
-    {
-        return value.Length <= maxLength ? value : value[..maxLength];
     }
 }

@@ -1,28 +1,11 @@
 using System.Data.Common;
-using Npgsql;
 using NovaVMS.Core.Models;
+using Npgsql;
 
 namespace NovaVMS.Infrastructure.Sync;
 
 internal sealed class PostgreSqlDialect : ISqlDialect
 {
-    public DbConnection CreateConnection(SettingsSyncOptions options)
-    {
-        var builder = new NpgsqlConnectionStringBuilder
-        {
-            Host = options.Host.Trim(),
-            Port = options.Port,
-            Database = options.Database.Trim(),
-            Username = options.UserName.Trim(),
-            Password = options.Password,
-            Timeout = DatabaseRemoteSettingsStore.ConnectTimeoutSeconds,
-            CommandTimeout = DatabaseRemoteSettingsStore.CommandTimeoutSeconds,
-            ApplicationName = "NovaVMS"
-        };
-
-        return new NpgsqlConnection(builder.ConnectionString);
-    }
-
     public string CreateMetaTable =>
         "CREATE TABLE IF NOT EXISTS " + SettingsTables.Meta + " ("
         + "meta_key VARCHAR(64) PRIMARY KEY, "
@@ -44,4 +27,21 @@ internal sealed class PostgreSqlDialect : ISqlDialect
         "INSERT INTO " + SettingsTables.Meta + " (meta_key, meta_value) VALUES (@key, @value) ON CONFLICT (meta_key) DO NOTHING";
 
     public string InsertVersion => SettingsTables.InsertVersionValues + " RETURNING id";
+
+    public DbConnection CreateConnection(SettingsSyncOptions options)
+    {
+        var builder = new NpgsqlConnectionStringBuilder
+        {
+            Host = options.Host.Trim(),
+            Port = options.Port,
+            Database = options.Database.Trim(),
+            Username = options.UserName.Trim(),
+            Password = options.Password,
+            Timeout = DatabaseRemoteSettingsStore.ConnectTimeoutSeconds,
+            CommandTimeout = DatabaseRemoteSettingsStore.CommandTimeoutSeconds,
+            ApplicationName = "NovaVMS"
+        };
+
+        return new NpgsqlConnection(builder.ConnectionString);
+    }
 }

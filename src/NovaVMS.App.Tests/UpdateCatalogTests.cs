@@ -17,8 +17,13 @@ public sealed class UpdateCatalogTests
     {
         using var client = Client(_ => Json($$"""{"version":"{{latest}}"}"""));
         var update = await UpdateCatalog.CheckAsync(client, "https://example.invalid/releases/", current, default);
+
         Assert.Equal(expected, update is not null);
-        if (update is not null) Assert.Equal($"https://example.invalid/releases/novavms_{latest.Replace('.', '_')}.zip", update.PackageUri.AbsoluteUri);
+
+        if (update is not null)
+        {
+            Assert.Equal($"https://example.invalid/releases/novavms_{latest.Replace('.', '_')}.zip", update.PackageUri.AbsoluteUri);
+        }
     }
 
     [Fact]
@@ -28,6 +33,7 @@ public sealed class UpdateCatalogTests
             ? new HttpResponseMessage(HttpStatusCode.NotFound)
             : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("novavms_2026_10_20.zip novavms_2026_10_23.zip novavms_2026_10_22.zip novavms_2026_99_99.zip") });
         var update = await UpdateCatalog.CheckAsync(client, "https://example.invalid/releases", "2026.10.21", default);
+
         Assert.Equal("2026.10.23", update!.VersionText);
     }
 
@@ -38,6 +44,7 @@ public sealed class UpdateCatalogTests
     public async Task ManifestRejectsDifferentServerAndMismatchedPackage(string file)
     {
         using var client = Client(_ => Json($$"""{"version":"2026.10.22","file":"{{file}}"}"""));
+
         await Assert.ThrowsAsync<InvalidDataException>(() => UpdateCatalog.CheckAsync(client, "https://example.invalid/releases/", "2026.10.21", default));
     }
 
@@ -46,8 +53,11 @@ public sealed class UpdateCatalogTests
     {
         var hash = new string('a', 64);
         using var client = Client(_ => Json($$"""{"version":"2026.10.22","sha256":"{{hash}}"}"""));
+
         Assert.Equal(hash, (await UpdateCatalog.CheckAsync(client, "https://example.invalid/releases/", "2026.10.21", default))!.Sha256);
+
         using var invalid = Client(_ => Json("""{"version":"2026.10.22","sha256":"wrong"}"""));
+
         await Assert.ThrowsAsync<InvalidDataException>(() => UpdateCatalog.CheckAsync(invalid, "https://example.invalid/releases/", "2026.10.21", default));
     }
 
@@ -55,6 +65,7 @@ public sealed class UpdateCatalogTests
     public async Task ServerFailureDoesNotClaimApplicationIsCurrent()
     {
         using var client = Client(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError));
+
         await Assert.ThrowsAsync<HttpRequestException>(() => UpdateCatalog.CheckAsync(client, "https://example.invalid/releases/", "2026.10.21", default));
     }
 
@@ -63,6 +74,7 @@ public sealed class UpdateCatalogTests
     {
         using var source = new MemoryStream(new byte[4096]);
         using var target = new MemoryStream();
+
         await Assert.ThrowsAsync<InvalidDataException>(() => UpdateCatalog.CopyLimitedAsync(source, target, 1024, null, default));
         Assert.Equal(0, target.Length);
     }
@@ -80,9 +92,12 @@ public sealed class UpdateCatalogTests
         config.Settings.UpdateServerUrl = "changed";
         using var stream = new MemoryStream();
         var serializer = new JsonConfigurationSerializer();
+
         await serializer.SerializeAsync(stream, snapshot);
+
         stream.Position = 0;
         var restored = await serializer.DeserializeAsync(stream);
+
         Assert.True(restored.Settings.AutoCheckForUpdates);
         Assert.True(restored.Settings.AutoDownloadUpdates);
         Assert.True(restored.Settings.AutoInstallUpdates);
@@ -92,6 +107,7 @@ public sealed class UpdateCatalogTests
 
     private static HttpResponseMessage Json(string content) => new(HttpStatusCode.OK) { Content = new StringContent(content, Encoding.UTF8, "application/json") };
     private static HttpClient Client(Func<HttpRequestMessage, HttpResponseMessage> handle) => new(new Handler(handle));
+
     private sealed class Handler(Func<HttpRequestMessage, HttpResponseMessage> handle) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => Task.FromResult(handle(request));

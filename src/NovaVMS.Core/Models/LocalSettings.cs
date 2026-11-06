@@ -6,8 +6,6 @@ namespace NovaVMS.Core.Models;
 /// </summary>
 public sealed class LocalSettings
 {
-    public LocalSettings Copy() => (LocalSettings)MemberwiseClone();
-
     /// <summary>
     /// Opens the main window in full screen when the application starts.
     /// </summary>
@@ -19,4 +17,6 @@ public sealed class LocalSettings
     /// User logged in without a password when the application starts; empty shows the login window.
     /// </summary>
     public string AutoLoginUserName { get; set; } = string.Empty;
+
+    public LocalSettings Copy() => (LocalSettings)MemberwiseClone();
 }

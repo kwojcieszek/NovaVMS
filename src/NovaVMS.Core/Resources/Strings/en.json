@@ -80,6 +80,7 @@
   "Tile_SwitchFailed": "Could not switch streams. The previous video remains active.",
   "Tree_AddFavorite": "Add to favorites",
   "Tree_RemoveFavorite": "Remove from favorites",
+  "Tree_UnavailableCameras": "Some cameras in this group are unavailable",
   "Tree_DefaultGroupName": "My group {0}",
   "Live_RestoreSplit": "Restore split",
   "Live_RestoreSplitTip": "Return to the previous split (Esc)",

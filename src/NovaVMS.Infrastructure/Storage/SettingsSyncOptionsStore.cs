@@ -38,6 +38,7 @@ public sealed class SettingsSyncOptionsStore : ISettingsSyncOptionsStore
     public async Task<SettingsSyncOptions> LoadAsync(CancellationToken cancellationToken = default)
     {
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+
         try
         {
             if (!File.Exists(_filePath))
@@ -47,6 +48,7 @@ public sealed class SettingsSyncOptionsStore : ISettingsSyncOptionsStore
 
             var stored = await File.ReadAllBytesAsync(_filePath, cancellationToken).ConfigureAwait(false);
             var plaintext = await Task.Run(() => _protection.Unprotect(stored), cancellationToken).ConfigureAwait(false);
+
             try
             {
                 var options = JsonSerializer.Deserialize<SettingsSyncOptions>(plaintext, SerializerOptions) ?? new SettingsSyncOptions();
@@ -55,6 +57,7 @@ public sealed class SettingsSyncOptionsStore : ISettingsSyncOptionsStore
                 options.UserName ??= string.Empty;
                 options.Password ??= string.Empty;
                 options.EncryptionPassword ??= string.Empty;
+
                 if (options.InstanceId == Guid.Empty)
                 {
                     options.InstanceId = Guid.NewGuid();
@@ -78,10 +81,12 @@ public sealed class SettingsSyncOptionsStore : ISettingsSyncOptionsStore
         ArgumentNullException.ThrowIfNull(options);
 
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+
         try
         {
             var plaintext = JsonSerializer.SerializeToUtf8Bytes(options, SerializerOptions);
             byte[] encrypted;
+
             try
             {
                 encrypted = await Task.Run(() => _protection.Protect(plaintext), cancellationToken).ConfigureAwait(false);

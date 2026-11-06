@@ -23,14 +23,17 @@ public sealed class OnvifDiscovery : IDeviceDiscovery
         var results = new Dictionary<string, DiscoveredDevice>(StringComparer.OrdinalIgnoreCase);
 
         using var udpClient = new UdpClient(AddressFamily.InterNetwork);
+
         udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
         udpClient.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
 
         var probe = Encoding.UTF8.GetBytes(BuildProbeMessage());
         var target = new IPEndPoint(IPAddress.Parse(MulticastAddress), MulticastPort);
+
         await udpClient.SendAsync(probe, target, cancellationToken).ConfigureAwait(false);
 
         using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
         timeoutSource.CancelAfter(timeout);
 
         try
@@ -39,6 +42,7 @@ public sealed class OnvifDiscovery : IDeviceDiscovery
             {
                 var received = await udpClient.ReceiveAsync(timeoutSource.Token).ConfigureAwait(false);
                 var device = ParseProbeMatch(received.Buffer, received.RemoteEndPoint.Address);
+
                 if (device is not null && !results.ContainsKey(device.Address))
                 {
                     results[device.Address] = device;
@@ -81,6 +85,7 @@ public sealed class OnvifDiscovery : IDeviceDiscovery
         {
             var document = XDocument.Parse(Encoding.UTF8.GetString(buffer));
             var match = document.DescendantsByLocalName("ProbeMatch").FirstOrDefault();
+
             if (match is null)
             {
                 return null;
@@ -107,6 +112,7 @@ public sealed class OnvifDiscovery : IDeviceDiscovery
     {
         var prefix = $"{ScopePrefix}{key}/";
         var scope = scopes.FirstOrDefault(value => value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
         if (scope is null)
         {
             return string.Empty;

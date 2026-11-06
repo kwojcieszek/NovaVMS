@@ -10,8 +10,6 @@ public sealed class SettingsSyncOptions
     public const int DefaultPostgreSqlPort = 5432;
     public const int DefaultMySqlPort = 3306;
 
-    public SettingsSyncOptions Copy() => (SettingsSyncOptions)MemberwiseClone();
-
     public bool Enabled { get; set; }
 
     public SettingsDatabaseType DatabaseType { get; set; } = SettingsDatabaseType.PostgreSql;
@@ -63,6 +61,8 @@ public sealed class SettingsSyncOptions
         && !string.IsNullOrWhiteSpace(Database)
         && !string.IsNullOrWhiteSpace(UserName)
         && !string.IsNullOrEmpty(EncryptionPassword);
+
+    public SettingsSyncOptions Copy() => (SettingsSyncOptions)MemberwiseClone();
 
     /// <summary>
     /// True when both options point to the same database.

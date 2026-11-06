@@ -14,11 +14,14 @@ internal static class LocalAddressResolver
         try
         {
             var addresses = await Dns.GetHostAddressesAsync(host.Trim(), cancellationToken).ConfigureAwait(false);
+
             foreach (var address in addresses)
             {
                 // Connecting a UDP socket sends nothing; it only selects the route and its source address.
                 using var socket = new Socket(address.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
+
                 socket.Connect(new IPEndPoint(address, port));
+
                 if (socket.LocalEndPoint is IPEndPoint local && !IPAddress.IsLoopback(local.Address))
                 {
                     return local.Address.ToString();
@@ -45,6 +48,7 @@ internal static class LocalAddressResolver
                 .ToList();
 
             var address = addresses.FirstOrDefault(candidate => candidate.AddressFamily == AddressFamily.InterNetwork) ?? addresses.FirstOrDefault();
+
             return address?.ToString() ?? string.Empty;
         }
         catch (NetworkInformationException)

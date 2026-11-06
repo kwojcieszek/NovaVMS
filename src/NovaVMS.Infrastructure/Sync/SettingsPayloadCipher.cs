@@ -14,10 +14,11 @@ internal sealed class SettingsPayloadCipher : IDisposable
     private const int KeyLength = 32;
     private const int NonceLength = 12;
     private const int TagLength = 16;
-    private static ReadOnlySpan<byte> Header => "NovaVMS.Sync.AESGCM.v1\0"u8;
 
     private readonly byte[] _encryptionKey;
     private readonly byte[] _hashKey;
+
+    private static ReadOnlySpan<byte> Header => "NovaVMS.Sync.AESGCM.v1\0"u8;
 
     public SettingsPayloadCipher(string password, byte[] salt, int iterations)
     {
@@ -29,6 +30,7 @@ internal sealed class SettingsPayloadCipher : IDisposable
 
         var passwordBytes = Encoding.UTF8.GetBytes(password);
         var keys = Rfc2898DeriveBytes.Pbkdf2(passwordBytes, salt, iterations, HashAlgorithmName.SHA256, KeyLength * 2);
+
         try
         {
             _encryptionKey = keys[..KeyLength];
@@ -45,11 +47,17 @@ internal sealed class SettingsPayloadCipher : IDisposable
     {
         var prefixLength = Header.Length + NonceLength + TagLength;
         var result = new byte[prefixLength + plaintext.Length];
+
         Header.CopyTo(result);
+
         var nonce = result.AsSpan(Header.Length, NonceLength);
+
         RandomNumberGenerator.Fill(nonce);
+
         using var aes = new AesGcm(_encryptionKey, TagLength);
+
         aes.Encrypt(nonce, plaintext, result.AsSpan(prefixLength), result.AsSpan(Header.Length + NonceLength, TagLength), Header);
+
         return result;
     }
 
@@ -59,22 +67,27 @@ internal sealed class SettingsPayloadCipher : IDisposable
     public byte[]? Decrypt(ReadOnlySpan<byte> data)
     {
         var prefixLength = Header.Length + NonceLength + TagLength;
+
         if (!data.StartsWith(Header) || data.Length < prefixLength)
         {
             return null;
         }
 
         var plaintext = new byte[data.Length - prefixLength];
+
         try
         {
             using var aes = new AesGcm(_encryptionKey, TagLength);
+
             aes.Decrypt(data.Slice(Header.Length, NonceLength), data[prefixLength..],
                 data.Slice(Header.Length + NonceLength, TagLength), plaintext, Header);
+
             return plaintext;
         }
         catch (CryptographicException)
         {
             CryptographicOperations.ZeroMemory(plaintext);
+
             return null;
         }
     }

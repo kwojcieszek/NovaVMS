@@ -48,6 +48,7 @@ internal sealed class IsapiHttpTransport : IIsapiTransport
         return ExecuteAsync(async token =>
         {
             using var response = await SendAsync(HttpMethod.Get, path, null, token).ConfigureAwait(false);
+
             return await ReadXmlAsync(response, token).ConfigureAwait(false);
         }, cancellationToken);
     }
@@ -57,6 +58,7 @@ internal sealed class IsapiHttpTransport : IIsapiTransport
         return ExecuteAsync(async token =>
         {
             using var response = await SendAsync(HttpMethod.Post, path, body, token).ConfigureAwait(false);
+
             return await ReadXmlAsync(response, token).ConfigureAwait(false);
         }, cancellationToken);
     }
@@ -66,6 +68,7 @@ internal sealed class IsapiHttpTransport : IIsapiTransport
         return ExecuteAsync(async token =>
         {
             using var response = await SendAsync(HttpMethod.Put, path, body, token).ConfigureAwait(false);
+
             return true;
         }, cancellationToken);
     }
@@ -75,6 +78,7 @@ internal sealed class IsapiHttpTransport : IIsapiTransport
         return ExecuteAsync(async token =>
         {
             using var response = await SendAsync(HttpMethod.Get, path, null, token).ConfigureAwait(false);
+
             return await response.Content.ReadAsByteArrayAsync(token).ConfigureAwait(false);
         }, cancellationToken);
     }
@@ -84,28 +88,10 @@ internal sealed class IsapiHttpTransport : IIsapiTransport
         _httpClient.Dispose();
     }
 
-    private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, XElement? body, CancellationToken cancellationToken)
-    {
-        using var request = new HttpRequestMessage(method, path);
-        if (body is not null)
-        {
-            request.Content = new StringContent(body.ToString(SaveOptions.DisableFormatting), Encoding.UTF8, XmlMediaType);
-        }
-
-        var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        if (response.IsSuccessStatusCode)
-        {
-            return response;
-        }
-
-        var statusCode = response.StatusCode;
-        response.Dispose();
-        throw new DeviceCommunicationException(DescribeStatus(statusCode, path), statusCode);
-    }
-
     private static async Task<XDocument> ReadXmlAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+
         return await XDocument.LoadAsync(stream, LoadOptions.None, cancellationToken).ConfigureAwait(false);
     }
 
@@ -114,21 +100,21 @@ internal sealed class IsapiHttpTransport : IIsapiTransport
         switch (statusCode)
         {
             case HttpStatusCode.Unauthorized:
-            {
-                return ProtocolText.Get("InvalidCredentials");
-            }
+                {
+                    return ProtocolText.Get("InvalidCredentials");
+                }
             case HttpStatusCode.Forbidden:
-            {
-                return ProtocolText.Get("Forbidden");
-            }
+                {
+                    return ProtocolText.Get("Forbidden");
+                }
             case HttpStatusCode.NotFound:
-            {
-                return ProtocolText.Format("FunctionNotSupported", path);
-            }
+                {
+                    return ProtocolText.Format("FunctionNotSupported", path);
+                }
             default:
-            {
-                return ProtocolText.Format("HttpStatus", (int)statusCode, path);
-            }
+                {
+                    return ProtocolText.Format("HttpStatus", (int)statusCode, path);
+                }
         }
     }
 
@@ -150,5 +136,28 @@ internal sealed class IsapiHttpTransport : IIsapiTransport
         {
             throw new DeviceCommunicationException(ProtocolText.Get("InvalidXml"), exception);
         }
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, XElement? body, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(method, path);
+
+        if (body is not null)
+        {
+            request.Content = new StringContent(body.ToString(SaveOptions.DisableFormatting), Encoding.UTF8, XmlMediaType);
+        }
+
+        var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+        if (response.IsSuccessStatusCode)
+        {
+            return response;
+        }
+
+        var statusCode = response.StatusCode;
+
+        response.Dispose();
+
+        throw new DeviceCommunicationException(DescribeStatus(statusCode, path), statusCode);
     }
 }

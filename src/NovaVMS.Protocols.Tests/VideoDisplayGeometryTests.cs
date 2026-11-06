@@ -11,7 +11,9 @@ public sealed class VideoDisplayGeometryTests
     public void KnownMainProportionsStayTheSameAcrossSubMainAndReconnect()
     {
         var geometry = new VideoDisplayGeometry();
+
         geometry.Reset("1920:1536");
+
         foreach (var ratio in new[] { "352:240", "1920:1536", "352:240", "1920:1536" })
         {
             geometry.Learn(ratio);
@@ -23,6 +25,7 @@ public sealed class VideoDisplayGeometryTests
     public void FirstVisiblePictureIsPreservedWhenMainProportionsAreUnknown()
     {
         var geometry = new VideoDisplayGeometry();
+
         geometry.Learn("352:240");
         geometry.Learn("1920:1536");
         geometry.Learn("4:3");
@@ -48,6 +51,7 @@ public sealed class VideoDisplayGeometryTests
         using var transport = new ChannelTransport(width, height);
         var channels = await new IsapiDeviceService(transport).GetChannelsAsync(CancellationToken.None);
         var channel = Assert.Single(channels);
+
         Assert.Equal(1, channel.Number);
         Assert.Equal(expected, channel.MainAspectRatio);
     }
@@ -57,6 +61,7 @@ public sealed class VideoDisplayGeometryTests
     {
         using var transport = new ChannelTransport("1920", "1080", true);
         var channels = await new IsapiDeviceService(transport).GetChannelsAsync(CancellationToken.None);
+
         Assert.Equal(new[] { 1, 4 }, channels.Select(channel => channel.Number));
         Assert.Equal("16:9", channels[0].MainAspectRatio);
         Assert.False(channels[1].Online);
@@ -86,6 +91,9 @@ public sealed class VideoDisplayGeometryTests
         public Task<XDocument> PostXmlAsync(string path, XElement body, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task PutAsync(string path, XElement? body, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<byte[]> GetBytesAsync(string path, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public void Dispose() { }
+
+        public void Dispose()
+        {
+        }
     }
 }

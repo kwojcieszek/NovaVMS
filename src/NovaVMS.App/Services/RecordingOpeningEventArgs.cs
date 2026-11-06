@@ -4,6 +4,8 @@ namespace NovaVMS.App.Services;
 public sealed class RecordingOpeningEventArgs : EventArgs
 {
     private readonly List<Task> _preparations = new();
-    public void WaitFor(Task preparation) => _preparations.Add(preparation);
+
     internal Task WhenReady => Task.WhenAll(_preparations);
+
+    public void WaitFor(Task preparation) => _preparations.Add(preparation);
 }

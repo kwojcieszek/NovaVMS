@@ -32,15 +32,18 @@ internal sealed class IsapiRecordingService
             var request = BuildSearchRequest(searchId, trackId, from, to, position);
             var document = await _transport.PostXmlAsync("ISAPI/ContentMgmt/search", request, cancellationToken).ConfigureAwait(false);
             var root = document.Root;
+
             if (root is null)
             {
                 break;
             }
 
             var matches = root.DescendantsByLocalName("searchMatchItem").ToList();
+
             foreach (var match in matches)
             {
                 var segment = ParseMatch(match, channelNumber);
+
                 if (segment is not null)
                 {
                     segments.Add(segment);
@@ -48,6 +51,7 @@ internal sealed class IsapiRecordingService
             }
 
             var status = root.ChildValue("responseStatusStrg");
+
             if (!string.Equals(status, MoreResultsStatus, StringComparison.OrdinalIgnoreCase) || matches.Count == 0)
             {
                 break;
@@ -62,6 +66,7 @@ internal sealed class IsapiRecordingService
     private static XElement BuildSearchRequest(string searchId, int trackId, DateTime from, DateTime to, int position)
     {
         var ns = IsapiNamespace.Value;
+
         return new XElement(ns + "CMSearchDescription",
             new XAttribute("version", IsapiNamespace.Version),
             new XElement(ns + "searchID", searchId),
@@ -81,6 +86,7 @@ internal sealed class IsapiRecordingService
     private static RecordingSegment? ParseMatch(XElement match, int channelNumber)
     {
         var timeSpan = match.DescendantsByLocalName("timeSpan").FirstOrDefault();
+
         if (timeSpan is null)
         {
             return null;

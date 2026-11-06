@@ -13,9 +13,11 @@ public sealed class NativeStreamLifetimeTests
         using var lifetime = new NativeStreamLifetime(_ =>
         {
             opened = true;
+
             return Task.FromResult(42);
         }, _ => throw new InvalidOperationException("No handle should be opened"), () => { }, () => cleaned = true,
             startImmediately: false);
+
         await Task.Run(lifetime.Dispose).WaitAsync(TimeSpan.FromSeconds(5));
         lifetime.Start();
         Assert.False(opened);
@@ -32,25 +34,39 @@ public sealed class NativeStreamLifetimeTests
         var complete = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var cleaned = false;
         var stops = 0;
-        var lifetime = new NativeStreamLifetime(_ => { entered.SetResult(); return opening.Task; }, handle =>
+        var lifetime = new NativeStreamLifetime(_ =>
+        {
+            entered.SetResult();
+
+            return opening.Task;
+        }, handle =>
         {
             Assert.Equal(42, handle);
             Assert.True(complete.Task.IsCompleted);
             Interlocked.Increment(ref stops);
             stopping.SetResult();
-            if (!releaseStop.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException();
+
+            if (!releaseStop.Wait(TimeSpan.FromSeconds(5)))
+            {
+                throw new TimeoutException();
+            }
         }, () => complete.SetResult(), () => cleaned = true);
         Task? first = null, second = null;
+
         try
         {
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
             first = Task.Run(lifetime.Dispose);
+
             await complete.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.False(first.IsCompleted);
             Assert.False(cleaned);
             opening.SetResult(42); // Native open ignored cancellation and returned a valid handle.
             await stopping.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
             second = Task.Run(lifetime.Dispose);
+
             Assert.False(first.IsCompleted);
             Assert.False(cleaned);
             releaseStop.Set();
@@ -63,8 +79,17 @@ public sealed class NativeStreamLifetimeTests
         {
             opening.TrySetResult(42);
             releaseStop.Set();
-            if (first is not null) await first;
-            if (second is not null) await second;
+
+            if (first is not null)
+            {
+                await first;
+            }
+
+            if (second is not null)
+            {
+                await second;
+            }
+
             lifetime.Dispose();
         }
     }
@@ -78,8 +103,10 @@ public sealed class NativeStreamLifetimeTests
         var lifetime = new NativeStreamLifetime(_ =>
         {
             entered.SetResult();
+
             return Task.FromException<int>(new IOException("Open failed"));
         }, _ => stopped = true, () => { }, () => cleaned = true);
+
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.ThrowsAsync<IOException>(() => Task.Run(lifetime.Dispose));
         Assert.True(cleaned);
@@ -95,11 +122,19 @@ public sealed class NativeStreamLifetimeTests
         using var lifetime = new NativeStreamLifetime(async token =>
         {
             entered.SetResult(token);
-            try { await Task.Delay(Timeout.Infinite, token); }
-            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+
+            try
+            {
+                await Task.Delay(Timeout.Infinite, token);
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+            }
+
             return -1;
         }, _ => stopped = true, () => { }, () => released = true);
         var token = await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
         await Task.Run(lifetime.Dispose).WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(token.IsCancellationRequested);
         Assert.True(released);

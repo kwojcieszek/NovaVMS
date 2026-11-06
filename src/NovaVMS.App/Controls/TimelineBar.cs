@@ -16,6 +16,16 @@ namespace NovaVMS.App.Controls;
 /// </summary>
 public sealed class TimelineBar : Control
 {
+    private const double SecondsPerDay = 86400;
+    private const double LabelAreaHeight = 16;
+    private const double LabelFontSize = 10;
+    private const double CursorThickness = 2;
+
+    private static readonly Typeface LabelTypeface = new(new FontFamily("fonts:Inter#Inter, $Default"));
+
+    private double _visibleStart;
+    private double _visibleEnd = SecondsPerDay;
+
     public static readonly StyledProperty<IEnumerable<RecordingSegment>?> SegmentsProperty =
         AvaloniaProperty.Register<TimelineBar, IEnumerable<RecordingSegment>?>(nameof(Segments));
 
@@ -54,32 +64,6 @@ public sealed class TimelineBar : Control
 
     public static readonly StyledProperty<IBrush?> OutOfRangeBrushProperty =
         AvaloniaProperty.Register<TimelineBar, IBrush?>(nameof(OutOfRangeBrush));
-
-    private const double SecondsPerDay = 86400;
-    private const double LabelAreaHeight = 16;
-    private const double LabelFontSize = 10;
-    private const double CursorThickness = 2;
-    private double _visibleStart;
-    private double _visibleEnd = SecondsPerDay;
-
-    private static readonly Typeface LabelTypeface = new(new FontFamily("fonts:Inter#Inter, $Default"));
-
-    static TimelineBar()
-    {
-        AffectsRender<TimelineBar>(
-            SegmentsProperty,
-            DayProperty,
-            PositionProperty,
-            RangeStartProperty,
-            RangeEndProperty,
-            TrackBrushProperty,
-            SegmentBrushProperty,
-            TickBrushProperty,
-            LabelBrushProperty,
-            CursorBrushProperty,
-            OutOfRangeBrushProperty);
-        ClipToBoundsProperty.OverrideDefaultValue<TimelineBar>(true);
-    }
 
     public IEnumerable<RecordingSegment>? Segments
     {
@@ -171,10 +155,28 @@ public sealed class TimelineBar : Control
         set => SetValue(OutOfRangeBrushProperty, value);
     }
 
+    static TimelineBar()
+    {
+        AffectsRender<TimelineBar>(
+            SegmentsProperty,
+            DayProperty,
+            PositionProperty,
+            RangeStartProperty,
+            RangeEndProperty,
+            TrackBrushProperty,
+            SegmentBrushProperty,
+            TickBrushProperty,
+            LabelBrushProperty,
+            CursorBrushProperty,
+            OutOfRangeBrushProperty);
+        ClipToBoundsProperty.OverrideDefaultValue<TimelineBar>(true);
+    }
+
     public override void Render(DrawingContext context)
     {
         var width = Bounds.Width;
         var height = Bounds.Height;
+
         if (width <= 0 || height <= 0)
         {
             return;
@@ -192,6 +194,7 @@ public sealed class TimelineBar : Control
         if (CursorBrush is not null && Position >= _visibleStart && Position <= _visibleEnd)
         {
             var cursorX = ToX(Position, width);
+
             context.DrawLine(new Pen(CursorBrush, CursorThickness), new Point(cursorX, 0), new Point(cursorX, height));
         }
     }
@@ -234,6 +237,7 @@ public sealed class TimelineBar : Control
         e.Pointer.Capture(this);
         SetCurrentValue(IsInteractingProperty, true);
         UpdatePosition(e.GetPosition(this).X);
+
         e.Handled = true;
     }
 
@@ -245,20 +249,30 @@ public sealed class TimelineBar : Control
         {
             UpdatePosition(e.GetPosition(this).X);
         }
+
         if (Bounds.Width > 0)
+        {
             ToolTip.SetTip(this, Day.Date.AddSeconds(SecondsAt(e.GetPosition(this).X)).ToString("HH:mm:ss"));
+        }
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
-        if (Bounds.Width <= 0 || IsInteracting || e.Delta.Y == 0) return;
+
+        if (Bounds.Width <= 0 || IsInteracting || e.Delta.Y == 0)
+        {
+            return;
+        }
+
         var fraction = Math.Clamp(e.GetPosition(this).X / Bounds.Width, 0, 1);
         var anchor = _visibleStart + fraction * (_visibleEnd - _visibleStart);
         var span = Math.Clamp((_visibleEnd - _visibleStart) * (e.Delta.Y > 0 ? 0.5 : 2), 60, SecondsPerDay);
         _visibleStart = Math.Clamp(anchor - fraction * span, 0, SecondsPerDay - span);
         _visibleEnd = _visibleStart + span;
+
         InvalidateVisual();
+
         e.Handled = true;
     }
 
@@ -274,9 +288,11 @@ public sealed class TimelineBar : Control
         UpdatePosition(e.GetPosition(this).X);
         SetCurrentValue(IsInteractingProperty, false);
         e.Pointer.Capture(null);
+
         e.Handled = true;
 
         var command = SeekCommand;
+
         if (command is not null && command.CanExecute(Position))
         {
             command.Execute(Position);
@@ -305,6 +321,7 @@ public sealed class TimelineBar : Control
     private void UpdatePosition(double x)
     {
         var width = Bounds.Width;
+
         if (width <= 0)
         {
             return;
@@ -317,6 +334,7 @@ public sealed class TimelineBar : Control
     {
         var segments = Segments;
         var brush = SegmentBrush;
+
         if (segments is null || brush is null)
         {
             return;
@@ -331,6 +349,7 @@ public sealed class TimelineBar : Control
         {
             var start = segment.Start < dayStart ? dayStart : segment.Start;
             var end = segment.End > dayEnd ? dayEnd : segment.End;
+
             if (end <= start)
             {
                 continue;
@@ -338,13 +357,18 @@ public sealed class TimelineBar : Control
 
             var left = ToX((start - dayStart).TotalSeconds, width);
             var right = ToX((end - dayStart).TotalSeconds, width);
-            if (right > left) context.FillRectangle(brush, new Rect(left, top, Math.Max(1, right - left), barHeight));
+
+            if (right > left)
+            {
+                context.FillRectangle(brush, new Rect(left, top, Math.Max(1, right - left), barHeight));
+            }
         }
     }
 
     private void RenderOutOfRange(DrawingContext context, double width, double height)
     {
         var brush = OutOfRangeBrush;
+
         if (brush is null)
         {
             return;
@@ -376,6 +400,7 @@ public sealed class TimelineBar : Control
         for (var seconds = Math.Ceiling(_visibleStart / step) * step; seconds <= _visibleEnd; seconds += step)
         {
             var x = ToX(seconds, width);
+
             if (tickPen is not null)
             {
                 context.DrawLine(tickPen, new Point(x, LabelAreaHeight - 4), new Point(x, height));
@@ -388,6 +413,7 @@ public sealed class TimelineBar : Control
 
             var text = Day.Date.AddSeconds(seconds).ToString(step < 60 ? "HH:mm:ss" : "HH:mm", CultureInfo.InvariantCulture);
             var label = new FormattedText(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, LabelTypeface, LabelFontSize, labelBrush);
+
             context.DrawText(label, new Point(Math.Clamp(x + 3, 0, Math.Max(0, width - label.Width)), 1));
         }
     }

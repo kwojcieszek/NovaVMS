@@ -22,11 +22,13 @@ public sealed class DeviceConnectionCleanupServiceTests
     public async Task ReleasesConnectionsOnlyWhenDevicesOrTheirConnectionsChange()
     {
         using var cleanup = new DeviceConnectionCleanupService(_configuration, _factory);
+
         await _configuration.LoadAsync();
         await WaitForReleaseAsync();
 
         // Settings-only saves do not touch device connections.
         _configuration.Current.Settings.ShowTileTitles = false;
+
         await _configuration.SaveAsync();
         Assert.Single(_factory.Releases);
 
@@ -37,16 +39,13 @@ public sealed class DeviceConnectionCleanupServiceTests
         Assert.Equal([_first.Id], _factory.Releases[^1].Select(device => device.Id));
 
         _factory.ResetReleaseSignal();
+
         _configuration.FindDevice(_first.Id)!.Password = "changed";
+
         await _configuration.SaveAsync();
         await WaitForReleaseAsync();
         Assert.Equal("changed", Assert.Single(_factory.Releases[^1]).Password);
         Assert.Equal(3, _factory.Releases.Count);
-    }
-
-    private async Task WaitForReleaseAsync()
-    {
-        await _factory.ReleaseCalled.Task.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -57,9 +56,14 @@ public sealed class DeviceConnectionCleanupServiceTests
         _factory.BeforeRelease = () =>
         {
             entered.TrySetResult();
-            if (!release.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException();
+
+            if (!release.Wait(TimeSpan.FromSeconds(5)))
+            {
+                throw new TimeoutException();
+            }
         };
         using var cleanup = new DeviceConnectionCleanupService(_configuration, _factory);
+
         try
         {
             await _configuration.LoadAsync();
@@ -71,6 +75,15 @@ public sealed class DeviceConnectionCleanupServiceTests
             await _configuration.SaveAsync();
             Assert.Single(_factory.Releases);
         }
-        finally { release.Set(); await cleanup.Disposal; }
+        finally
+        {
+            release.Set();
+            await cleanup.Disposal;
+        }
+    }
+
+    private async Task WaitForReleaseAsync()
+    {
+        await _factory.ReleaseCalled.Task.WaitAsync(TimeSpan.FromSeconds(5));
     }
 }

@@ -1,8 +1,8 @@
+using System.Threading.Channels;
 using Avalonia.Threading;
-using NovaVMS.Infrastructure.Storage;
 using NovaVMS.Core.Exceptions;
 using NovaVMS.Infrastructure.Diagnostics;
-using System.Threading.Channels;
+using NovaVMS.Infrastructure.Storage;
 
 namespace NovaVMS.App.Services;
 
@@ -14,15 +14,18 @@ internal static class UnhandledExceptionLogger
     private static readonly ExceptionLogWriter Writer = new(
         () => AppDataPaths.LogDirectory,
         () => FallbackLogDirectory);
+
     private static readonly FirstChanceExceptionCapture FirstChance = new(Log);
     private static int _installed;
     private static int _dispatcherAttached;
     [ThreadStatic] private static bool _writingLog;
-    private sealed record Entry(string Source, Exception? Exception, TaskCompletionSource? Barrier = null);
+
     private static readonly Channel<Entry> Entries = Channel.CreateUnbounded<Entry>(new UnboundedChannelOptions
     {
-        SingleReader = true, AllowSynchronousContinuations = false
+        SingleReader = true,
+        AllowSynchronousContinuations = false
     });
+
     private static readonly Task LogWorker = Task.Run(WriteLogsAsync);
 
     /// <summary>
@@ -35,15 +38,24 @@ internal static class UnhandledExceptionLogger
 
     public static void Install()
     {
-        if (Interlocked.Exchange(ref _installed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _installed, 1) != 0)
+        {
+            return;
+        }
+
         FirstChance.Install();
+
         AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
     }
 
     public static void AttachToDispatcher()
     {
-        if (Interlocked.Exchange(ref _dispatcherAttached, 1) != 0) return;
+        if (Interlocked.Exchange(ref _dispatcherAttached, 1) != 0)
+        {
+            return;
+        }
+
         Dispatcher.UIThread.UnhandledException += OnDispatcherUnhandledException;
     }
 
@@ -51,7 +63,11 @@ internal static class UnhandledExceptionLogger
     {
         // FirstChanceException runs on the throwing thread, including the UI thread.
         // Never wait there for disk access or a logger lock held by another thread.
-        if (_writingLog) return;
+        if (_writingLog)
+        {
+            return;
+        }
+
         Entries.Writer.TryWrite(new Entry($"{source} [origin thread {Environment.CurrentManagedThreadId}]", exception));
     }
 
@@ -64,7 +80,9 @@ internal static class UnhandledExceptionLogger
     internal static Task FlushAsync()
     {
         var barrier = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
         Entries.Writer.TryWrite(new Entry("", null, barrier));
+
         return barrier.Task;
     }
 
@@ -74,7 +92,12 @@ internal static class UnhandledExceptionLogger
     {
         await foreach (var entry in Entries.Reader.ReadAllAsync().ConfigureAwait(false))
         {
-            if (entry.Barrier is not null) { entry.Barrier.TrySetResult(); continue; }
+            if (entry.Barrier is not null)
+            {
+                entry.Barrier.TrySetResult();
+                continue;
+            }
+
             WriteLog(entry.Source, entry.Exception);
         }
     }
@@ -84,8 +107,15 @@ internal static class UnhandledExceptionLogger
         // Ignore first-chance exceptions from a failed log write; otherwise a bad
         // log directory could feed the queue recursively forever.
         _writingLog = true;
-        try { Writer.Write(source, exception); }
-        finally { _writingLog = false; }
+
+        try
+        {
+            Writer.Write(source, exception);
+        }
+        finally
+        {
+            _writingLog = false;
+        }
     }
 
     private static void OnDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
@@ -97,28 +127,52 @@ internal static class UnhandledExceptionLogger
     private static void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
     {
         Log("Unobserved task exception", e.Exception);
+
         try
         {
             foreach (var exception in e.Exception.Flatten().InnerExceptions)
-                if (DeviceFailure.IsExpected(exception)) DeviceOperationErrors.Report("Background device operation", exception);
+            {
+                if (DeviceFailure.IsExpected(exception))
+                {
+                    DeviceOperationErrors.Report("Background device operation", exception);
+                }
+            }
         }
-        catch (Exception exception) { Log("Background exception notification failed", exception); }
-        finally { e.SetObserved(); }
+        catch (Exception exception)
+        {
+            Log("Background exception notification failed", exception);
+        }
+        finally
+        {
+            e.SetObserved();
+        }
     }
 
     private static void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         Log(IsShuttingDown ? "UI thread exception during shutdown" : "UI thread exception", e.Exception);
+
         if (!IsShuttingDown && DeviceFailure.IsExpected(e.Exception))
         {
-            try { DeviceOperationErrors.Report("Recovered UI device operation", e.Exception); }
-            catch (Exception exception) { Log("UI exception notification failed", exception); }
+            try
+            {
+                DeviceOperationErrors.Report("Recovered UI device operation", e.Exception);
+            }
+            catch (Exception exception)
+            {
+                Log("UI exception notification failed", exception);
+            }
+
             e.Handled = true;
+
             return;
         }
+
         if (IsShuttingDown)
         {
             e.Handled = true;
         }
     }
+
+    private sealed record Entry(string Source, Exception? Exception, TaskCompletionSource? Barrier = null);
 }

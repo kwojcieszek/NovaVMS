@@ -21,6 +21,7 @@ public sealed class OnvifRecordingServiceTests
         {
             requests.Add(request);
             Assert.Equal("recorder", uri.Host);
+
             return Task.FromResult(request.Name.LocalName switch
             {
                 "GetServices" => Services(),
@@ -35,13 +36,16 @@ public sealed class OnvifRecordingServiceTests
             });
         });
         var found = await service.SearchAsync(2, "source2", ["profile2"], Day, Day.AddHours(8), default);
+
         Assert.Equal(2, found.Count);
         Assert.Equal(Day, found[0].Start);
         Assert.Equal(Day.AddHours(2), found[0].End);
         Assert.Equal(Day.AddHours(4), found[1].Start);
         Assert.Equal(Day.AddHours(5), found[1].End);
         Assert.All(found, segment => Assert.Equal(2, segment.ChannelNumber));
+
         var eventsRequest = Assert.Single(requests, r => r.Name.LocalName == "FindEvents");
+
         Assert.Equal("recording2", eventsRequest.DescendantsByLocalName("IncludedRecordings").Single().Value);
         Assert.Equal("true", eventsRequest.ChildValue("IncludeStartState"));
         Assert.Equal(2, requests.Count(r => r.Name.LocalName == "EndSearch"));
@@ -61,10 +65,13 @@ public sealed class OnvifRecordingServiceTests
         }));
         var source = await service.GetSourceAsync("source2", ["profile2"], Day.AddHours(1), Day.AddHours(2), default);
         var uri = source.OpenUri(out var lifetime);
+
         Assert.Equal("127.0.0.1", uri.Host);
         Assert.Equal("/archive/two", uri.AbsolutePath);
         Assert.Empty(uri.UserInfo);
+
         var proxy = Assert.IsType<OnvifReplayProxy>(lifetime);
+
         proxy.Dispose();
         await proxy.Completion.WaitAsync(TimeSpan.FromSeconds(3));
     }
@@ -75,8 +82,10 @@ public sealed class OnvifRecordingServiceTests
         var service = new OnvifRecordingService(Device(), (_, request, _) =>
         {
             Assert.Equal("GetServices", request.Name.LocalName);
+
             return Task.FromResult(new XElement("GetServicesResponse"));
         });
+
         await Assert.ThrowsAsync<NotSupportedException>(() => service.SearchAsync(2, "source2", ["profile2"], Day, Day.AddHours(1), default));
     }
 
@@ -84,7 +93,9 @@ public sealed class OnvifRecordingServiceTests
     public async Task ReplayConnectsToSecondaryRtspPort()
     {
         var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+
         listener.Start();
+
         try
         {
             var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
@@ -104,13 +115,19 @@ public sealed class OnvifRecordingServiceTests
             var uri = source.OpenUri(out var lifetime);
             using var session = lifetime;
             using var player = new System.Net.Sockets.TcpClient();
+
             await player.ConnectAsync(uri.Host, uri.Port);
+
             using var remote = await listener.AcceptTcpClientAsync().WaitAsync(TimeSpan.FromSeconds(3));
             var proxy = Assert.IsType<OnvifReplayProxy>(lifetime);
+
             proxy.Dispose();
             await proxy.Completion.WaitAsync(TimeSpan.FromSeconds(3));
         }
-        finally { listener.Stop(); }
+        finally
+        {
+            listener.Stop();
+        }
     }
 
     [Fact]
@@ -122,19 +139,31 @@ public sealed class OnvifRecordingServiceTests
         {
             switch (request.Name.LocalName)
             {
-                case "GetServices": return Task.FromResult(Services());
-                case "FindRecordings": stop.Cancel(); return Task.FromResult(Token("recordings"));
-                case "EndSearch": ended = true; Assert.False(token.IsCancellationRequested); return Task.FromResult(new XElement("EndSearchResponse"));
-                default: throw new InvalidOperationException();
+                case "GetServices":
+                    return Task.FromResult(Services());
+                case "FindRecordings":
+                    stop.Cancel();
+                    return Task.FromResult(Token("recordings"));
+                case "EndSearch":
+                    ended = true;
+                    Assert.False(token.IsCancellationRequested);
+                    return Task.FromResult(new XElement("EndSearchResponse"));
+                default:
+                    throw new InvalidOperationException();
             }
         });
+
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             service.SearchAsync(2, "source2", ["profile2"], Day, Day.AddHours(1), stop.Token));
         Assert.True(ended);
     }
 
-    private static Device Device() => new() { Host = "recorder", Protocol = DeviceProtocol.Onvif,
-        Channels = [new Channel { Number = 1 }, new Channel { Number = 2 }] };
+    private static Device Device() => new()
+    {
+        Host = "recorder",
+        Protocol = DeviceProtocol.Onvif,
+        Channels = [new Channel { Number = 1 }, new Channel { Number = 2 }]
+    };
     private static XElement Services() => new("GetServicesResponse", new[] { "search", "replay", "recording" }.Select(name =>
         new XElement("Service", new XElement("Namespace", $"http://www.onvif.org/ver10/{name}/wsdl"),
             new XElement("XAddr", $"http://internal/onvif/{name}"))));
@@ -149,10 +178,12 @@ public sealed class OnvifRecordingServiceTests
         new XElement(Schema + "Event", new XElement(Schema + "SimpleItem", new XAttribute("Name", "IsDataPresent"), new XAttribute("Value", present))));
     private static XElement Events(string state, params XElement[] events) => new("Response",
         new XElement("ResultList", new XElement("SearchState", state), events));
+
     private static XElement Replay(XElement request)
     {
         Assert.Equal("recording2", request.ChildValue("RecordingToken"));
         Assert.Equal("RTSP", request.DescendantsByLocalName("Protocol").Single().Value);
+
         return new XElement("GetReplayUriResponse", new XElement("Uri", "rtsp://internal/archive/two"));
     }
 }

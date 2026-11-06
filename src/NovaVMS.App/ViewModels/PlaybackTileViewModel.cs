@@ -7,10 +7,6 @@ namespace NovaVMS.App.ViewModels;
 public sealed partial class PlaybackTileViewModel : ViewModelBase
 {
     private readonly PlaybackWorkspaceViewModel _workspace;
-    public PlaybackViewModel Playback { get; }
-    public int Number { get; }
-    public CameraReference? Camera { get; internal set; }
-    public string Header => $"{Number}. {Playback.CameraName}";
 
     [ObservableProperty]
     private bool _isSelected;
@@ -18,7 +14,11 @@ public sealed partial class PlaybackTileViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isExportSelected = true;
 
-    partial void OnIsExportSelectedChanged(bool value) => _workspace.RefreshExportSelection();
+    public PlaybackViewModel Playback { get; }
+    public int Number { get; }
+    public CameraReference? Camera { get; internal set; }
+
+    public string Header => $"{Number}. {Playback.CameraName}";
 
     public PlaybackTileViewModel(int number, PlaybackViewModel playback, PlaybackWorkspaceViewModel workspace)
     {
@@ -27,9 +27,14 @@ public sealed partial class PlaybackTileViewModel : ViewModelBase
         _workspace = workspace;
         Playback.PropertyChanged += (_, args) =>
         {
-            if (args.PropertyName == nameof(PlaybackViewModel.CameraName)) OnPropertyChanged(nameof(Header));
+            if (args.PropertyName == nameof(PlaybackViewModel.CameraName))
+            {
+                OnPropertyChanged(nameof(Header));
+            }
         };
     }
+
+    partial void OnIsExportSelectedChanged(bool value) => _workspace.RefreshExportSelection();
 
     [RelayCommand]
     private void Select() => _workspace.SelectTile(this);

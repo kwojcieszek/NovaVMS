@@ -21,9 +21,14 @@ internal sealed class NativeStreamLifetime : IDisposable
         _opening = Task.Run(async () =>
         {
             await _start.Task.ConfigureAwait(false);
+
             return _stop.IsCancellationRequested ? -1 : await open(_stop.Token).ConfigureAwait(false);
         });
-        if (startImmediately) Start();
+
+        if (startImmediately)
+        {
+            Start();
+        }
     }
 
     public void Start() => _start.TrySetResult();
@@ -31,12 +36,14 @@ internal sealed class NativeStreamLifetime : IDisposable
     public void Dispose()
     {
         Task closing;
+
         lock (_gate)
         {
             // Release readers and blocked producer callbacks before waiting for native Stop.
             _closing ??= CloseAsync();
             closing = _closing;
         }
+
         closing.GetAwaiter().GetResult();
     }
 
@@ -47,13 +54,24 @@ internal sealed class NativeStreamLifetime : IDisposable
             _complete();
             _stop.Cancel();
             _start.TrySetResult();
+
             var handle = await _opening.ConfigureAwait(false);
-            if (handle >= 0) _close(handle);
+
+            if (handle >= 0)
+            {
+                _close(handle);
+            }
         }
         finally
         {
-            try { _cleanup(); }
-            finally { _stop.Dispose(); }
+            try
+            {
+                _cleanup();
+            }
+            finally
+            {
+                _stop.Dispose();
+            }
         }
     }
 }

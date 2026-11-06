@@ -11,13 +11,6 @@ public sealed class StreamModeOption : ObservableObject
 {
     private readonly string _labelKey;
 
-    private StreamModeOption(GridStreamMode value, string labelKey)
-    {
-        Value = value;
-        _labelKey = labelKey;
-        Localizer.Instance.LanguageChanged += (_, _) => OnPropertyChanged(nameof(Label));
-    }
-
     public static IReadOnlyList<StreamModeOption> All { get; } = new List<StreamModeOption>
     {
         new(GridStreamMode.Auto, "Stream_Auto"),
@@ -28,6 +21,13 @@ public sealed class StreamModeOption : ObservableObject
     public GridStreamMode Value { get; }
 
     public string Label => Localizer.Text(_labelKey);
+
+    private StreamModeOption(GridStreamMode value, string labelKey)
+    {
+        Value = value;
+        _labelKey = labelKey;
+        Localizer.Instance.LanguageChanged += (_, _) => OnPropertyChanged(nameof(Label));
+    }
 
     public static StreamModeOption Find(GridStreamMode value)
     {

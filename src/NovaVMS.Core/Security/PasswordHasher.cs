@@ -28,6 +28,7 @@ public static class PasswordHasher
     public static bool Verify(UserAccount user, string password)
     {
         ArgumentNullException.ThrowIfNull(user);
+
         if (password is null || !user.HasPassword || user.PasswordIterations <= 0)
         {
             return false;
@@ -37,6 +38,7 @@ public static class PasswordHasher
         {
             var expected = Convert.FromBase64String(user.PasswordHash);
             var actual = Derive(password, Convert.FromBase64String(user.PasswordSalt), user.PasswordIterations);
+
             return CryptographicOperations.FixedTimeEquals(expected, actual);
         }
         catch (FormatException)

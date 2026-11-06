@@ -13,13 +13,21 @@ internal static class Program
             UnhandledExceptionLogger.Install();
             // An installer holds this file exclusively until all replacement/rollback work is complete.
             var updateLock = Path.Combine(AppContext.BaseDirectory, ".novavms-update.lock");
+
             if (File.Exists(updateLock))
-                using (new FileStream(updateLock, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) { }
+            {
+                using (new FileStream(updateLock, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                }
+            }
+
             // Two instances would compete for device connections and overwrite each other's configuration.
             using var instance = SingleInstance.TryAcquire();
+
             if (instance is null)
             {
                 SingleInstance.ActivateRunningInstance();
+
                 return;
             }
 
@@ -29,6 +37,7 @@ internal static class Program
         {
             UnhandledExceptionLogger.LogStartupFailure(exception);
             FatalErrorNotice.Show();
+
             Environment.ExitCode = 1;
         }
     }

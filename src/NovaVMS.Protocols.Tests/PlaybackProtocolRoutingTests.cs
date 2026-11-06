@@ -17,6 +17,7 @@ public sealed class PlaybackProtocolRoutingTests
     {
         var factory = new DeviceClientFactory();
         using var client = factory.Create(new Device { Host = "recorder", Protocol = protocol });
+
         Assert.IsType(expected, client);
     }
 
@@ -26,6 +27,7 @@ public sealed class PlaybackProtocolRoutingTests
         using IDeviceClient client = new IsapiDeviceClient(new Device { Host = "recorder", RtspPort = 8554 });
         var start = new DateTime(2026, 10, 20, 8, 30, 0);
         var source = await client.GetPlaybackSourceAsync(3, start, start.AddHours(1));
+
         Assert.False(source.IsStream);
         Assert.Equal("recorder", source.Uri!.Host);
         Assert.Equal(8554, source.Uri.Port);

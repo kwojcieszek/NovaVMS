@@ -26,12 +26,14 @@ public partial class BusyWindow : Window
     public void Finish()
     {
         _canClose = true;
+
         Close();
     }
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
         e.Cancel = !_canClose;
+
         base.OnClosing(e);
     }
 }

@@ -1,8 +1,8 @@
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using NovaVMS.App.ViewModels;
-using System.ComponentModel;
 
 namespace NovaVMS.App.Views;
 
@@ -13,6 +13,7 @@ public partial class PlaybackTileView : UserControl
     public PlaybackTileView()
     {
         InitializeComponent();
+
         PrimaryVideo.AttachedToVisualTree += OnVideoAttached;
         SecondaryVideo.AttachedToVisualTree += OnVideoAttached;
         VideoHost.LayoutUpdated += (_, _) => UpdateSurfaceOrder();
@@ -20,16 +21,29 @@ public partial class PlaybackTileView : UserControl
 
     protected override void OnDataContextChanged(EventArgs e)
     {
-        if (_playback is not null) _playback.PropertyChanged -= OnPlaybackChanged;
+        if (_playback is not null)
+        {
+            _playback.PropertyChanged -= OnPlaybackChanged;
+        }
+
         base.OnDataContextChanged(e);
+
         _playback = (DataContext as PlaybackTileViewModel)?.Playback;
-        if (_playback is not null) _playback.PropertyChanged += OnPlaybackChanged;
+
+        if (_playback is not null)
+        {
+            _playback.PropertyChanged += OnPlaybackChanged;
+        }
+
         UpdateSurfaceOrder();
     }
 
     private void OnPlaybackChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(PlaybackViewModel.IsPrimaryPlayerActive)) UpdateSurfaceOrder();
+        if (e.PropertyName == nameof(PlaybackViewModel.IsPrimaryPlayerActive))
+        {
+            UpdateSurfaceOrder();
+        }
     }
 
     private void OnVideoAttached(object? sender, VisualTreeAttachmentEventArgs e) =>
@@ -37,11 +51,18 @@ public partial class PlaybackTileView : UserControl
 
     private void UpdateSurfaceOrder()
     {
-        if (_playback?.PrimaryPlayer is not { } primary || _playback.SecondaryPlayer is not { } secondary) return;
+        if (_playback?.PrimaryPlayer is not { } primary || _playback.SecondaryPlayer is not { } secondary)
+        {
+            return;
+        }
+
         PrimaryVideo.ZIndex = _playback.IsPrimaryPlayerActive ? 1 : 0;
         SecondaryVideo.ZIndex = _playback.IsPrimaryPlayerActive ? 0 : 1;
+
         if (OperatingSystem.IsWindows())
+        {
             NativeVideoSurfaceOrder.ShowInFront(_playback.IsPrimaryPlayerActive ? primary.Hwnd : secondary.Hwnd,
                 _playback.IsPrimaryPlayerActive ? secondary.Hwnd : primary.Hwnd);
+        }
     }
 }

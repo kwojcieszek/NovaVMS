@@ -12,6 +12,7 @@ internal sealed class MemorySyncOptionsStore(SettingsSyncOptions options) : ISet
     public Task SaveAsync(SettingsSyncOptions options, CancellationToken cancellationToken = default)
     {
         Options = options.Copy();
+
         return Task.CompletedTask;
     }
 }

@@ -5,6 +5,8 @@ namespace NovaVMS.Core.Exceptions;
 /// </summary>
 public sealed class SettingsSyncException : Exception
 {
+    public SettingsSyncFailure Failure { get; }
+
     public SettingsSyncException(SettingsSyncFailure failure, string message)
         : base(message)
     {
@@ -16,6 +18,4 @@ public sealed class SettingsSyncException : Exception
     {
         Failure = failure;
     }
-
-    public SettingsSyncFailure Failure { get; }
 }

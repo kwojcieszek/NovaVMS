@@ -65,6 +65,20 @@ public sealed partial class SyncSettingsViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _statusText;
 
+    public SettingsSyncService Sync => _sync;
+
+    public IReadOnlyList<DatabaseTypeOption> DatabaseTypes => DatabaseTypeOption.All;
+
+    public ObservableCollection<SettingsVersionRowViewModel> Versions { get; } = new();
+
+    public decimal MinimumCheckInterval => SettingsSyncService.MinCheckIntervalMinutes;
+
+    public decimal MaximumCheckInterval => SettingsSyncService.MaxCheckIntervalMinutes;
+
+    public decimal MinimumRetainedVersions => SettingsSyncService.MinRetainedVersions;
+
+    public decimal MaximumRetainedVersions => SettingsSyncService.MaxRetainedVersions;
+
     public SyncSettingsViewModel(SettingsSyncService sync, IDialogService dialogs)
     {
         _sync = sync;
@@ -88,25 +102,12 @@ public sealed partial class SyncSettingsViewModel : ViewModelBase, IDisposable
 
         _sync.PropertyChanged += OnSyncPropertyChanged;
         _sync.VersionsChanged += OnVersionsChanged;
+
         if (_sync.IsActive)
         {
             _ = RefreshAsync();
         }
     }
-
-    public SettingsSyncService Sync => _sync;
-
-    public IReadOnlyList<DatabaseTypeOption> DatabaseTypes => DatabaseTypeOption.All;
-
-    public ObservableCollection<SettingsVersionRowViewModel> Versions { get; } = new();
-
-    public decimal MinimumCheckInterval => SettingsSyncService.MinCheckIntervalMinutes;
-
-    public decimal MaximumCheckInterval => SettingsSyncService.MaxCheckIntervalMinutes;
-
-    public decimal MinimumRetainedVersions => SettingsSyncService.MinRetainedVersions;
-
-    public decimal MaximumRetainedVersions => SettingsSyncService.MaxRetainedVersions;
 
     public void Dispose()
     {
@@ -128,17 +129,20 @@ public sealed partial class SyncSettingsViewModel : ViewModelBase, IDisposable
     private async Task SaveAsync()
     {
         var options = BuildOptions();
+
         if (options.Enabled)
         {
             if (!options.IsComplete)
             {
                 StatusText = Localizer.Text("Sync_MissingFields");
+
                 return;
             }
 
             if (!string.Equals(EncryptionPassword, EncryptionPasswordConfirm, StringComparison.Ordinal))
             {
                 StatusText = Localizer.Text("Sync_PasswordsMismatch");
+
                 return;
             }
         }
@@ -151,10 +155,12 @@ public sealed partial class SyncSettingsViewModel : ViewModelBase, IDisposable
         if (!options.Enabled)
         {
             Versions.Clear();
+
             return;
         }
 
         var (connected, latest) = await _sync.ConnectAsync();
+
         if (!connected)
         {
             return;
@@ -176,6 +182,7 @@ public sealed partial class SyncSettingsViewModel : ViewModelBase, IDisposable
             // A first connection must not silently replace the settings of this computer.
             var message = Localizer.Format("Sync_ExistingConfirm",
                 latest.CreatedAt.ToLocalTime().ToString("g", Localizer.Instance.Culture), latest.MachineName, latest.IpAddress);
+
             if (await _dialogs.ConfirmAsync(Localizer.Text("Sync_ExistingTitle"), message))
             {
                 await _sync.ApplyVersionAsync(latest);
@@ -183,6 +190,7 @@ public sealed partial class SyncSettingsViewModel : ViewModelBase, IDisposable
             else
             {
                 await _sync.MarkKnownAsync(latest.Id);
+
                 if (options.AutoUpload)
                 {
                     await _sync.UploadAsync();
@@ -210,16 +218,20 @@ public sealed partial class SyncSettingsViewModel : ViewModelBase, IDisposable
     private async Task RefreshAsync()
     {
         var versions = await _sync.ListVersionsAsync();
+
         if (_isDisposed || versions is null)
         {
             return;
         }
 
         var selectedId = SelectedVersion?.Id;
+
         Versions.Clear();
+
         for (var index = 0; index < versions.Count; index++)
         {
             var version = versions[index];
+
             Versions.Add(new SettingsVersionRowViewModel(version, index == 0, version.InstanceId == _sync.InstanceId));
         }
 
@@ -230,6 +242,7 @@ public sealed partial class SyncSettingsViewModel : ViewModelBase, IDisposable
     private async Task ApplyVersionAsync()
     {
         var version = SelectedVersion?.Info;
+
         if (version is null)
         {
             return;
@@ -237,6 +250,7 @@ public sealed partial class SyncSettingsViewModel : ViewModelBase, IDisposable
 
         var message = Localizer.Format("Sync_ApplyConfirm", version.Id,
             version.CreatedAt.ToLocalTime().ToString("g", Localizer.Instance.Culture), version.MachineName);
+
         if (!await _dialogs.ConfirmAsync(Localizer.Text("Sync_ApplyTitle"), message))
         {
             return;
@@ -262,6 +276,7 @@ public sealed partial class SyncSettingsViewModel : ViewModelBase, IDisposable
         options.CheckIntervalMinutes = (int)(CheckIntervalMinutes ?? SettingsSyncOptions.DefaultCheckIntervalMinutes);
         options.AutoUpload = AutoUpload;
         options.RetainedVersions = (int)(RetainedVersions ?? SettingsSyncOptions.DefaultRetainedVersions);
+
         return options;
     }
 

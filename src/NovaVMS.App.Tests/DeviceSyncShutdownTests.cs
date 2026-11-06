@@ -26,9 +26,11 @@ public sealed class DeviceSyncShutdownTests
         var sync = new DeviceSyncService(configuration, factory);
         var operation = sync.TrySyncAsync(device);
         var token = await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
         try
         {
             var shutdown = sync.ShutdownAsync();
+
             Assert.True(token.IsCancellationRequested);
             Assert.False(shutdown.IsCompleted);
             Assert.False(Assert.Single(factory.Created).IsDisposed);
@@ -41,6 +43,7 @@ public sealed class DeviceSyncShutdownTests
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => operation);
             await sync.ShutdownAsync().WaitAsync(TimeSpan.FromSeconds(5));
         }
+
         Assert.True(Assert.Single(factory.Created).IsDisposed);
     }
 
@@ -49,6 +52,7 @@ public sealed class DeviceSyncShutdownTests
     {
         var configuration = new ConfigurationService(new MemoryConfigurationStore(new AppConfiguration()), new JsonConfigurationSerializer());
         var sync = new DeviceSyncService(configuration, new FakeDeviceClientFactory());
+
         Assert.False((await sync.TrySyncAsync(new Device())).Success);
         await sync.ShutdownAsync().WaitAsync(TimeSpan.FromSeconds(5));
         await sync.ShutdownAsync().WaitAsync(TimeSpan.FromSeconds(5));
@@ -68,14 +72,20 @@ public sealed class DeviceSyncShutdownTests
                 ConfigureClient = client => client.ReadInfo = async token =>
                 {
                     await Task.Delay(Timeout.Infinite, token);
+
                     return new DeviceInfo();
                 }
             };
             var sync = new DeviceSyncService(configuration, factory);
             var operations = Enumerable.Range(0, deviceCount).Select(_ => sync.TrySyncAsync(new Device())).ToArray();
+
             await sync.ShutdownAsync().WaitAsync(TimeSpan.FromSeconds(5));
+
             foreach (var operation in operations)
+            {
                 await Assert.ThrowsAnyAsync<OperationCanceledException>(() => operation);
+            }
+
             Assert.Equal(deviceCount, factory.Created.Count);
             Assert.All(factory.Created, client => Assert.True(client.IsDisposed));
         }

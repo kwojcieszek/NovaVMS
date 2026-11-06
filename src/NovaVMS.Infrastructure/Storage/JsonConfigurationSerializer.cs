@@ -29,6 +29,7 @@ public sealed class JsonConfigurationSerializer : IConfigurationSerializer
         ArgumentNullException.ThrowIfNull(stream);
 
         var configuration = await JsonSerializer.DeserializeAsync<AppConfiguration>(stream, SerializerOptions, cancellationToken).ConfigureAwait(false);
+
         return configuration ?? new AppConfiguration();
     }
 }

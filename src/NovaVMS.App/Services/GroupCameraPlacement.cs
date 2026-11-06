@@ -11,12 +11,22 @@ internal static class GroupCameraPlacement
         // Previously saved tile positions must not override it.
         var result = new CameraReference?[current.Count];
         using var next = cameras.Distinct().GetEnumerator();
+
         for (var index = 0; index < result.Length; index++)
         {
-            if (emptySlots.Contains(index)) continue;
-            if (!next.MoveNext()) break;
+            if (emptySlots.Contains(index))
+            {
+                continue;
+            }
+
+            if (!next.MoveNext())
+            {
+                break;
+            }
+
             result[index] = next.Current;
         }
+
         return result;
     }
 }

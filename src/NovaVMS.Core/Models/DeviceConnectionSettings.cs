@@ -18,6 +18,7 @@ public sealed class DeviceConnectionSettings
     {
         var copy = (DeviceConnectionSettings)MemberwiseClone();
         copy.Channels = Channels.Select(channel => channel.Copy()).ToList();
+
         return copy;
     }
 }

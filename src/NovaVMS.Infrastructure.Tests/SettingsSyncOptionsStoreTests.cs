@@ -24,7 +24,11 @@ public sealed class SettingsSyncOptionsStoreTests : IDisposable
     [Fact]
     public async Task SavedOptionsAreEncryptedAndRoundTrip()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
         var options = new SettingsSyncOptions
         {
             Enabled = true,
@@ -41,6 +45,7 @@ public sealed class SettingsSyncOptionsStoreTests : IDisposable
         };
 
         await new SettingsSyncOptionsStore(FilePath, new ConfigurationProtection()).SaveAsync(options);
+
         var text = Encoding.UTF8.GetString(await File.ReadAllBytesAsync(FilePath));
         var restored = await new SettingsSyncOptionsStore(FilePath, new ConfigurationProtection()).LoadAsync();
 

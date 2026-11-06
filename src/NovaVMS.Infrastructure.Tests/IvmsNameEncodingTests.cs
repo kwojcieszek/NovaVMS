@@ -17,11 +17,16 @@ public sealed class IvmsNameEncodingTests
     {
         // SQLite's TEXT conversion is lossy for these iVMS values. CAST AS BLOB preserves them.
         using var connection = new SqliteConnection("Data Source=:memory:");
+
         connection.Open();
+
         using var command = connection.CreateCommand();
         command.CommandText = "CREATE TABLE HikDevice(Name TEXT); INSERT INTO HikDevice VALUES(CAST($name AS TEXT)); SELECT CAST(Name AS BLOB) FROM HikDevice;";
+
         command.Parameters.AddWithValue("$name", Convert.FromHexString(hex));
+
         var bytes = (byte[])command.ExecuteScalar()!;
+
         Assert.Equal(expected, IvmsDeviceReader.DecodeName(bytes));
     }
 
@@ -41,13 +46,18 @@ public sealed class IvmsNameEncodingTests
     public void LegacyDecodingDoesNotDependOnSystemCulture(string culture)
     {
         var original = CultureInfo.CurrentCulture;
+
         try
         {
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
             var encoding = CodePagesEncodingProvider.Instance.GetEncoding(1250)!;
             const string name = "Zażółć gęślą jaźń ĄĆĘŁŃÓŚŹŻ";
+
             Assert.Equal(name, IvmsDeviceReader.DecodeName(encoding.GetBytes(name)));
         }
-        finally { CultureInfo.CurrentCulture = original; }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
     }
 }

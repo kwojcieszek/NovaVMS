@@ -29,6 +29,7 @@ public static class AppDataPaths
     private static string ResolveDataDirectory()
     {
         var overridden = Environment.GetEnvironmentVariable(DataDirectoryVariable);
+
         if (!string.IsNullOrWhiteSpace(overridden))
         {
             return Path.GetFullPath(overridden);

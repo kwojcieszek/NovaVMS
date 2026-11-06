@@ -33,35 +33,6 @@ public sealed class Device
     [JsonIgnore]
     public int ConnectionPort => Protocol == DeviceProtocol.HikvisionSdk ? SdkPort : HttpPort;
 
-    /// <summary>Connection snapshot; the configured primary address is never overwritten.</summary>
-    /// <summary>
-    /// Settings used to connect to the device as one comparable value, to detect a changed connection.
-    /// It contains the credentials: compare it, never log or store it.
-    /// </summary>
-    public string GetConnectionSignature()
-    {
-        return string.Join("|", Id, Protocol, Host, SecondaryHost, SecondaryPort, SecondaryRtspPort, HttpPort, RtspPort, SdkPort, UseHttps, Username, Password);
-    }
-
-    public Device ForHost(string host)
-    {
-        var copy = (Device)MemberwiseClone();
-        copy.Host = host;
-        return copy;
-    }
-
-    public Device ForConnection(string host, int port, int? rtspPort = null)
-    {
-        var copy = ForHost(host);
-        if (Protocol == DeviceProtocol.HikvisionSdk) copy.SdkPort = port;
-        else copy.HttpPort = port;
-        copy.RtspPortOverride = rtspPort;
-        copy.RtspPort = rtspPort ?? RtspPort;
-        return copy;
-    }
-
-    public Device ForSecondaryAddress() => ForConnection(SecondaryHost.Trim(), SecondaryPort ?? ConnectionPort, SecondaryRtspPort);
-
     public int HttpPort { get; set; } = 80;
 
     public int RtspPort { get; set; } = 554;
@@ -87,26 +58,6 @@ public sealed class Device
 
     public DeviceConnectionSettings? OptionalConnection { get; set; }
 
-    public Device ForProtocol(bool useOptional)
-    {
-        var copy = ForHost(Host);
-        if (useOptional && OptionalConnection is { } optional)
-        {
-            copy.Protocol = optional.Protocol;
-            copy.Host = optional.Host;
-            copy.SecondaryHost = optional.SecondaryHost;
-            copy.SecondaryPort = optional.SecondaryPort;
-            copy.SecondaryRtspPort = optional.SecondaryRtspPort;
-            copy.HttpPort = optional.HttpPort;
-            copy.RtspPort = optional.RtspPort;
-            copy.SdkPort = optional.SdkPort;
-            copy.UseHttps = optional.UseHttps;
-            copy.Channels = optional.Channels.Select(channel => channel.Copy()).ToList();
-        }
-        copy.OptionalConnection = null;
-        return copy;
-    }
-
     public DeviceProtocol Protocol { get; set; } = DeviceProtocol.Isapi;
 
     /// <summary>
@@ -122,4 +73,66 @@ public sealed class Device
 
     [JsonIgnore]
     public string DisplayName => string.IsNullOrWhiteSpace(Name) ? Host : Name;
+
+    /// <summary>Connection snapshot; the configured primary address is never overwritten.</summary>
+    /// <summary>
+    /// Settings used to connect to the device as one comparable value, to detect a changed connection.
+    /// It contains the credentials: compare it, never log or store it.
+    /// </summary>
+    public string GetConnectionSignature()
+    {
+        return string.Join("|", Id, Protocol, Host, SecondaryHost, SecondaryPort, SecondaryRtspPort, HttpPort, RtspPort, SdkPort, UseHttps, Username, Password);
+    }
+
+    public Device ForHost(string host)
+    {
+        var copy = (Device)MemberwiseClone();
+        copy.Host = host;
+
+        return copy;
+    }
+
+    public Device ForConnection(string host, int port, int? rtspPort = null)
+    {
+        var copy = ForHost(host);
+
+        if (Protocol == DeviceProtocol.HikvisionSdk)
+        {
+            copy.SdkPort = port;
+        }
+        else
+        {
+            copy.HttpPort = port;
+        }
+
+        copy.RtspPortOverride = rtspPort;
+        copy.RtspPort = rtspPort ?? RtspPort;
+
+        return copy;
+    }
+
+    public Device ForSecondaryAddress() => ForConnection(SecondaryHost.Trim(), SecondaryPort ?? ConnectionPort, SecondaryRtspPort);
+
+    public Device ForProtocol(bool useOptional)
+    {
+        var copy = ForHost(Host);
+
+        if (useOptional && OptionalConnection is { } optional)
+        {
+            copy.Protocol = optional.Protocol;
+            copy.Host = optional.Host;
+            copy.SecondaryHost = optional.SecondaryHost;
+            copy.SecondaryPort = optional.SecondaryPort;
+            copy.SecondaryRtspPort = optional.SecondaryRtspPort;
+            copy.HttpPort = optional.HttpPort;
+            copy.RtspPort = optional.RtspPort;
+            copy.SdkPort = optional.SdkPort;
+            copy.UseHttps = optional.UseHttps;
+            copy.Channels = optional.Channels.Select(channel => channel.Copy()).ToList();
+        }
+
+        copy.OptionalConnection = null;
+
+        return copy;
+    }
 }

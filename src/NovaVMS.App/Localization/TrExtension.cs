@@ -9,6 +9,8 @@ namespace NovaVMS.App.Localization;
 /// </summary>
 public sealed class TrExtension : MarkupExtension
 {
+    public string Key { get; set; } = string.Empty;
+
     public TrExtension()
     {
     }
@@ -17,8 +19,6 @@ public sealed class TrExtension : MarkupExtension
     {
         Key = key;
     }
-
-    public string Key { get; set; } = string.Empty;
 
     public override object ProvideValue(IServiceProvider serviceProvider)
     {

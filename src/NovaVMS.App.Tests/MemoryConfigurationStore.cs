@@ -12,6 +12,7 @@ internal sealed class MemoryConfigurationStore(AppConfiguration initial) : IConf
     public Task SaveAsync(AppConfiguration configuration, CancellationToken cancellationToken = default)
     {
         Stored = configuration;
+
         return Task.CompletedTask;
     }
 }

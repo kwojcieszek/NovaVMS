@@ -7,6 +7,11 @@ namespace NovaVMS.Core.Exceptions;
 /// </summary>
 public sealed class DeviceCommunicationException : Exception
 {
+    /// <summary>
+    /// HTTP status returned by the device when the failure comes from an HTTP response.
+    /// </summary>
+    public HttpStatusCode? StatusCode { get; }
+
     public DeviceCommunicationException(string message)
         : base(message)
     {
@@ -22,9 +27,4 @@ public sealed class DeviceCommunicationException : Exception
         : base(message, innerException)
     {
     }
-
-    /// <summary>
-    /// HTTP status returned by the device when the failure comes from an HTTP response.
-    /// </summary>
-    public HttpStatusCode? StatusCode { get; }
 }

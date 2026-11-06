@@ -16,8 +16,13 @@ public sealed class PlaybackShuttleTests
     {
         using var vlc = VideoPlayerFactory.CreateRecordingEngine("--vout=dummy", "--aout=dummy", "--avcodec-hw=none");
         var device = new Device { Channels = [new Channel { Number = 1 }] };
-        var configuration = new ConfigurationService(new MemoryConfigurationStore(new() { Devices = [device] }), new JsonConfigurationSerializer());
+        var configuration = new ConfigurationService(new MemoryConfigurationStore(new()
+        {
+            Devices = [device]
+        }), new JsonConfigurationSerializer());
+
         await configuration.LoadAsync();
+
         var bytes = NativePlaybackLifecycleTests.CreateVideo(250);
         using var release = new ManualResetEventSlim();
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -30,26 +35,41 @@ public sealed class PlaybackShuttleTests
                 if (Interlocked.Increment(ref requests) == 2)
                 {
                     entered.TrySetResult();
-                    if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
+
+                    if (!release.Wait(TimeSpan.FromSeconds(10)))
+                    {
+                        throw new TimeoutException();
+                    }
                 }
+
                 var stream = new MemoryStream(bytes);
+
                 streams.Add(stream);
+
                 return stream;
             })
         };
         var playback = new PlaybackViewModel(vlc, configuration, factory, null!, new RecordingExporter(vlc));
         Task? seek = null;
+
         try
         {
             playback.FromTime = null; // Search is independent of this playback transition test.
+
             playback.SetCamera(new CameraReference { DeviceId = device.Id, ChannelNumber = 1 });
+
             playback.FromTime = TimeSpan.Zero;
+
             await playback.SeekCommand.ExecuteAsync(3600d);
+
             var visible = playback.VideoPlayer;
             var activeSide = playback.IsPrimaryPlayerActive;
+
             Assert.True(playback.IsPlaying);
+
             playback.SelectedSpeed = PlaybackSpeedOption.All.Single(option => option.Rate == 4);
             seek = playback.SeekCommand.ExecuteAsync(3660d);
+
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Same(visible, playback.VideoPlayer);
             Assert.Equal(activeSide, playback.IsPrimaryPlayerActive);
@@ -68,10 +88,16 @@ public sealed class PlaybackShuttleTests
         finally
         {
             release.Set();
-            if (seek is not null) await seek;
+
+            if (seek is not null)
+            {
+                await seek;
+            }
+
             playback.Dispose();
             await playback.Disposal;
         }
+
         Assert.Null(playback.VideoPlayer);
         Assert.Null(playback.PrimaryPlayer);
         Assert.Null(playback.SecondaryPlayer);

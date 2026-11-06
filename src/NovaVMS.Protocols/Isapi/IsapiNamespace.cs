@@ -7,7 +7,7 @@ namespace NovaVMS.Protocols.Isapi;
 /// </summary>
 internal static class IsapiNamespace
 {
-    public static readonly XNamespace Value = "http://www.isapi.org/ver20/XMLSchema";
-
     public const string Version = "2.0";
+
+    public static readonly XNamespace Value = "http://www.isapi.org/ver20/XMLSchema";
 }

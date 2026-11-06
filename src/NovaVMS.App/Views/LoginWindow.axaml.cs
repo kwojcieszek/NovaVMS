@@ -27,6 +27,7 @@ public partial class LoginWindow : Window
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
+
         if (string.IsNullOrEmpty(UserNameBox.Text))
         {
             UserNameBox.Focus();
@@ -49,7 +50,9 @@ public partial class LoginWindow : Window
             ErrorText.Text = Localizer.Text("Login_Failed");
             ErrorText.IsVisible = true;
             PasswordBox.Text = string.Empty;
+
             PasswordBox.Focus();
+
             return;
         }
 

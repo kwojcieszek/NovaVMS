@@ -15,11 +15,14 @@ public sealed class LiveSourceLoaderTests
         var slowDevice = new Device();
         var factory = new BlockingFactory(slowDevice.Id, entered, release);
         var slow = LiveSourceLoader.OpenAsync(factory, slowDevice, 1, StreamType.Sub, CancellationToken.None);
+
         try
         {
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.False(slow.IsCompleted);
+
             var fast = LiveSourceLoader.OpenAsync(factory, new Device(), 1, StreamType.Sub, CancellationToken.None);
+
             await Assert.ThrowsAsync<ProbeException>(() => fast.WaitAsync(TimeSpan.FromSeconds(5)));
             Assert.False(slow.IsCompleted);
         }
@@ -38,13 +41,16 @@ public sealed class LiveSourceLoaderTests
         var device = new Device();
         var factory = new BlockingFactory(device.Id, entered, release);
         using var cancellation = new CancellationTokenSource();
+
         cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             LiveSourceLoader.OpenAsync(factory, device, 1, StreamType.Sub, cancellation.Token));
         Assert.False(entered.Task.IsCompleted);
     }
 
-    private sealed class ProbeException : Exception { }
+    private sealed class ProbeException : Exception
+    {
+    }
 
     // Uses the interface's synchronous CreateAsync fallback, the case that previously
     // could keep the UI loop from dispatching the next tile's opening.
@@ -56,8 +62,13 @@ public sealed class LiveSourceLoaderTests
             if (device.Id == slowId)
             {
                 entered.TrySetResult();
-                if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
+
+                if (!release.Wait(TimeSpan.FromSeconds(10)))
+                {
+                    throw new TimeoutException();
+                }
             }
+
             throw new ProbeException();
         }
     }

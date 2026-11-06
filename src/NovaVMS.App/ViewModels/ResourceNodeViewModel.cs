@@ -14,13 +14,13 @@ public abstract partial class ResourceNodeViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isActive;
 
+    public ResourceTreeViewModel Owner { get; }
+
+    public string Name { get; }
+
     protected ResourceNodeViewModel(ResourceTreeViewModel owner, string name)
     {
         Owner = owner;
         Name = name;
     }
-
-    public ResourceTreeViewModel Owner { get; }
-
-    public string Name { get; }
 }

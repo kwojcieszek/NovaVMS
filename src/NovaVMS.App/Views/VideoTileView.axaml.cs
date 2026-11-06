@@ -1,13 +1,13 @@
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using NovaVMS.App.Models;
 using NovaVMS.App.ViewModels;
-using System.ComponentModel;
-using Avalonia.Media;
 
 namespace NovaVMS.App.Views;
 
@@ -23,6 +23,7 @@ public partial class VideoTileView : UserControl
     // Double-clicks are detected here rather than with DoubleTapped: selecting the tile on the first
     // click re-lays out the overlay window, which resets Avalonia's own click counting.
     private ulong? _lastPressTimestamp;
+
     private PixelPoint _lastPressPosition;
     private IPointer? _lastPointer;
     private VideoTileViewModel? _tile;
@@ -56,13 +57,27 @@ public partial class VideoTileView : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (!ReferenceEquals(_tile, DataContext)) ResetDoubleClick();
-        if (_tile is not null) _tile.PropertyChanged -= OnTilePropertyChanged;
+
+        if (!ReferenceEquals(_tile, DataContext))
+        {
+            ResetDoubleClick();
+        }
+
+        if (_tile is not null)
+        {
+            _tile.PropertyChanged -= OnTilePropertyChanged;
+        }
+
         _tile = DataContext as VideoTileViewModel;
-        if (_tile is not null) _tile.PropertyChanged += OnTilePropertyChanged;
+
+        if (_tile is not null)
+        {
+            _tile.PropertyChanged += OnTilePropertyChanged;
+        }
 
         // The overlay is hosted in a separate window, so it does not inherit the data context.
         VideoOverlay.DataContext = DataContext;
+
         UpdateOverlayWindow();
 
         if (AreVideosAttached())
@@ -71,25 +86,15 @@ public partial class VideoTileView : UserControl
         }
     }
 
-    private void OnTilePropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(VideoTileViewModel.IsVisibleInGrid)) UpdateOverlayWindow();
-        if (e.PropertyName == nameof(VideoTileViewModel.IsPrimaryPlayerActive)) UpdateSurfaceOrder();
-    }
-
-    private void UpdateSurfaceOrder()
-    {
-        if (!OperatingSystem.IsWindows() || _tile is not { PrimaryPlayer: { } primary, SecondaryPlayer: { } secondary } tile)
-            return;
-        NativeVideoSurfaceOrder.ShowInFront(
-            tile.IsPrimaryPlayerActive ? primary.Hwnd : secondary.Hwnd,
-            tile.IsPrimaryPlayerActive ? secondary.Hwnd : primary.Hwnd);
-    }
-
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+
+        if (TopLevel.GetTopLevel(this) is not Window owner)
+        {
+            return;
+        }
+
         _ownerWindow = owner;
         owner.LayoutUpdated += OnOwnerLayoutUpdated;
         owner.PositionChanged += OnOwnerPositionChanged;
@@ -99,12 +104,65 @@ public partial class VideoTileView : UserControl
         Dispatcher.UIThread.Post(RestoreOverlayWindow, DispatcherPriority.Loaded);
     }
 
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        ResetDoubleClick();
+
+        if (_ownerWindow is { } owner)
+        {
+            owner.LayoutUpdated -= OnOwnerLayoutUpdated;
+            owner.PositionChanged -= OnOwnerPositionChanged;
+            owner.PropertyChanged -= OnOwnerPropertyChanged;
+        }
+
+        CloseOverlayWindow();
+
+        _ownerWindow = null;
+
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    private void OnTilePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(VideoTileViewModel.IsVisibleInGrid))
+        {
+            UpdateOverlayWindow();
+        }
+
+        if (e.PropertyName == nameof(VideoTileViewModel.IsPrimaryPlayerActive))
+        {
+            UpdateSurfaceOrder();
+        }
+    }
+
+    private void UpdateSurfaceOrder()
+    {
+        if (!OperatingSystem.IsWindows() || _tile is not { PrimaryPlayer: { } primary, SecondaryPlayer: { } secondary } tile)
+        {
+            return;
+        }
+
+        NativeVideoSurfaceOrder.ShowInFront(
+            tile.IsPrimaryPlayerActive ? primary.Hwnd : secondary.Hwnd,
+            tile.IsPrimaryPlayerActive ? secondary.Hwnd : primary.Hwnd);
+    }
+
     private void RestoreOverlayWindow()
     {
         if (_ownerWindow is not { } owner || !this.IsAttachedToVisualTree()
             || owner.WindowState == WindowState.Minimized
-            || owner.GetValue(ModalDialog.DepthProperty) > 0) return;
-        if (_overlayWindow is not null) { UpdateOverlayWindow(); return; }
+            || owner.GetValue(ModalDialog.DepthProperty) > 0)
+        {
+            return;
+        }
+
+        if (_overlayWindow is not null)
+        {
+            UpdateOverlayWindow();
+
+            return;
+        }
+
         _overlayWindow = new VideoOverlayWindow
         {
             SystemDecorations = SystemDecorations.None,
@@ -122,72 +180,82 @@ public partial class VideoTileView : UserControl
         // window itself rather than VideoOverlay (for example during a layout update).
         _overlayWindow.AddHandler(PointerPressedEvent, OnTilePointerPressed,
             RoutingStrategies.Tunnel, handledEventsToo: true);
+
         _overlayWindow.PositionChanged += OnOverlayPositionChanged;
         _overlayWindow.SizeChanged += OnOverlaySizeChanged;
+
         UpdateOverlayWindow();
     }
 
     private void OnOverlayPositionChanged(object? sender, PixelPointEventArgs e) => QueueOverlayUpdate();
+
     private void OnOverlaySizeChanged(object? sender, SizeChangedEventArgs e) => QueueOverlayUpdate();
 
     private void QueueOverlayUpdate()
     {
-        if (_overlayUpdateQueued) return;
+        if (_overlayUpdateQueued)
+        {
+            return;
+        }
+
         _overlayUpdateQueued = true;
         // Native moves/resizes can arrive outside the owner's layout pass. Finish the current
         // notification before correcting geometry, including changes made by our own update.
         Dispatcher.UIThread.Post(() =>
         {
             _overlayUpdateQueued = false;
+
             UpdateOverlayWindow();
         }, DispatcherPriority.Loaded);
-    }
-
-    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
-    {
-        ResetDoubleClick();
-        if (_ownerWindow is { } owner)
-        {
-            owner.LayoutUpdated -= OnOwnerLayoutUpdated;
-            owner.PositionChanged -= OnOwnerPositionChanged;
-            owner.PropertyChanged -= OnOwnerPropertyChanged;
-        }
-        CloseOverlayWindow();
-        _ownerWindow = null;
-        base.OnDetachedFromVisualTree(e);
     }
 
     private void CloseOverlayWindow()
     {
         var overlay = _overlayWindow;
         _overlayWindow = null;
+
         if (overlay is not null)
         {
             overlay.RemoveHandler(PointerPressedEvent, OnTilePointerPressed);
+
             overlay.PositionChanged -= OnOverlayPositionChanged;
             overlay.SizeChanged -= OnOverlaySizeChanged;
             overlay.Content = null;
+
             overlay.Close();
         }
     }
 
     private void OnOwnerLayoutUpdated(object? sender, EventArgs e)
     {
-        if (_ownerWindow?.GetValue(ModalDialog.DepthProperty) == 0) UpdateSurfaceOrder();
+        if (_ownerWindow?.GetValue(ModalDialog.DepthProperty) == 0)
+        {
+            UpdateSurfaceOrder();
+        }
+
         UpdateOverlayWindow();
     }
+
     private void OnOwnerPositionChanged(object? sender, PixelPointEventArgs e) => UpdateOverlayWindow();
+
     private void OnOwnerPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
         if (e.Property == ModalDialog.DepthProperty)
         {
             ResetDoubleClick();
+
             if (_ownerWindow?.GetValue(ModalDialog.DepthProperty) > 0)
+            {
                 CloseOverlayWindow();
+            }
             else
+            {
                 Dispatcher.UIThread.Post(RestoreOverlayWindow, DispatcherPriority.Loaded);
+            }
+
             return;
         }
+
         if (e.Property == Window.WindowStateProperty)
         {
             if (_ownerWindow?.WindowState == WindowState.Minimized)
@@ -200,15 +268,23 @@ public partial class VideoTileView : UserControl
                 // Recreate the owned input window after the native owner has finished restoring.
                 Dispatcher.UIThread.Post(RestoreOverlayWindow, DispatcherPriority.Loaded);
             }
+
             return;
         }
+
         if (e.Property == IsVisibleProperty || e.Property == OpacityProperty)
+        {
             UpdateOverlayWindow();
+        }
     }
 
     private void UpdateOverlayWindow()
     {
-        if (_overlayWindow is not { } overlay || _ownerWindow is not { } owner) return;
+        if (_overlayWindow is not { } overlay || _ownerWindow is not { } owner)
+        {
+            return;
+        }
+
         if (!this.IsAttachedToVisualTree() || !VideoHost.IsAttachedToVisualTree()
             || !ReferenceEquals(TopLevel.GetTopLevel(VideoHost), owner)
             || !IsEffectivelyVisible || _tile?.IsVisibleInGrid == false
@@ -221,25 +297,40 @@ public partial class VideoTileView : UserControl
                 ResetDoubleClick();
                 overlay.Hide();
             }
+
             return;
         }
+
         // Set the full tile bounds before the first Show. Keep this same window mapped across
         // SUB/MAIN handovers instead of letting each VideoView open a SizeToContent window.
         var size = VideoHost.Bounds.Size;
         var position = VideoHost.PointToScreen(default);
+
         // Compare the actual window geometry: Windows can move/resize an owned window
         // independently. A cache of our last request can leave input over the wrong camera.
         // Avoid redundant native moves, which can disrupt a click already in progress.
-        if (overlay.Width != size.Width) overlay.Width = size.Width;
-        if (overlay.Height != size.Height) overlay.Height = size.Height;
+        if (overlay.Width != size.Width)
+        {
+            overlay.Width = size.Width;
+        }
+
+        if (overlay.Height != size.Height)
+        {
+            overlay.Height = size.Height;
+        }
 
         overlay.Opacity = owner.Opacity;
+
         if (position != overlay.Position)
         {
             overlay.Position = position;
         }
 
-        if (!overlay.IsVisible) overlay.Show(owner);
+        if (!overlay.IsVisible)
+        {
+            overlay.Show(owner);
+        }
+
         _tile?.SetVideoSize(size.Width * owner.RenderScaling, size.Height * owner.RenderScaling);
     }
 
@@ -281,9 +372,11 @@ public partial class VideoTileView : UserControl
         {
             return;
         }
+
         if (e.GetCurrentPoint(null).Properties.PointerUpdateKind != PointerUpdateKind.LeftButtonPressed)
         {
             ResetDoubleClick();
+
             return;
         }
 
@@ -312,8 +405,10 @@ public partial class VideoTileView : UserControl
             _lastPressTimestamp = e.Timestamp;
             _lastPressPosition = position;
             _lastPointer = e.Pointer;
+
             tile.SelectCommand.Execute(null);
         }
+
         e.Handled = true;
     }
 
@@ -339,7 +434,9 @@ public partial class VideoTileView : UserControl
         }
 
         var cameras = CameraDragData.Read(e.DataTransfer);
+
         tile.AcceptDrop(cameras);
+
         e.Handled = true;
     }
 }

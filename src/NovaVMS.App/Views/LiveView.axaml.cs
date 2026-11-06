@@ -19,7 +19,7 @@ public partial class LiveView : UserControl
             return;
         }
 
-        if(window.WindowState != WindowState.FullScreen)
+        if (window.WindowState != WindowState.FullScreen)
         {
             _lastWindowState = window.WindowState;
         }

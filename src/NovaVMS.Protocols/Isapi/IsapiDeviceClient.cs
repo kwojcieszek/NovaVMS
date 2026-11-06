@@ -1,7 +1,7 @@
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
-using NovaVMS.Protocols.Resources;
 using NovaVMS.Protocols.HcNetSdk;
+using NovaVMS.Protocols.Resources;
 
 namespace NovaVMS.Protocols.Isapi;
 
@@ -41,6 +41,7 @@ public sealed class IsapiDeviceClient : IDeviceClient
     public Task<byte[]> GetSnapshotAsync(int channelNumber, CancellationToken cancellationToken = default)
     {
         var streamId = IsapiStreamId.Track(channelNumber);
+
         return _transport.GetBytesAsync($"ISAPI/Streaming/channels/{streamId}/picture", cancellationToken);
     }
 
@@ -48,6 +49,7 @@ public sealed class IsapiDeviceClient : IDeviceClient
     {
         var streamId = IsapiStreamId.Build(channelNumber, streamType);
         var uri = new UriBuilder("rtsp", _device.Host, _device.RtspPort, $"/Streaming/Channels/{streamId}").Uri;
+
         return string.IsNullOrEmpty(_device.StreamEncryptionKey) ? VideoSource.FromUri(uri)
             : HikvisionRtspVideoStream.CreateSource(uri, _device, playback: false);
     }
@@ -64,6 +66,7 @@ public sealed class IsapiDeviceClient : IDeviceClient
         {
             Query = $"starttime={IsapiTime.ToCompact(start)}&endtime={IsapiTime.ToCompact(end)}"
         };
+
         return string.IsNullOrEmpty(_device.StreamEncryptionKey) ? VideoSource.FromUri(builder.Uri)
             : HikvisionRtspVideoStream.CreateSource(builder.Uri, _device, playback: true);
     }
@@ -86,6 +89,7 @@ public sealed class IsapiDeviceClient : IDeviceClient
     public Task GotoPtzPresetAsync(int channelNumber, PtzPreset preset, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(preset);
+
         return _ptz.GotoPresetAsync(channelNumber, preset.Id, cancellationToken);
     }
 

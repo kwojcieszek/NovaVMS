@@ -43,6 +43,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
 
         var manufacturer = response.ChildValue("Manufacturer");
         var model = response.ChildValue("Model");
+
         return new DeviceInfo
         {
             DeviceName = $"{manufacturer} {model}".Trim(),
@@ -94,6 +95,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
             new XElement(OnvifNamespaces.Media + "ProfileToken", channel.ProfileToken));
         var response = await _soap.CallAsync(mediaUri, request, cancellationToken).ConfigureAwait(false);
         var snapshotUri = response.DescendantsByLocalName("Uri").FirstOrDefault()?.Value.Trim();
+
         if (string.IsNullOrEmpty(snapshotUri))
         {
             throw new DeviceCommunicationException(ProtocolText.Get("OnvifNoMedia"));
@@ -116,6 +118,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
 
         // Cached ONVIF addresses can have been discovered using the other network address.
         uri = new UriBuilder(uri) { Host = _device.Host, Port = _device.RtspPortOverride ?? uri.Port }.Uri;
+
         return string.IsNullOrEmpty(_device.StreamEncryptionKey) ? VideoSource.FromUri(uri)
             : NovaVMS.Protocols.HcNetSdk.HikvisionRtspVideoStream.CreateSource(uri, _device, playback: false);
     }
@@ -123,6 +126,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
     public async Task<IReadOnlyList<RecordingSegment>> SearchRecordingsAsync(int channelNumber, DateTime from, DateTime to, CancellationToken cancellationToken = default)
     {
         var (source, profiles) = await GetRecordingProfilesAsync(channelNumber, cancellationToken).ConfigureAwait(false);
+
         return await _recordings.SearchAsync(channelNumber, source, profiles, from, to, cancellationToken).ConfigureAwait(false);
     }
 
@@ -134,16 +138,8 @@ public sealed class OnvifDeviceClient : IDeviceClient
     public async Task<VideoSource> GetPlaybackSourceAsync(int channelNumber, DateTime start, DateTime end, CancellationToken cancellationToken = default)
     {
         var (source, profiles) = await GetRecordingProfilesAsync(channelNumber, cancellationToken).ConfigureAwait(false);
-        return await _recordings.GetSourceAsync(source, profiles, start, end, cancellationToken).ConfigureAwait(false);
-    }
 
-    private async Task<(string Source, IReadOnlyList<string> Profiles)> GetRecordingProfilesAsync(int channelNumber, CancellationToken cancellationToken)
-    {
-        var configured = GetProfileToken(channelNumber);
-        var profiles = await GetProfilesAsync(cancellationToken).ConfigureAwait(false);
-        var source = profiles.FirstOrDefault(profile => profile.Token == configured)?.SourceToken
-            ?? throw new NotSupportedException(ProtocolText.Format("OnvifNoStream", channelNumber));
-        return (source, profiles.Where(profile => profile.SourceToken == source).Select(profile => profile.Token).ToList());
+        return await _recordings.GetSourceAsync(source, profiles, start, end, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task PtzMoveAsync(int channelNumber, int pan, int tilt, int zoom, CancellationToken cancellationToken = default)
@@ -151,11 +147,13 @@ public sealed class OnvifDeviceClient : IDeviceClient
         if (pan == 0 && tilt == 0 && zoom == 0)
         {
             await PtzStopAsync(channelNumber, cancellationToken).ConfigureAwait(false);
+
             return;
         }
 
         var schema = OnvifNamespaces.Schema;
         var velocity = new XElement(OnvifNamespaces.Ptz + "Velocity");
+
         if (pan != 0 || tilt != 0)
         {
             velocity.Add(new XElement(schema + "PanTilt",
@@ -171,6 +169,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
         var request = new XElement(OnvifNamespaces.Ptz + "ContinuousMove",
             new XElement(OnvifNamespaces.Ptz + "ProfileToken", GetProfileToken(channelNumber)),
             velocity);
+
         await CallPtzAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
@@ -180,6 +179,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
             new XElement(OnvifNamespaces.Ptz + "ProfileToken", GetProfileToken(channelNumber)),
             new XElement(OnvifNamespaces.Ptz + "PanTilt", "true"),
             new XElement(OnvifNamespaces.Ptz + "Zoom", "true"));
+
         return CallPtzAsync(request, cancellationToken);
     }
 
@@ -190,15 +190,18 @@ public sealed class OnvifDeviceClient : IDeviceClient
         var response = await CallPtzAsync(request, cancellationToken).ConfigureAwait(false);
 
         var presets = new List<PtzPreset>();
+
         foreach (var element in response.DescendantsByLocalName("Preset"))
         {
             var token = element.Attribute("token")?.Value ?? string.Empty;
+
             if (token.Length == 0)
             {
                 continue;
             }
 
             var id = int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number) ? number : presets.Count + 1;
+
             presets.Add(new PtzPreset
             {
                 Id = id,
@@ -217,6 +220,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
         var request = new XElement(OnvifNamespaces.Ptz + "GotoPreset",
             new XElement(OnvifNamespaces.Ptz + "ProfileToken", GetProfileToken(channelNumber)),
             new XElement(OnvifNamespaces.Ptz + "PresetToken", preset.Token));
+
         return CallPtzAsync(request, cancellationToken);
     }
 
@@ -230,9 +234,20 @@ public sealed class OnvifDeviceClient : IDeviceClient
         return (Math.Clamp(value, -100, 100) / VelocityScale).ToString("0.###", CultureInfo.InvariantCulture);
     }
 
+    private async Task<(string Source, IReadOnlyList<string> Profiles)> GetRecordingProfilesAsync(int channelNumber, CancellationToken cancellationToken)
+    {
+        var configured = GetProfileToken(channelNumber);
+        var profiles = await GetProfilesAsync(cancellationToken).ConfigureAwait(false);
+        var source = profiles.FirstOrDefault(profile => profile.Token == configured)?.SourceToken
+            ?? throw new NotSupportedException(ProtocolText.Format("OnvifNoStream", channelNumber));
+
+        return (source, profiles.Where(profile => profile.SourceToken == source).Select(profile => profile.Token).ToList());
+    }
+
     private Channel GetChannel(int channelNumber)
     {
         var channel = _device.Channels.FirstOrDefault(candidate => candidate.Number == channelNumber);
+
         if (channel is null || string.IsNullOrEmpty(channel.ProfileToken))
         {
             throw new NotSupportedException(ProtocolText.Format("OnvifNoStream", channelNumber));
@@ -249,6 +264,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
     private async Task<XElement> CallPtzAsync(XElement request, CancellationToken cancellationToken)
     {
         await LoadServicesAsync(cancellationToken).ConfigureAwait(false);
+
         if (_ptzServiceUri is null)
         {
             throw new NotSupportedException(ProtocolText.Get("OnvifNoPtz"));
@@ -260,6 +276,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
     private async Task<Uri> GetMediaServiceUriAsync(CancellationToken cancellationToken)
     {
         await LoadServicesAsync(cancellationToken).ConfigureAwait(false);
+
         if (_mediaServiceUri is null)
         {
             throw new DeviceCommunicationException(ProtocolText.Get("OnvifNoMedia"));
@@ -287,6 +304,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
     private Uri? ReadServiceAddress(XElement capabilities, string service)
     {
         var address = capabilities.DescendantsByLocalName(service).FirstOrDefault()?.ChildValue("XAddr");
+
         if (string.IsNullOrWhiteSpace(address) || !Uri.TryCreate(address, UriKind.Absolute, out var uri))
         {
             return null;
@@ -305,6 +323,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
             Host = _device.Host,
             Port = _device.HttpPort
         };
+
         return builder.Uri;
     }
 
@@ -314,11 +333,13 @@ public sealed class OnvifDeviceClient : IDeviceClient
         var response = await _soap.CallAsync(mediaUri, new XElement(OnvifNamespaces.Media + "GetProfiles"), cancellationToken).ConfigureAwait(false);
 
         var profiles = new List<OnvifProfile>();
+
         foreach (var element in response.DescendantsByLocalName("Profiles"))
         {
             var token = element.Attribute("token")?.Value;
             var source = element.Elements().FirstOrDefault(child => child.Name.LocalName == "VideoSourceConfiguration");
             var encoder = element.Elements().FirstOrDefault(child => child.Name.LocalName == "VideoEncoderConfiguration");
+
             if (string.IsNullOrEmpty(token) || source is null || encoder is null)
             {
                 continue;
@@ -353,6 +374,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
 
         var response = await _soap.CallAsync(mediaUri, request, cancellationToken).ConfigureAwait(false);
         var address = response.DescendantsByLocalName("Uri").FirstOrDefault()?.Value.Trim();
+
         if (string.IsNullOrEmpty(address) || !Uri.TryCreate(address, UriKind.Absolute, out var streamUri))
         {
             throw new DeviceCommunicationException(ProtocolText.Get("OnvifNoMedia"));

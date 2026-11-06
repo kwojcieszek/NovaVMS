@@ -36,6 +36,7 @@ public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClien
     public async Task<DeviceConnectionResult> TryConnectAsync(CancellationToken cancellationToken = default)
     {
         var result = await HcNetSdkSessionPool.TryAcquireAsync(_device, cancellationToken).ConfigureAwait(false);
+
         return new DeviceConnectionResult(result.Error);
     }
 
@@ -48,6 +49,7 @@ public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClien
         catch (DeviceCommunicationException exception) when (IsIsapiUnavailable(exception))
         {
             var session = await HcNetSdkSessionPool.AcquireAsync(_device, cancellationToken).ConfigureAwait(false);
+
             return new DeviceInfo
             {
                 SerialNumber = session.SerialNumber,
@@ -62,17 +64,22 @@ public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClien
         {
             var channels = (await _deviceService.GetChannelsAsync(cancellationToken).ConfigureAwait(false)).ToList();
             var session = await HcNetSdkSessionPool.AcquireAsync(_device, cancellationToken).ConfigureAwait(false);
+
             // Login reports the recorder's full capacity, including inputs omitted by ISAPI streaming profiles.
             for (var number = 1; number <= session.ChannelCount; number++)
             {
                 if (channels.All(channel => channel.Number != number))
+                {
                     channels.Add(new Channel { Number = number, Enabled = false, Online = false });
+                }
             }
+
             return channels.OrderBy(channel => channel.Number).ToList();
         }
         catch (DeviceCommunicationException exception) when (IsIsapiUnavailable(exception))
         {
             var session = await HcNetSdkSessionPool.AcquireAsync(_device, cancellationToken).ConfigureAwait(false);
+
             return Enumerable.Range(1, session.ChannelCount)
                 .Select(number => new Channel { Number = number })
                 .ToList();
@@ -82,6 +89,7 @@ public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClien
     public async Task<byte[]> GetSnapshotAsync(int channelNumber, CancellationToken cancellationToken = default)
     {
         var session = await HcNetSdkSessionPool.AcquireAsync(_device, cancellationToken).ConfigureAwait(false);
+
         return await Task.Run(() =>
         {
             var parameters = new NetDvrJpegParameters
@@ -91,6 +99,7 @@ public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClien
             };
             var buffer = new byte[SnapshotBufferSize];
             uint length = 0;
+
             if (!HcNetSdkNative.CaptureJpegPicture(session.UserId, session.ToSdkChannel(channelNumber), ref parameters, buffer, (uint)buffer.Length, ref length))
             {
                 throw HcNetSdkErrors.LastError(_device.Host, _device.SdkPort);
@@ -114,6 +123,7 @@ public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClien
     public async Task<IReadOnlyList<RecordingSegment>> SearchRecordingsAsync(int channelNumber, DateTime from, DateTime to, CancellationToken cancellationToken = default)
     {
         var session = await HcNetSdkSessionPool.AcquireAsync(_device, cancellationToken).ConfigureAwait(false);
+
         return await _recordings.SearchAsync(session, channelNumber, from, to, cancellationToken).ConfigureAwait(false);
     }
 
@@ -121,18 +131,21 @@ public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClien
     {
         EnsureAvailable();
         EnsureStreamDecoder();
+
         return VideoSource.FromStream(() => HcNetSdkVideoStream.OpenPlayback(_device, channelNumber, start, end));
     }
 
     public async Task PtzMoveAsync(int channelNumber, int pan, int tilt, int zoom, CancellationToken cancellationToken = default)
     {
         var session = await HcNetSdkSessionPool.AcquireAsync(_device, cancellationToken).ConfigureAwait(false);
+
         await _sdkPtz.MoveAsync(session, channelNumber, pan, tilt, zoom, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task PtzStopAsync(int channelNumber, CancellationToken cancellationToken = default)
     {
         var session = await HcNetSdkSessionPool.AcquireAsync(_device, cancellationToken).ConfigureAwait(false);
+
         await _sdkPtz.StopAsync(session, channelNumber, cancellationToken).ConfigureAwait(false);
     }
 
@@ -144,25 +157,13 @@ public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClien
     public Task GotoPtzPresetAsync(int channelNumber, PtzPreset preset, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(preset);
+
         return _ptz.GotoPresetAsync(channelNumber, preset.Id, cancellationToken);
     }
 
     public void Dispose()
     {
         _transport.Dispose();
-    }
-
-    /// <summary>
-    /// Loads the SDK before a stream is handed to the player, so a missing library is reported immediately.
-    /// </summary>
-    private void EnsureStreamDecoder()
-    {
-        if (!string.IsNullOrEmpty(_device.StreamEncryptionKey))
-        {
-            var bytes = HikvisionStreamDecoder.EncodeKey(_device.StreamEncryptionKey);
-            System.Security.Cryptography.CryptographicOperations.ZeroMemory(bytes);
-            _ = PlayCtrlApi.Get();
-        }
     }
 
     private static void EnsureAvailable()
@@ -194,5 +195,20 @@ public sealed class HcNetSdkDeviceClient : IDeviceClient, IDeviceConnectionClien
         }
 
         return session.AnalogChannelCount > 0 ? DeviceType.Dvr : DeviceType.Nvr;
+    }
+
+    /// <summary>
+    /// Loads the SDK before a stream is handed to the player, so a missing library is reported immediately.
+    /// </summary>
+    private void EnsureStreamDecoder()
+    {
+        if (!string.IsNullOrEmpty(_device.StreamEncryptionKey))
+        {
+            var bytes = HikvisionStreamDecoder.EncodeKey(_device.StreamEncryptionKey);
+
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(bytes);
+
+            _ = PlayCtrlApi.Get();
+        }
     }
 }

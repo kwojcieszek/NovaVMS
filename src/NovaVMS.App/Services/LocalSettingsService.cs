@@ -11,13 +11,13 @@ public sealed class LocalSettingsService
 {
     private readonly ILocalSettingsStore _store;
 
+    public LocalSettings Current { get; }
+
     public LocalSettingsService(ILocalSettingsStore store)
     {
         _store = store;
         Current = store.Load();
     }
-
-    public LocalSettings Current { get; }
 
     public Task SaveAsync()
     {

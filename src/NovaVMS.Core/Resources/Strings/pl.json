@@ -80,6 +80,7 @@
   "Tile_SwitchFailed": "Nie udało się zmienić strumienia. Poprzedni podgląd pozostaje aktywny.",
   "Tree_AddFavorite": "Dodaj do ulubionych",
   "Tree_RemoveFavorite": "Usuń z ulubionych",
+  "Tree_UnavailableCameras": "Niektóre kamery w tej grupie są niedostępne",
   "Tree_DefaultGroupName": "Moja grupa {0}",
   "Live_RestoreSplit": "Przywróć podział",
   "Live_RestoreSplitTip": "Powrót do poprzedniego podziału (Esc)",

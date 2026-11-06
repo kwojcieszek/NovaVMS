@@ -18,29 +18,6 @@ public partial class App : Application
 
     internal Task DisposeServicesAsync() => _serviceDisposal ??= DisposeServicesCoreAsync();
 
-    private async Task DisposeServicesCoreAsync()
-    {
-        var services = _services;
-        _services = null;
-        if (services is null) return;
-        var cleanup = services.GetService<DeviceConnectionCleanupService>();
-        cleanup?.Dispose();
-        if (cleanup is not null) await cleanup.Disposal;
-        var factory = services.GetService<IDeviceClientFactory>();
-        var libVlc = services.GetService<LibVLCSharp.Shared.LibVLC>();
-        var recordingVlc = services.GetKeyedService<LibVLCSharp.Shared.LibVLC>(VideoPlayerFactory.Recordings);
-        // Native resources are idempotently released in the background. Dispose the
-        // provider on the UI thread afterwards: transient settings pages own UI timers.
-        await Task.Run(() =>
-        {
-            (factory as IDisposable)?.Dispose();
-            libVlc?.Dispose();
-            recordingVlc?.Dispose();
-        });
-        services.Dispose();
-        await UnhandledExceptionLogger.FlushAsync();
-    }
-
     public override void Initialize()
     {
         UnhandledExceptionLogger.AttachToDispatcher();
@@ -54,11 +31,46 @@ public partial class App : Application
             // The start window is drawn before LibVLC and the services load, and stays until the configuration
             // and settings database are ready (or the login window opens).
             var splash = new BusyWindow("Startup_Title", "Startup_Message");
+
             splash.Show();
             Dispatcher.UIThread.Post(() => Start(desktop, splash), DispatcherPriority.Background);
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private async Task DisposeServicesCoreAsync()
+    {
+        var services = _services;
+        _services = null;
+
+        if (services is null)
+        {
+            return;
+        }
+
+        var cleanup = services.GetService<DeviceConnectionCleanupService>();
+
+        cleanup?.Dispose();
+
+        if (cleanup is not null)
+        {
+            await cleanup.Disposal;
+        }
+
+        var factory = services.GetService<IDeviceClientFactory>();
+        var libVlc = services.GetService<LibVLCSharp.Shared.LibVLC>();
+        var recordingVlc = services.GetKeyedService<LibVLCSharp.Shared.LibVLC>(VideoPlayerFactory.Recordings);
+        // Native resources are idempotently released in the background. Dispose the
+        // provider on the UI thread afterwards: transient settings pages own UI timers.
+        await Task.Run(() =>
+        {
+            (factory as IDisposable)?.Dispose();
+            libVlc?.Dispose();
+            recordingVlc?.Dispose();
+        });
+        services.Dispose();
+        await UnhandledExceptionLogger.FlushAsync();
     }
 
     private void Start(IClassicDesktopStyleApplicationLifetime desktop, BusyWindow splash)
@@ -83,17 +95,28 @@ public partial class App : Application
             {
                 DataContext = viewModel
             };
+
             if (_services.GetRequiredService<LocalSettingsService>().Current.StartFullScreen)
             {
                 mainWindow.WindowState = WindowState.FullScreen;
             }
+
             desktop.MainWindow = mainWindow;
             desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
             desktop.Exit += OnDesktopExit;
+
             SingleInstance.Current?.ListenForActivation(() => Dispatcher.UIThread.Post(() =>
             {
-                if (desktop.MainWindow is not { } window) return;
-                if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
+                if (desktop.MainWindow is not { } window)
+                {
+                    return;
+                }
+
+                if (window.WindowState == WindowState.Minimized)
+                {
+                    window.WindowState = WindowState.Normal;
+                }
+
                 window.Activate();
             }));
             // The main window starts the initialization once it is shown: the login window needs it as its owner.
@@ -111,7 +134,9 @@ public partial class App : Application
     private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
     {
         UnhandledExceptionLogger.IsShuttingDown = true;
+
         _services?.Dispose();
+
         _services = null;
     }
 }

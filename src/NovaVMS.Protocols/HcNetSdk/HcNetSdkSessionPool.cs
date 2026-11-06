@@ -19,6 +19,7 @@ internal static class HcNetSdkSessionPool
         // Legacy operations require an established session. Application entry points use TryAcquireAsync
         // through TryConnectAsync, so an ordinary rejected login is returned before calling those operations.
         var result = await TryAcquireAsync(device, cancellationToken).ConfigureAwait(false);
+
         return result.Session ?? throw result.Error!;
     }
 
@@ -28,6 +29,7 @@ internal static class HcNetSdkSessionPool
 
         var key = BuildKey(device);
         SemaphoreSlim loginLock;
+
         lock (SyncRoot)
         {
             if (Sessions.TryGetValue(key, out var existing))
@@ -43,6 +45,7 @@ internal static class HcNetSdkSessionPool
         }
 
         await loginLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+
         try
         {
             lock (SyncRoot)
@@ -54,13 +57,16 @@ internal static class HcNetSdkSessionPool
             }
 
             var result = await Task.Run(() => Login(device), cancellationToken).ConfigureAwait(false);
+
             if (result.Session is not { } session)
             {
                 return result;
             }
+
             lock (SyncRoot)
             {
                 RemoveStaleSessions(device);
+
                 Sessions[key] = session;
             }
 
@@ -80,6 +86,7 @@ internal static class HcNetSdkSessionPool
         lock (SyncRoot)
         {
             var key = Sessions.FirstOrDefault(pair => ReferenceEquals(pair.Value, session)).Key;
+
             if (key is null)
             {
                 return;
@@ -98,10 +105,12 @@ internal static class HcNetSdkSessionPool
     public static void RetainOnly(IEnumerable<Device> devices)
     {
         var current = new HashSet<string>(StringComparer.Ordinal);
+
         foreach (var device in devices.Where(device => device.Protocol == DeviceProtocol.HikvisionSdk))
         {
             // A session can be open on either configured address.
             current.Add(BuildKey(device));
+
             if (!string.IsNullOrWhiteSpace(device.SecondaryHost))
             {
                 current.Add(BuildKey(device.ForSecondaryAddress()));
@@ -109,9 +118,11 @@ internal static class HcNetSdkSessionPool
         }
 
         List<HcNetSdkSession> stale;
+
         lock (SyncRoot)
         {
             stale = new List<HcNetSdkSession>();
+
             foreach (var pair in Sessions.Where(pair => !current.Contains(pair.Key)).ToList())
             {
                 Sessions.Remove(pair.Key);
@@ -134,9 +145,11 @@ internal static class HcNetSdkSessionPool
     public static void LogoutAll()
     {
         List<HcNetSdkSession> sessions;
+
         lock (SyncRoot)
         {
             sessions = Sessions.Values.ToList();
+
             Sessions.Clear();
         }
 
@@ -149,11 +162,13 @@ internal static class HcNetSdkSessionPool
     private static HcNetSdkLoginResult Login(Device device)
     {
         var deviceInfo = Marshal.AllocHGlobal(HcNetSdkSession.DeviceInfoBufferSize);
+
         try
         {
             Marshal.Copy(new byte[HcNetSdkSession.DeviceInfoBufferSize], 0, deviceInfo, HcNetSdkSession.DeviceInfoBufferSize);
 
             var userId = HcNetSdkNative.Login(device.Host.Trim(), (ushort)device.SdkPort, device.Username, device.Password, deviceInfo);
+
             if (userId < 0)
             {
                 return new HcNetSdkLoginResult(null, HcNetSdkErrors.LastError(device.Host, device.SdkPort));
@@ -173,6 +188,7 @@ internal static class HcNetSdkSessionPool
     private static void RemoveStaleSessions(Device device)
     {
         var prefix = device.Id.ToString("N") + "|";
+
         foreach (var stale in Sessions.Where(pair => pair.Key.StartsWith(prefix, StringComparison.Ordinal)).ToList())
         {
             Sessions.Remove(stale.Key);

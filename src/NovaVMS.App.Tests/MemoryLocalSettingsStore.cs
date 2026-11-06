@@ -12,6 +12,7 @@ internal sealed class MemoryLocalSettingsStore : ILocalSettingsStore
     public Task SaveAsync(LocalSettings settings, CancellationToken cancellationToken = default)
     {
         Saved = settings.Copy();
+
         return Task.CompletedTask;
     }
 }

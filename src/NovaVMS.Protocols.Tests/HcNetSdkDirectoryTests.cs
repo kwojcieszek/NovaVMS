@@ -27,6 +27,7 @@ public sealed class HcNetSdkDirectoryTests
     public void ExplicitAbsoluteFolderIsPreserved()
     {
         var directory = Path.Combine(Path.GetTempPath(), "custom-hikvision-sdk");
+
         Assert.Equal(directory, HcNetSdkRuntime.ResolveDirectory(directory));
     }
 

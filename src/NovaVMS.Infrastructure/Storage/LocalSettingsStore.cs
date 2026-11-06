@@ -23,6 +23,7 @@ public sealed class LocalSettingsStore : ILocalSettingsStore
     public LocalSettingsStore(string filePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
         _filePath = filePath;
     }
 
@@ -37,6 +38,7 @@ public sealed class LocalSettingsStore : ILocalSettingsStore
 
             var settings = JsonSerializer.Deserialize<LocalSettings>(File.ReadAllBytes(_filePath), SerializerOptions) ?? new LocalSettings();
             settings.AutoLoginUserName ??= string.Empty;
+
             return settings;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
@@ -50,9 +52,11 @@ public sealed class LocalSettingsStore : ILocalSettingsStore
         ArgumentNullException.ThrowIfNull(settings);
 
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+
         try
         {
             var bytes = JsonSerializer.SerializeToUtf8Bytes(settings, SerializerOptions);
+
             await AtomicFile.WriteAsync(_filePath, bytes, cancellationToken).ConfigureAwait(false);
         }
         finally

@@ -1,8 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using NovaVMS.App.Localization;
 using NovaVMS.App.Models;
-using NovaVMS.Core.Models;
 using NovaVMS.Core.Abstractions;
+using NovaVMS.Core.Models;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -12,18 +12,13 @@ namespace NovaVMS.App.ViewModels;
 public sealed partial class DeviceRowViewModel : ViewModelBase
 {
     private readonly IDeviceClientFactory? _clientFactory;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsOnline))]
     [NotifyPropertyChangedFor(nameof(IsOffline))]
     [NotifyPropertyChangedFor(nameof(IsChecking))]
     [NotifyPropertyChangedFor(nameof(StateText))]
     private DeviceConnectionState _state = DeviceConnectionState.Unknown;
-
-    public DeviceRowViewModel(Device device, IDeviceClientFactory? clientFactory = null)
-    {
-        Device = device;
-        _clientFactory = clientFactory;
-    }
 
     public Device Device { get; }
 
@@ -46,7 +41,7 @@ public sealed partial class DeviceRowViewModel : ViewModelBase
     public string Protocol => ProtocolOption.Find(Device.Protocol).Label;
 
     public string OptionalProtocol => Device.OptionalConnection is { } optional
-        ? ProtocolOption.Find(optional.Protocol).Label : "—";
+        ? ProtocolOption.Find(optional.Protocol).Label : "â€”";
 
     public string Type => Localizer.Text($"DeviceType_{Device.Type}");
 
@@ -65,6 +60,12 @@ public sealed partial class DeviceRowViewModel : ViewModelBase
     public bool IsChecking => State is DeviceConnectionState.Checking or DeviceConnectionState.Unknown;
 
     public string StateText => Localizer.Text($"DeviceState_{State}");
+
+    public DeviceRowViewModel(Device device, IDeviceClientFactory? clientFactory = null)
+    {
+        Device = device;
+        _clientFactory = clientFactory;
+    }
 
     /// <summary>
     /// Raises change notifications after the device was edited or synchronized, or the language changed.

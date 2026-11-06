@@ -9,12 +9,6 @@ public sealed class VideoSource
     private readonly Func<bool, Stream>? _openStream;
     private Func<(Uri Uri, IDisposable Lifetime)>? _openUri;
 
-    private VideoSource(Uri? uri, Func<bool, Stream>? openStream)
-    {
-        Uri = uri;
-        _openStream = openStream;
-    }
-
     /// <summary>
     /// Network address, or null for a data stream source.
     /// </summary>
@@ -22,9 +16,16 @@ public sealed class VideoSource
 
     public bool IsStream => _openStream is not null;
 
+    private VideoSource(Uri? uri, Func<bool, Stream>? openStream)
+    {
+        Uri = uri;
+        _openStream = openStream;
+    }
+
     public static VideoSource FromUri(Uri uri)
     {
         ArgumentNullException.ThrowIfNull(uri);
+
         return new VideoSource(uri, null);
     }
 
@@ -32,19 +33,8 @@ public sealed class VideoSource
     public static VideoSource FromUri(Func<(Uri Uri, IDisposable Lifetime)> openUri)
     {
         ArgumentNullException.ThrowIfNull(openUri);
-        return new VideoSource(null, null) { _openUri = openUri };
-    }
 
-    public Uri OpenUri(out IDisposable? lifetime)
-    {
-        if (_openUri is not null)
-        {
-            var session = _openUri();
-            lifetime = session.Lifetime;
-            return session.Uri;
-        }
-        lifetime = null;
-        return Uri ?? throw new InvalidOperationException("The video source has no network address.");
+        return new VideoSource(null, null) { _openUri = openUri };
     }
 
     /// <summary>
@@ -54,6 +44,7 @@ public sealed class VideoSource
     public static VideoSource FromStream(Func<Stream> openStream)
     {
         ArgumentNullException.ThrowIfNull(openStream);
+
         return new VideoSource(null, _ => openStream());
     }
 
@@ -61,7 +52,23 @@ public sealed class VideoSource
     public static VideoSource FromStream(Func<bool, Stream> openStream)
     {
         ArgumentNullException.ThrowIfNull(openStream);
+
         return new VideoSource(null, openStream);
+    }
+
+    public Uri OpenUri(out IDisposable? lifetime)
+    {
+        if (_openUri is not null)
+        {
+            var session = _openUri();
+            lifetime = session.Lifetime;
+
+            return session.Uri;
+        }
+
+        lifetime = null;
+
+        return Uri ?? throw new InvalidOperationException("The video source has no network address.");
     }
 
     public Stream OpenStream(bool withAudio = true)

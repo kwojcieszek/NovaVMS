@@ -30,12 +30,14 @@ internal sealed class HcNetSdkIsapiTransport : IIsapiTransport
     public async Task<XDocument> GetXmlAsync(string path, CancellationToken cancellationToken)
     {
         var response = await SendAsync("GET", path, null, cancellationToken).ConfigureAwait(false);
+
         return ParseXml(response);
     }
 
     public async Task<XDocument> PostXmlAsync(string path, XElement body, CancellationToken cancellationToken)
     {
         var response = await SendAsync("POST", path, body, cancellationToken).ConfigureAwait(false);
+
         return ParseXml(response);
     }
 
@@ -52,6 +54,20 @@ internal sealed class HcNetSdkIsapiTransport : IIsapiTransport
     public void Dispose()
     {
         // The SDK login is shared by all clients of the device (see HcNetSdkSessionPool).
+    }
+
+    private static XDocument ParseXml(byte[] response)
+    {
+        try
+        {
+            using var stream = new MemoryStream(response);
+
+            return XDocument.Load(stream);
+        }
+        catch (XmlException exception)
+        {
+            throw new DeviceCommunicationException(ProtocolText.Get("InvalidXml"), exception);
+        }
     }
 
     private async Task<byte[]> SendAsync(string method, string path, XElement? body, CancellationToken cancellationToken)
@@ -74,6 +90,7 @@ internal sealed class HcNetSdkIsapiTransport : IIsapiTransport
         try
         {
             Marshal.Copy(requestBytes, 0, requestBuffer, requestBytes.Length);
+
             if (content is not null)
             {
                 Marshal.Copy(content, 0, contentBuffer, content.Length);
@@ -101,6 +118,7 @@ internal sealed class HcNetSdkIsapiTransport : IIsapiTransport
             output.Size = (uint)Marshal.SizeOf<NetDvrXmlConfigOutput>();
 
             Marshal.WriteByte(statusBuffer, 0, 0);
+
             if (!HcNetSdkNative.StdXmlConfig(session.UserId, ref input, ref output))
             {
                 throw CreateFailure(session, path);
@@ -108,13 +126,16 @@ internal sealed class HcNetSdkIsapiTransport : IIsapiTransport
 
             var length = (int)Math.Min(output.ReturnedSize, OutputBufferSize);
             var result = new byte[length];
+
             Marshal.Copy(outputBuffer, result, 0, length);
+
             return result;
         }
         finally
         {
             Marshal.FreeHGlobal(statusBuffer);
             Marshal.FreeHGlobal(outputBuffer);
+
             if (contentBuffer != IntPtr.Zero)
             {
                 Marshal.FreeHGlobal(contentBuffer);
@@ -132,9 +153,11 @@ internal sealed class HcNetSdkIsapiTransport : IIsapiTransport
     private DeviceCommunicationException CreateFailure(HcNetSdkSession session, string path)
     {
         var code = HcNetSdkNative.GetLastError();
+
         if (HcNetSdkErrors.InvalidatesSession(code))
         {
             HcNetSdkSessionPool.Invalidate(session);
+
             return HcNetSdkErrors.FromCode(code, _device.Host, _device.SdkPort);
         }
 
@@ -144,18 +167,5 @@ internal sealed class HcNetSdkIsapiTransport : IIsapiTransport
         }
 
         return new DeviceCommunicationException(ProtocolText.Format("FunctionNotSupported", path), HttpStatusCode.NotFound);
-    }
-
-    private static XDocument ParseXml(byte[] response)
-    {
-        try
-        {
-            using var stream = new MemoryStream(response);
-            return XDocument.Load(stream);
-        }
-        catch (XmlException exception)
-        {
-            throw new DeviceCommunicationException(ProtocolText.Get("InvalidXml"), exception);
-        }
     }
 }

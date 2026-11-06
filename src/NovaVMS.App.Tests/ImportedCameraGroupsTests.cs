@@ -11,14 +11,23 @@ public sealed class ImportedCameraGroupsTests
     public void GroupsMapToExistingDevicesAndRepeatedImportsDoNotDuplicateMembers()
     {
         var existing = new Device { Host = "NVR", Protocol = DeviceProtocol.HikvisionSdk };
-        var source = new Device { Host = " nvr ", Protocol = DeviceProtocol.HikvisionSdk,
-            Channels = [new Channel { Number = 3, Name = "Entrance" }] };
-        var importedGroup = new CameraGroup { Name = "Office", Cameras =
-            [new CameraReference { DeviceId = source.Id, ChannelNumber = 3 }] };
+        var source = new Device
+        {
+            Host = " nvr ",
+            Protocol = DeviceProtocol.HikvisionSdk,
+            Channels = [new Channel { Number = 3, Name = "Entrance" }]
+        };
+        var importedGroup = new CameraGroup
+        {
+            Name = "Office",
+            Cameras =
+            [new CameraReference { DeviceId = source.Id, ChannelNumber = 3 }]
+        };
         var manual = new CameraReference { DeviceId = existing.Id, ChannelNumber = 99 };
         var existingGroup = new CameraGroup { Name = "office", Cameras = [manual] };
         var configuration = new AppConfiguration { Devices = [existing], Groups = [existingGroup] };
         var import = new DeviceCsvResult([source], []) { Groups = [importedGroup] };
+
         ImportedCameraGroups.Merge(configuration, import);
         ImportedCameraGroups.Merge(configuration, import);
         Assert.Single(configuration.Devices);
@@ -26,7 +35,9 @@ public sealed class ImportedCameraGroupsTests
         Assert.Equal(2, existingGroup.Cameras.Count);
         Assert.Equal(manual, existingGroup.Cameras[0]);
         Assert.Equal(existing.Id, existingGroup.Cameras[1].DeviceId);
+
         var channel = Assert.Single(existing.Channels);
+
         Assert.Equal(3, channel.Number);
         Assert.Equal("Entrance", channel.Name);
         // Members point at the channel's identity, not its number.
@@ -36,14 +47,28 @@ public sealed class ImportedCameraGroupsTests
     [Fact]
     public void EmptyGroupsAndDifferentPortsRemainSeparate()
     {
-        var first = new Device { Host = "nvr", SdkPort = 8000, Protocol = DeviceProtocol.HikvisionSdk,
-            Channels = [new Channel { Number = 1 }] };
-        var second = new Device { Host = "nvr", SdkPort = 9000, Protocol = DeviceProtocol.HikvisionSdk,
-            Channels = [new Channel { Number = 1 }] };
+        var first = new Device
+        {
+            Host = "nvr",
+            SdkPort = 8000,
+            Protocol = DeviceProtocol.HikvisionSdk,
+            Channels = [new Channel { Number = 1 }]
+        };
+        var second = new Device
+        {
+            Host = "nvr",
+            SdkPort = 9000,
+            Protocol = DeviceProtocol.HikvisionSdk,
+            Channels = [new Channel { Number = 1 }]
+        };
         var configuration = new AppConfiguration { Devices = [first, second] };
-        var import = new DeviceCsvResult([first, second], []) { Groups = [new() { Name = "Empty" },
+        var import = new DeviceCsvResult([first, second], [])
+        {
+            Groups = [new() { Name = "Empty" },
             new() { Name = "Mixed", Cameras = [new() { DeviceId = first.Id, ChannelNumber = 1 },
-                new() { DeviceId = second.Id, ChannelNumber = 1 }] }] };
+                new() { DeviceId = second.Id, ChannelNumber = 1 }] }]
+        };
+
         ImportedCameraGroups.Merge(configuration, import);
         Assert.Equal(2, configuration.Groups.Count);
         Assert.Empty(configuration.Groups[0].Cameras);

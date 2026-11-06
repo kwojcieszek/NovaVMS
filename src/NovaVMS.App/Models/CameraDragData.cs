@@ -20,7 +20,9 @@ public static class CameraDragData
     public static IDataTransfer Create(IEnumerable<CameraReference> cameras)
     {
         var transfer = new DataTransfer();
+
         transfer.Add(DataTransferItem.Create(Format, Encode(cameras)));
+
         return transfer;
     }
 
@@ -45,6 +47,7 @@ public static class CameraDragData
     public static IReadOnlyList<CameraReference> Decode(string? text)
     {
         var cameras = new List<CameraReference>();
+
         if (string.IsNullOrWhiteSpace(text))
         {
             return cameras;
@@ -53,6 +56,7 @@ public static class CameraDragData
         foreach (var item in text.Split(ItemSeparator, StringSplitOptions.RemoveEmptyEntries))
         {
             var parts = item.Split(PartSeparator);
+
             if (parts.Length != 2)
             {
                 continue;

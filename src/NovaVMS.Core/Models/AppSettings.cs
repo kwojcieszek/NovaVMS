@@ -5,18 +5,20 @@ namespace NovaVMS.Core.Models;
 /// </summary>
 public sealed class AppSettings
 {
+    private int _updateCheckIntervalMinutes = 360;
+
     public bool AutoCheckForUpdates { get; set; }
     public bool AutoDownloadUpdates { get; set; }
     public bool AutoInstallUpdates { get; set; }
-    private int _updateCheckIntervalMinutes = 360;
+
     public int UpdateCheckIntervalMinutes
     {
         get => _updateCheckIntervalMinutes;
         set => _updateCheckIntervalMinutes = Math.Clamp(value, 1, 10080);
     }
+
     public string UpdateServerUrl { get; set; } = string.Empty;
 
-    internal AppSettings Copy() => (AppSettings)MemberwiseClone();
     public GridStreamMode GridStreamMode { get; set; } = GridStreamMode.Auto;
 
     /// <summary>Proportions of the picture in live view tiles.</summary>
@@ -24,16 +26,6 @@ public sealed class AppSettings
 
     /// <summary>Minimum video area height in physical display pixels for MAIN in automatic mode.</summary>
     public int MainStreamMinimumHeight { get; set; } = 540;
-
-    public StreamType GetLiveStreamType(double videoHeight, bool singleOrMaximized)
-    {
-        if (GridStreamMode == GridStreamMode.Main) return StreamType.Main;
-        if (GridStreamMode == GridStreamMode.Sub) return StreamType.Sub;
-        // The view reports its actual size after native surfaces and layout are ready.
-        if (!double.IsFinite(videoHeight) || videoHeight <= 0)
-            return singleOrMaximized ? StreamType.Main : StreamType.Sub;
-        return videoHeight >= Math.Max(1, MainStreamMinimumHeight) ? StreamType.Main : StreamType.Sub;
-    }
 
     /// <summary>
     /// Network buffer for the sub stream (tiles in a split). Increase on unstable networks.
@@ -47,21 +39,11 @@ public sealed class AppSettings
     /// </summary>
     public int MainStreamCachingMs { get; set; } = 300;
 
-    public int GetNetworkCachingMs(StreamType streamType)
-    {
-        return streamType == StreamType.Main ? MainStreamCachingMs : NetworkCachingMs;
-    }
-
     /// <summary>Maximum displayed frames per second of the sub stream; 0 means no limit.</summary>
     public int SubStreamMaxFrameRate { get; set; }
 
     /// <summary>Maximum displayed frames per second of the main stream; 0 means no limit.</summary>
     public int MainStreamMaxFrameRate { get; set; }
-
-    public int GetMaxFrameRate(StreamType streamType)
-    {
-        return streamType == StreamType.Main ? MainStreamMaxFrameRate : SubStreamMaxFrameRate;
-    }
 
     public bool AutoCreateDeviceGroups { get; set; } = true;
 
@@ -93,5 +75,38 @@ public sealed class AppSettings
     /// directory; empty also means its "hcnetsdk" subfolder.
     /// </summary>
     public string HcNetSdkDirectory { get; set; } = "hcnetsdk";
+
+    internal AppSettings Copy() => (AppSettings)MemberwiseClone();
+
+    public StreamType GetLiveStreamType(double videoHeight, bool singleOrMaximized)
+    {
+        if (GridStreamMode == GridStreamMode.Main)
+        {
+            return StreamType.Main;
+        }
+
+        if (GridStreamMode == GridStreamMode.Sub)
+        {
+            return StreamType.Sub;
+        }
+
+        // The view reports its actual size after native surfaces and layout are ready.
+        if (!double.IsFinite(videoHeight) || videoHeight <= 0)
+        {
+            return singleOrMaximized ? StreamType.Main : StreamType.Sub;
+        }
+
+        return videoHeight >= Math.Max(1, MainStreamMinimumHeight) ? StreamType.Main : StreamType.Sub;
+    }
+
+    public int GetNetworkCachingMs(StreamType streamType)
+    {
+        return streamType == StreamType.Main ? MainStreamCachingMs : NetworkCachingMs;
+    }
+
+    public int GetMaxFrameRate(StreamType streamType)
+    {
+        return streamType == StreamType.Main ? MainStreamMaxFrameRate : SubStreamMaxFrameRate;
+    }
 }
 

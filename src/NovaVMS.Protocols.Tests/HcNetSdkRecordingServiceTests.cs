@@ -13,18 +13,25 @@ public sealed class HcNetSdkRecordingServiceTests
     public async Task FindsAllRecordingTypesOnMappedDigitalChannelAndKeepsLocalTime()
     {
         var api = new FakeApi();
+
         api.Results.Enqueue((1002, default));
         api.Results.Enqueue((1000, File(12, 13)));
         api.Results.Enqueue((1000, File(8, 9)));
         api.Results.Enqueue((1000, File(8, 9)));
         api.Results.Enqueue((1003, default));
+
         var found = await new HcNetSdkRecordingService(api).SearchAsync(Session(), 3, Day, Day.AddDays(1), default);
+
         Assert.Equal(33, api.Condition.Channel); // Two analog inputs precede the IP inputs.
         Assert.Equal(0xffu, api.Condition.FileType);
         Assert.Equal(0xffu, api.Condition.IsLocked);
         Assert.Equal(Day, api.Condition.Start.ToDateTime());
         Assert.Equal(new[] { Day.AddHours(8), Day.AddHours(12) }, found.Select(segment => segment.Start));
-        Assert.All(found, segment => { Assert.Equal(3, segment.ChannelNumber); Assert.Equal(DateTimeKind.Unspecified, segment.Start.Kind); });
+        Assert.All(found, segment =>
+        {
+            Assert.Equal(3, segment.ChannelNumber);
+            Assert.Equal(DateTimeKind.Unspecified, segment.Start.Kind);
+        });
         Assert.Equal(1, api.CloseCalls);
     }
 
@@ -34,6 +41,7 @@ public sealed class HcNetSdkRecordingServiceTests
     public async Task EmptySearchClosesHandle(int status)
     {
         var api = new FakeApi();
+
         api.Results.Enqueue((status, default));
         Assert.Empty(await new HcNetSdkRecordingService(api).SearchAsync(Session(), 1, Day, Day.AddDays(1), default));
         Assert.Equal(1, api.CloseCalls);
@@ -45,6 +53,7 @@ public sealed class HcNetSdkRecordingServiceTests
         var api = new FakeApi();
         using var stop = new CancellationTokenSource();
         api.OnNext = stop.Cancel;
+
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             new HcNetSdkRecordingService(api).SearchAsync(Session(), 1, Day, Day.AddDays(1), stop.Token));
         Assert.Equal(1, api.CloseCalls);
@@ -56,6 +65,7 @@ public sealed class HcNetSdkRecordingServiceTests
     public async Task ReportsNativeErrorsAndReleasesOnlyOpenedHandles(bool openFails)
     {
         var api = new FakeApi { Handle = openFails ? -1 : 42 };
+
         api.Results.Enqueue((1004, default));
         await Assert.ThrowsAsync<DeviceCommunicationException>(() =>
             new HcNetSdkRecordingService(api).SearchAsync(Session(), 1, Day, Day.AddDays(1), default));
@@ -73,11 +83,15 @@ public sealed class HcNetSdkRecordingServiceTests
     }
 
     private static NetDvrFindData File(int start, int end) => new()
-        { Start = NetDvrTime.From(Day.AddHours(start)), End = NetDvrTime.From(Day.AddHours(end)) };
+    {
+        Start = NetDvrTime.From(Day.AddHours(start)),
+        End = NetDvrTime.From(Day.AddHours(end))
+    };
 
     private static HcNetSdkSession Session()
     {
         var buffer = Marshal.AllocHGlobal(HcNetSdkSession.DeviceInfoBufferSize);
+
         try
         {
             Marshal.Copy(new byte[HcNetSdkSession.DeviceInfoBufferSize], 0, buffer, HcNetSdkSession.DeviceInfoBufferSize);
@@ -85,27 +99,48 @@ public sealed class HcNetSdkRecordingServiceTests
             Marshal.WriteByte(buffer, 53, 1);
             Marshal.WriteByte(buffer, 55, 4);
             Marshal.WriteByte(buffer, 66, 33);
+
             return new HcNetSdkSession(7, "recorder", 8000, buffer);
         }
-        finally { Marshal.FreeHGlobal(buffer); }
+        finally
+        {
+            Marshal.FreeHGlobal(buffer);
+        }
     }
 
     private sealed class FakeApi : IHcNetSdkRecordingApi
     {
-        public Queue<(int Status, NetDvrFindData Data)> Results { get; } = new();
         public NetDvrFileCondition Condition;
         public int Handle = 42;
         public int CloseCalls;
         public Action? OnNext;
-        public int Find(int userId, ref NetDvrFileCondition condition) { Condition = condition; return Handle; }
+
+        public Queue<(int Status, NetDvrFindData Data)> Results { get; } = new();
+
+        public int Find(int userId, ref NetDvrFileCondition condition)
+        {
+            Condition = condition;
+
+            return Handle;
+        }
+
         public int Next(int handle, out NetDvrFindData data)
         {
             OnNext?.Invoke();
+
             var result = Results.Count > 0 ? Results.Dequeue() : (1002, default(NetDvrFindData));
             data = result.Item2;
+
             return result.Item1;
         }
-        public bool Close(int handle) { CloseCalls++; return true; }
+
+        public bool Close(int handle)
+        {
+            CloseCalls++;
+
+            return true;
+        }
+
         public uint GetLastError() => 23;
     }
 }

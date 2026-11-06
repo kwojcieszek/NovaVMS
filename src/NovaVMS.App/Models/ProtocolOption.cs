@@ -11,13 +11,6 @@ public sealed class ProtocolOption : ObservableObject
 {
     private readonly string _labelKey;
 
-    private ProtocolOption(DeviceProtocol value, string labelKey)
-    {
-        Value = value;
-        _labelKey = labelKey;
-        Localizer.Instance.LanguageChanged += (_, _) => OnPropertyChanged(nameof(Label));
-    }
-
     public static IReadOnlyList<ProtocolOption> All { get; } = new List<ProtocolOption>
     {
         new(DeviceProtocol.Isapi, "Protocol_Hikvision"),
@@ -28,6 +21,13 @@ public sealed class ProtocolOption : ObservableObject
     public DeviceProtocol Value { get; }
 
     public string Label => Localizer.Text(_labelKey);
+
+    private ProtocolOption(DeviceProtocol value, string labelKey)
+    {
+        Value = value;
+        _labelKey = labelKey;
+        Localizer.Instance.LanguageChanged += (_, _) => OnPropertyChanged(nameof(Label));
+    }
 
     public static ProtocolOption Find(DeviceProtocol value)
     {
@@ -42,6 +42,7 @@ public sealed class ProtocolOption : ObservableObject
         var isHikvision = device.Name.Contains("hikvision", StringComparison.OrdinalIgnoreCase)
             || device.Hardware.StartsWith("DS-", StringComparison.OrdinalIgnoreCase)
             || device.Hardware.StartsWith("iDS-", StringComparison.OrdinalIgnoreCase);
+
         return Find(isHikvision ? DeviceProtocol.Isapi : DeviceProtocol.Onvif);
     }
 }

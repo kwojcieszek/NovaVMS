@@ -23,12 +23,15 @@ public sealed class DeviceReachability : IDeviceReachability
 
         var port = device.Protocol == DeviceProtocol.HikvisionSdk ? device.SdkPort : device.HttpPort;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
         timeout.CancelAfter(ConnectTimeout);
 
         try
         {
             using var client = new TcpClient();
+
             await client.ConnectAsync(device.Host.Trim(), port, timeout.Token).ConfigureAwait(false);
+
             return true;
         }
         catch (SocketException)

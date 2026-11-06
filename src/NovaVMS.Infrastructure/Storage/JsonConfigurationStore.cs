@@ -1,7 +1,7 @@
-using NovaVMS.Core.Abstractions;
-using NovaVMS.Core.Models;
 using System.Security.Cryptography;
 using System.Text.Json;
+using NovaVMS.Core.Abstractions;
+using NovaVMS.Core.Models;
 
 namespace NovaVMS.Infrastructure.Storage;
 
@@ -41,6 +41,7 @@ public sealed class JsonConfigurationStore : IConfigurationStore
     public async Task<AppConfiguration> LoadAsync(CancellationToken cancellationToken = default)
     {
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+
         try
         {
             if (!File.Exists(_filePath))
@@ -53,19 +54,28 @@ public sealed class JsonConfigurationStore : IConfigurationStore
             var plaintext = encrypted
                 ? await Task.Run(() => _protection.Unprotect(stored), cancellationToken).ConfigureAwait(false)
                 : stored;
+
             try
             {
                 // A valid legacy file must be an object; e.g. "null" must never replace settings.
                 var offset = plaintext.AsSpan().StartsWith("\uFEFF"u8) ? 3 : 0;
                 using var document = JsonDocument.Parse(plaintext.AsMemory(offset));
+
                 if (document.RootElement.ValueKind != JsonValueKind.Object)
+                {
                     throw new InvalidDataException("The configuration must contain a JSON object.");
+                }
 
                 using var stream = new MemoryStream(plaintext, offset, plaintext.Length - offset, writable: false);
                 var configuration = await _serializer.DeserializeAsync(stream, cancellationToken).ConfigureAwait(false);
+
                 if (!encrypted)
+                {
                     await WriteEncryptedAsync(plaintext, cancellationToken).ConfigureAwait(false);
+                }
+
                 _loadFailed = false;
+
                 return configuration;
             }
             finally
@@ -76,6 +86,7 @@ public sealed class JsonConfigurationStore : IConfigurationStore
         catch
         {
             _loadFailed = true;
+
             throw;
         }
         finally
@@ -89,12 +100,16 @@ public sealed class JsonConfigurationStore : IConfigurationStore
         ArgumentNullException.ThrowIfNull(configuration);
 
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+
         try
         {
             if (_loadFailed)
+            {
                 throw new IOException("Saving is disabled because the configuration could not be loaded. Restore it and load it successfully before saving.");
+            }
 
             using var stream = new MemoryStream();
+
             try
             {
                 await _serializer.SerializeAsync(stream, configuration, cancellationToken).ConfigureAwait(false);
@@ -115,6 +130,7 @@ public sealed class JsonConfigurationStore : IConfigurationStore
     {
         // Native keychain calls can unlock a collection; keep them off the UI thread.
         var encrypted = await Task.Run(() => _protection.Protect(plaintext.Span), cancellationToken).ConfigureAwait(false);
+
         await AtomicFile.WriteAsync(_filePath, encrypted, cancellationToken).ConfigureAwait(false);
     }
 }

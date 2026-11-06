@@ -18,7 +18,9 @@ public partial class GroupsSettingsView : UserControl
     {
         base.OnDataContextChanged(e);
         _viewModel?.Preview.SetActive(false);
+
         _viewModel = DataContext as GroupsSettingsViewModel;
+
         _viewModel?.Preview.SetActive(this.IsAttachedToVisualTree());
     }
 

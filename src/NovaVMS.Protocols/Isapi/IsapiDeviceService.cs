@@ -18,16 +18,47 @@ internal sealed class IsapiDeviceService
         _transport = transport;
     }
 
+    public static DeviceType ParseDeviceType(string deviceType, string model)
+    {
+        if (deviceType.Contains("NVR", StringComparison.OrdinalIgnoreCase))
+        {
+            return DeviceType.Nvr;
+        }
+
+        if (deviceType.Contains("DVR", StringComparison.OrdinalIgnoreCase))
+        {
+            return DeviceType.Dvr;
+        }
+
+        // Some recorders (e.g. Turbo HD DVRs) report "IPCamera"; the model prefix is more reliable:
+        // DS-7/DS-8/DS-9 are recorders, "NI" in the model marks a network video recorder.
+        var recorderPrefixes = new[] { "DS-7", "DS-8", "DS-9", "iDS-7", "iDS-9" };
+
+        if (recorderPrefixes.Any(prefix => model.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+        {
+            return model.Contains("NI", StringComparison.OrdinalIgnoreCase) ? DeviceType.Nvr : DeviceType.Dvr;
+        }
+
+        if (deviceType.StartsWith("IP", StringComparison.OrdinalIgnoreCase))
+        {
+            return DeviceType.IpCamera;
+        }
+
+        return DeviceType.Unknown;
+    }
+
     public async Task<DeviceInfo> GetDeviceInfoAsync(CancellationToken cancellationToken)
     {
         var document = await _transport.GetXmlAsync("ISAPI/System/deviceInfo", cancellationToken).ConfigureAwait(false);
         var root = document.Root;
+
         if (root is null)
         {
             throw new DeviceCommunicationException(ProtocolText.Get("EmptyDeviceInfo"));
         }
 
         var model = root.ChildValue("model");
+
         return new DeviceInfo
         {
             DeviceName = root.ChildValue("deviceName"),
@@ -60,6 +91,7 @@ internal sealed class IsapiDeviceService
             var video = element.Elements().FirstOrDefault(child => child.Name.LocalName == "Video");
             _ = uint.TryParse(video?.ChildValue("videoResolutionWidth"), out var width);
             _ = uint.TryParse(video?.ChildValue("videoResolutionHeight"), out var height);
+
             channels.Add(new Channel
             {
                 Number = channelNumber,
@@ -74,37 +106,10 @@ internal sealed class IsapiDeviceService
         return channels.OrderBy(channel => channel.Number).ToList();
     }
 
-    public static DeviceType ParseDeviceType(string deviceType, string model)
-    {
-        if (deviceType.Contains("NVR", StringComparison.OrdinalIgnoreCase))
-        {
-            return DeviceType.Nvr;
-        }
-
-        if (deviceType.Contains("DVR", StringComparison.OrdinalIgnoreCase))
-        {
-            return DeviceType.Dvr;
-        }
-
-        // Some recorders (e.g. Turbo HD DVRs) report "IPCamera"; the model prefix is more reliable:
-        // DS-7/DS-8/DS-9 are recorders, "NI" in the model marks a network video recorder.
-        var recorderPrefixes = new[] { "DS-7", "DS-8", "DS-9", "iDS-7", "iDS-9" };
-        if (recorderPrefixes.Any(prefix => model.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
-        {
-            return model.Contains("NI", StringComparison.OrdinalIgnoreCase) ? DeviceType.Nvr : DeviceType.Dvr;
-        }
-
-        if (deviceType.StartsWith("IP", StringComparison.OrdinalIgnoreCase))
-        {
-            return DeviceType.IpCamera;
-        }
-
-        return DeviceType.Unknown;
-    }
-
     private async Task ApplyChannelStatusAsync(List<Channel> channels, CancellationToken cancellationToken)
     {
         XDocument document;
+
         try
         {
             document = await _transport.GetXmlAsync("ISAPI/ContentMgmt/InputProxy/channels/status", cancellationToken).ConfigureAwait(false);
@@ -123,12 +128,15 @@ internal sealed class IsapiDeviceService
             }
 
             var channel = channels.FirstOrDefault(candidate => candidate.Number == channelNumber);
+
             if (channel is null)
             {
                 // Unused recorder inputs may have no streaming profile but still appear in its input inventory.
                 channel = new Channel { Number = channelNumber, Enabled = false };
+
                 channels.Add(channel);
             }
+
             channel.Online = !string.Equals(status.ChildValue("online"), "false", StringComparison.OrdinalIgnoreCase);
         }
     }

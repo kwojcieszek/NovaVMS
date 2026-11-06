@@ -25,8 +25,10 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     private readonly ConfigurationService _configuration;
     private readonly LocalSettingsService _localSettings;
     private readonly IDialogService _dialogs;
+
     // Set while values are copied from the configuration, so loading them does not trigger a save.
     private bool _isLoading;
+
     private bool _isDisposed;
     private int _sdkStatusVersion;
 
@@ -113,6 +115,28 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
 
     public ApplicationUpdateService Updates { get; }
 
+    public IReadOnlyList<LanguageOption> Languages => LanguageOption.All;
+
+    public IReadOnlyList<ThemeOption> Themes => ThemeOption.All;
+
+    public IReadOnlyList<StreamModeOption> StreamModes => StreamModeOption.All;
+
+    public IReadOnlyList<VideoAspectModeOption> AspectModes => VideoAspectModeOption.All;
+
+    public IReadOnlyList<GridLayoutOption> Layouts => GridLayoutOption.All;
+
+    public decimal MinimumNetworkCaching => MinNetworkCachingMs;
+
+    public decimal MaximumNetworkCaching => MaxNetworkCachingMs;
+
+    public decimal MinimumHiddenTileRelease => MinHiddenTileReleaseSeconds;
+
+    public decimal MaximumHiddenTileRelease => MaxHiddenTileReleaseSeconds;
+
+    public decimal MinimumFrameRate => MinFrameRate;
+
+    public decimal MaximumFrameRate => MaxFrameRate;
+
     public GeneralSettingsViewModel(ConfigurationService configuration, LocalSettingsService localSettings, IDialogService dialogs, ApplicationUpdateService updates)
     {
         _configuration = configuration;
@@ -151,27 +175,33 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         _ = RefreshSdkStatusAsync();
     }
 
-    public IReadOnlyList<LanguageOption> Languages => LanguageOption.All;
+    public void Dispose()
+    {
+        _isDisposed = true;
+        _sdkStatusVersion++;
+        _configuration.Changed -= OnConfigurationChanged;
+        Localizer.Instance.LanguageChanged -= OnLanguageChanged;
+    }
 
-    public IReadOnlyList<ThemeOption> Themes => ThemeOption.All;
+    private static string ReadSdkStatus(string configuredDirectory)
+    {
+        if (!HcNetSdkRuntime.IsPlatformSupported)
+        {
+            return Localizer.Text("General_SdkUnsupported");
+        }
 
-    public IReadOnlyList<StreamModeOption> StreamModes => StreamModeOption.All;
+        var directory = HcNetSdkRuntime.ResolveDirectory(configuredDirectory);
+        var loadedVersion = HcNetSdkRuntime.LoadedVersion;
 
-    public IReadOnlyList<VideoAspectModeOption> AspectModes => VideoAspectModeOption.All;
+        if (loadedVersion is not null)
+        {
+            return string.Equals(HcNetSdkRuntime.LoadedDirectory, directory, StringComparison.OrdinalIgnoreCase)
+                ? Localizer.Format("General_SdkLoaded", loadedVersion) : Localizer.Text("General_SdkRestart");
+        }
 
-    public IReadOnlyList<GridLayoutOption> Layouts => GridLayoutOption.All;
-
-    public decimal MinimumNetworkCaching => MinNetworkCachingMs;
-
-    public decimal MaximumNetworkCaching => MaxNetworkCachingMs;
-
-    public decimal MinimumHiddenTileRelease => MinHiddenTileReleaseSeconds;
-
-    public decimal MaximumHiddenTileRelease => MaxHiddenTileReleaseSeconds;
-
-    public decimal MinimumFrameRate => MinFrameRate;
-
-    public decimal MaximumFrameRate => MaxFrameRate;
+        return HcNetSdkRuntime.FindLibrary(configuredDirectory) is null
+            ? Localizer.Format("General_SdkMissing", directory) : Localizer.Text("General_SdkFound");
+    }
 
     /// <summary>
     /// State of the Hikvision SDK library in the selected folder.
@@ -182,29 +212,18 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         var directory = HcNetSdkDirectory;
         // Typing a UNC path must not synchronously probe a network share on every keypress.
         await Task.Delay(200);
-        if (_isDisposed || version != _sdkStatusVersion) return;
+
+        if (_isDisposed || version != _sdkStatusVersion)
+        {
+            return;
+        }
+
         var text = await Task.Run(() => ReadSdkStatus(directory));
-        if (!_isDisposed && version == _sdkStatusVersion) SdkStatusText = text;
-    }
 
-    private static string ReadSdkStatus(string configuredDirectory)
-    {
-        if (!HcNetSdkRuntime.IsPlatformSupported) return Localizer.Text("General_SdkUnsupported");
-        var directory = HcNetSdkRuntime.ResolveDirectory(configuredDirectory);
-        var loadedVersion = HcNetSdkRuntime.LoadedVersion;
-        if (loadedVersion is not null)
-            return string.Equals(HcNetSdkRuntime.LoadedDirectory, directory, StringComparison.OrdinalIgnoreCase)
-                ? Localizer.Format("General_SdkLoaded", loadedVersion) : Localizer.Text("General_SdkRestart");
-        return HcNetSdkRuntime.FindLibrary(configuredDirectory) is null
-            ? Localizer.Format("General_SdkMissing", directory) : Localizer.Text("General_SdkFound");
-    }
-
-    public void Dispose()
-    {
-        _isDisposed = true;
-        _sdkStatusVersion++;
-        _configuration.Changed -= OnConfigurationChanged;
-        Localizer.Instance.LanguageChanged -= OnLanguageChanged;
+        if (!_isDisposed && version == _sdkStatusVersion)
+        {
+            SdkStatusText = text;
+        }
     }
 
     partial void OnSelectedLanguageChanged(LanguageOption value)
@@ -273,13 +292,18 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     partial void OnHcNetSdkDirectoryChanged(string value)
     {
         _ = RefreshSdkStatusAsync();
+
         ApplyChanges();
     }
 
     partial void OnAutoCheckForUpdatesChanged(bool value) => ApplyChanges();
+
     partial void OnAutoDownloadUpdatesChanged(bool value) => ApplyChanges();
+
     partial void OnAutoInstallUpdatesChanged(bool value) => ApplyChanges();
+
     partial void OnUpdateCheckIntervalMinutesChanged(decimal? value) => ApplyChanges();
+
     partial void OnUpdateServerUrlChanged(string value) => ApplyChanges();
 
     partial void OnStartFullScreenChanged(bool value)
@@ -299,6 +323,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         try
         {
             await _localSettings.SaveAsync();
+
             StatusText = string.Empty;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -346,6 +371,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         try
         {
             await _configuration.SaveAsync();
+
             StatusText = string.Empty;
         }
         catch (IOException exception)
@@ -361,6 +387,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     private void OnConfigurationChanged(object? sender, EventArgs e)
     {
         LoadFromSettings(_configuration.Current.Settings);
+
         _ = RefreshSdkStatusAsync();
     }
 
@@ -373,6 +400,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     private async Task BrowseSdkDirectoryAsync()
     {
         var folder = await _dialogs.PickFolderAsync(Localizer.Text("General_SdkBrowseTitle"));
+
         if (folder is not null)
         {
             HcNetSdkDirectory = folder;
@@ -383,12 +411,14 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     private async Task ExportAsync()
     {
         await using var stream = await _dialogs.SaveJsonFileAsync(Localizer.Text("General_ExportTitle"), $"novavms-settings-{DateTime.Now:yyyyMMdd}.json");
+
         if (stream is null)
         {
             return;
         }
 
         await _configuration.ExportAsync(stream, IncludePasswordsInExport);
+
         if (stream.CanSeek)
         {
             // Truncate in case an existing, longer file was overwritten.
@@ -404,6 +434,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     private async Task ImportAsync()
     {
         AppConfiguration imported;
+
         await using (var stream = await _dialogs.OpenJsonFileAsync(Localizer.Text("General_ImportTitle")))
         {
             if (stream is null)
@@ -418,24 +449,29 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
             catch (JsonException)
             {
                 StatusText = Localizer.Text("General_ImportInvalid");
+
                 return;
             }
         }
 
         var message = Localizer.Format("General_ImportConfirm", imported.Devices.Count, imported.Groups.Count);
+
         if (!await _dialogs.ConfirmAsync(Localizer.Text("General_ImportTitle"), message))
         {
             return;
         }
 
         var result = await _configuration.ImportAsync(imported);
+
         LoadFromSettings(_configuration.Current.Settings);
+
         StatusText = Localizer.Format("General_Imported", result.DevicesAdded, result.DevicesUpdated, result.GroupsAdded, result.GroupsUpdated);
     }
 
     private void LoadFromSettings(AppSettings settings)
     {
         _isLoading = true;
+
         try
         {
             SelectedLanguage = LanguageOption.Find(settings.Language);

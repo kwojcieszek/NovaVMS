@@ -18,13 +18,18 @@ public sealed class ModalDialogTests
         var tile = new VideoTileView();
         // Keep the real overlay window lifecycle without native VLC surfaces.
         tile.FindControl<Panel>("VideoHost")!.Children.Clear();
+
         var owner = new Window { Width = 640, Height = 480, Content = tile };
+
         try
         {
             owner.Show();
             Dispatcher.UIThread.RunJobs();
+
             var overlay = Assert.IsType<VideoOverlayWindow>(Assert.Single(owner.OwnedWindows));
+
             Assert.True(overlay.IsVisible);
+
             foreach (var answer in new[] { true, false, true, false })
             {
                 var dialog = new ConfirmDialog("Layout", "Change the layout?");
@@ -38,23 +43,36 @@ public sealed class ModalDialogTests
 
                 // Layout changes used to move or re-show the transparent surface over the dialog.
                 owner.Width += 10;
+
                 Dispatcher.UIThread.RunJobs();
                 Assert.False(overlay.IsVisible);
+
                 var button = dialog.GetVisualDescendants().OfType<Button>()
                     .Single(candidate => answer ? candidate.IsDefault : candidate.IsCancel);
+
                 Assert.True(button.IsEffectivelyEnabled);
                 button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Assert.Equal(answer, await result);
                 Dispatcher.UIThread.RunJobs();
+
                 var restored = Assert.IsType<VideoOverlayWindow>(Assert.Single(owner.OwnedWindows));
+
                 Assert.NotSame(overlay, restored);
+
                 overlay = restored;
+
                 Assert.True(overlay.IsVisible);
                 Assert.Same(owner, overlay.Owner);
                 Assert.Equal(0, owner.GetValue(ModalDialog.DepthProperty));
             }
         }
-        finally { owner.Content = null; owner.Close(); Dispatcher.UIThread.RunJobs(); }
+        finally
+        {
+            owner.Content = null;
+
+            owner.Close();
+            Dispatcher.UIThread.RunJobs();
+        }
     }
 
     [AvaloniaFact]
@@ -63,12 +81,17 @@ public sealed class ModalDialogTests
         var owner = new Window();
         var settings = new Window();
         var dialog = new Window();
+
         try
         {
             owner.Show();
+
             var settingsResult = ModalDialog.ShowAsync<object?>(settings, owner);
+
             Dispatcher.UIThread.RunJobs();
+
             var answer = ModalDialog.ShowAsync<bool>(dialog, settings);
+
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(2, owner.GetValue(ModalDialog.DepthProperty));
             Assert.Equal(1, settings.GetValue(ModalDialog.DepthProperty));
@@ -79,7 +102,12 @@ public sealed class ModalDialogTests
             await settingsResult;
             Assert.Equal(0, owner.GetValue(ModalDialog.DepthProperty));
         }
-        finally { dialog.Close(); settings.Close(); owner.Close(); }
+        finally
+        {
+            dialog.Close();
+            settings.Close();
+            owner.Close();
+        }
     }
 
     [AvaloniaFact]
@@ -87,6 +115,7 @@ public sealed class ModalDialogTests
     {
         var main = new Window();
         var overlay = new VideoOverlayWindow();
+
         try
         {
             main.Show();
@@ -94,6 +123,10 @@ public sealed class ModalDialogTests
             overlay.Activate();
             Assert.Same(main, DialogService.FindOwner([overlay, main], main));
         }
-        finally { overlay.Close(); main.Close(); }
+        finally
+        {
+            overlay.Close();
+            main.Close();
+        }
     }
 }

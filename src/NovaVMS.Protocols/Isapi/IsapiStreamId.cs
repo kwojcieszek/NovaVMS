@@ -14,6 +14,7 @@ internal static class IsapiStreamId
     public static int Build(int channelNumber, StreamType streamType)
     {
         var suffix = streamType == StreamType.Main ? MainSuffix : SubSuffix;
+
         return channelNumber * Multiplier + suffix;
     }
 

@@ -54,6 +54,12 @@ public sealed partial class UsersSettingsViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _statusText = string.Empty;
 
+    public ObservableCollection<UserAccount> Users { get; } = new();
+
+    public IReadOnlyList<PermissionOptionViewModel> Permissions { get; }
+
+    public bool IsEditing => IsNew || SelectedUser is not null;
+
     public UsersSettingsViewModel(
         ConfigurationService configuration,
         UserSessionService session,
@@ -68,14 +74,9 @@ public sealed partial class UsersSettingsViewModel : ViewModelBase, IDisposable
 
         _configuration.Changed += OnConfigurationChanged;
         Localizer.Instance.LanguageChanged += OnLanguageChanged;
+
         LoadUsers(null);
     }
-
-    public ObservableCollection<UserAccount> Users { get; } = new();
-
-    public IReadOnlyList<PermissionOptionViewModel> Permissions { get; }
-
-    public bool IsEditing => IsNew || SelectedUser is not null;
 
     public void Dispose()
     {
@@ -94,6 +95,7 @@ public sealed partial class UsersSettingsViewModel : ViewModelBase, IDisposable
         UserName = value.UserName;
         Password = string.Empty;
         ConfirmPassword = string.Empty;
+
         foreach (var option in Permissions)
         {
             option.IsChecked = value.Has(option.Permission);
@@ -110,6 +112,7 @@ public sealed partial class UsersSettingsViewModel : ViewModelBase, IDisposable
         UserName = string.Empty;
         Password = string.Empty;
         ConfirmPassword = string.Empty;
+
         foreach (var option in Permissions)
         {
             // New users may watch and control cameras; administration is granted explicitly.
@@ -129,16 +132,20 @@ public sealed partial class UsersSettingsViewModel : ViewModelBase, IDisposable
 
         var name = UserName.Trim();
         var existing = IsNew ? null : _configuration.FindUser(SelectedUser!.Id);
+
         if (!IsNew && existing is null)
         {
             StatusText = Localizer.Text("Users_NotFound");
+
             return;
         }
 
         var error = Validate(name, existing);
+
         if (error is not null)
         {
             StatusText = Localizer.Text(error);
+
             return;
         }
 
@@ -147,6 +154,7 @@ public sealed partial class UsersSettingsViewModel : ViewModelBase, IDisposable
         user.UserName = name;
         user.Permissions = Permissions.Where(option => option.IsChecked)
             .Aggregate(UserPermissions.None, (all, option) => all | option.Permission);
+
         if (Password.Length > 0)
         {
             PasswordHasher.SetPassword(user, Password);
@@ -158,10 +166,12 @@ public sealed partial class UsersSettingsViewModel : ViewModelBase, IDisposable
         }
 
         _isSaving = true;
+
         try
         {
             await _configuration.SaveAsync();
             await RenameAutoLoginAsync(previousName, name);
+
             StatusText = Localizer.Format("Users_Saved", name);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -187,12 +197,14 @@ public sealed partial class UsersSettingsViewModel : ViewModelBase, IDisposable
         if (user.Id == _session.CurrentUser?.Id)
         {
             StatusText = Localizer.Text("Users_CannotDeleteSelf");
+
             return;
         }
 
         if (user.Has(UserPermissions.Users) && CountUserManagers(except: user.Id) == 0)
         {
             StatusText = Localizer.Text("Users_LastManager");
+
             return;
         }
 
@@ -202,10 +214,12 @@ public sealed partial class UsersSettingsViewModel : ViewModelBase, IDisposable
         }
 
         _configuration.Current.Users.Remove(user);
+
         try
         {
             await _configuration.SaveAsync();
             await RenameAutoLoginAsync(user.UserName, string.Empty);
+
             StatusText = Localizer.Format("Users_Deleted", user.UserName);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -244,6 +258,7 @@ public sealed partial class UsersSettingsViewModel : ViewModelBase, IDisposable
         }
 
         var keepsUserManagement = Permissions.Any(option => option.Permission == UserPermissions.Users && option.IsChecked);
+
         if (existing is not null && existing.Has(UserPermissions.Users) && !keepsUserManagement
             && CountUserManagers(except: existing.Id) == 0)
         {
@@ -271,12 +286,14 @@ public sealed partial class UsersSettingsViewModel : ViewModelBase, IDisposable
         }
 
         _localSettings.Current.AutoLoginUserName = newName;
+
         await _localSettings.SaveAsync();
     }
 
     private void LoadUsers(Guid? selectId)
     {
         Users.Clear();
+
         foreach (var user in _configuration.Current.Users.OrderBy(user => user.UserName, StringComparer.CurrentCultureIgnoreCase))
         {
             Users.Add(user);
@@ -284,6 +301,7 @@ public sealed partial class UsersSettingsViewModel : ViewModelBase, IDisposable
 
         IsNew = false;
         SelectedUser = Users.FirstOrDefault(user => user.Id == selectId);
+
         if (SelectedUser is null)
         {
             UserName = string.Empty;

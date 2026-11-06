@@ -1,5 +1,5 @@
-using LibVLCSharp.Shared;
 using System.Diagnostics;
+using LibVLCSharp.Shared;
 using NovaVMS.App.Services;
 using NovaVMS.Core.Models;
 using Xunit;
@@ -16,7 +16,9 @@ public sealed class RecordingPlaybackBufferTests
         await using var buffer = new RecordingPlaybackBuffer(vlc);
         var bytes = NativePlaybackLifecycleTests.CreateVideo(250);
         var first = new MemoryStream(bytes);
+
         Assert.True(await buffer.SwitchAsync(() => Media(vlc, first), CancellationToken.None));
+
         var outgoing = buffer.ActivePlayer;
         var picture = buffer.ActiveMedia;
         using var release = new ManualResetEventSlim();
@@ -34,9 +36,15 @@ public sealed class RecordingPlaybackBufferTests
         var seek = buffer.SwitchAsync(() =>
         {
             entered.TrySetResult();
-            if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
+
+            if (!release.Wait(TimeSpan.FromSeconds(10)))
+            {
+                throw new TimeoutException();
+            }
+
             return Media(vlc, incoming);
         }, CancellationToken.None);
+
         try
         {
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -55,7 +63,11 @@ public sealed class RecordingPlaybackBufferTests
             Assert.False(first.CanRead);
             Assert.True(incoming.CanRead);
         }
-        finally { release.Set(); await seek; }
+        finally
+        {
+            release.Set();
+            await seek;
+        }
     }
 
     [Fact]
@@ -65,9 +77,12 @@ public sealed class RecordingPlaybackBufferTests
         await using var buffer = new RecordingPlaybackBuffer(vlc);
         var bytes = NativePlaybackLifecycleTests.CreateVideo(250);
         var stream = new MemoryStream(bytes);
+
         Assert.True(await buffer.SwitchAsync(() => Media(vlc, stream), CancellationToken.None));
+
         var player = buffer.ActivePlayer;
         var media = buffer.ActiveMedia;
+
         await Assert.ThrowsAsync<IOException>(() => buffer.SwitchAsync(() => throw new IOException("Source unavailable"), CancellationToken.None));
         Assert.Same(player, buffer.ActivePlayer);
         Assert.Same(media, buffer.ActiveMedia);
@@ -84,16 +99,24 @@ public sealed class RecordingPlaybackBufferTests
         await using var buffer = new RecordingPlaybackBuffer(vlc);
         var bytes = NativePlaybackLifecycleTests.CreateVideo(250);
         var first = new MemoryStream(bytes);
+
         Assert.True(await buffer.SwitchAsync(() => Media(vlc, first), CancellationToken.None));
+
         using var release = new ManualResetEventSlim();
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var pending = new MemoryStream(bytes);
         var opening = buffer.SwitchAsync(() =>
         {
             entered.TrySetResult();
-            if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
+
+            if (!release.Wait(TimeSpan.FromSeconds(10)))
+            {
+                throw new TimeoutException();
+            }
+
             return Media(vlc, pending);
         }, CancellationToken.None);
+
         try
         {
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -107,7 +130,11 @@ public sealed class RecordingPlaybackBufferTests
             Assert.False(first.CanRead);
             Assert.False(pending.CanRead);
         }
-        finally { release.Set(); await opening; }
+        finally
+        {
+            release.Set();
+            await opening;
+        }
     }
 
     [Fact]
@@ -116,17 +143,21 @@ public sealed class RecordingPlaybackBufferTests
         using var vlc = Engine();
         await using var buffer = new RecordingPlaybackBuffer(vlc);
         var bytes = NativePlaybackLifecycleTests.CreateVideo(250);
+
         Assert.True(await buffer.SwitchAsync(() => Media(vlc, new MemoryStream(bytes)), CancellationToken.None));
         await buffer.SetPauseAsync(true);
+
         for (var index = 0; index < 4; index++)
         {
             var previous = buffer.ActivePlayer;
+
             Assert.True(await buffer.SwitchAsync(() => Media(vlc, new MemoryStream(bytes)), CancellationToken.None));
             Assert.NotSame(previous, buffer.ActivePlayer);
             Assert.True(buffer.ActiveMedia!.Media.Statistics.DisplayedPictures > 0);
             Assert.Equal(VLCState.Paused, buffer.ActivePlayer.State);
             Assert.False(previous.IsPlaying);
         }
+
         await buffer.SetPauseAsync(false);
         await WaitForAsync(() => buffer.ActivePlayer.State == VLCState.Playing);
     }
@@ -134,7 +165,12 @@ public sealed class RecordingPlaybackBufferTests
     private static async Task WaitForAsync(Func<bool> ready)
     {
         var timeout = Stopwatch.StartNew();
-        while (!ready() && timeout.Elapsed < TimeSpan.FromSeconds(3)) await Task.Delay(20);
+
+        while (!ready() && timeout.Elapsed < TimeSpan.FromSeconds(3))
+        {
+            await Task.Delay(20);
+        }
+
         Assert.True(ready());
     }
 

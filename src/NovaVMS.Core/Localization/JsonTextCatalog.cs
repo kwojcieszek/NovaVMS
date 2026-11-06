@@ -14,14 +14,14 @@ public sealed class JsonTextCatalog
 {
     public const string FallbackLanguage = "en";
 
+    private readonly Assembly _assembly;
+    private readonly string _resourcePrefix;
+    private readonly ConcurrentDictionary<string, IReadOnlyDictionary<string, string>> _languages = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
     /// Translations of the whole solution, embedded in this assembly (NovaVMS.Core/Resources/Strings).
     /// </summary>
     public static JsonTextCatalog Shared { get; } = new(typeof(JsonTextCatalog).Assembly, "NovaVMS.Core.Resources.Strings.");
-
-    private readonly Assembly _assembly;
-    private readonly string _resourcePrefix;
-    private readonly ConcurrentDictionary<string, IReadOnlyDictionary<string, string>> _languages = new(StringComparer.OrdinalIgnoreCase);
 
     /// <param name="assembly">Assembly with the embedded files.</param>
     /// <param name="resourcePrefix">Manifest resource name before the language code, e.g. "NovaVMS.App.Resources.Strings.".</param>
@@ -51,6 +51,7 @@ public sealed class JsonTextCatalog
         return _languages.GetOrAdd(language, code =>
         {
             using var stream = _assembly.GetManifestResourceStream($"{_resourcePrefix}{code}.json");
+
             if (stream is null)
             {
                 return new Dictionary<string, string>();
