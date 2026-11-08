@@ -23,20 +23,18 @@ public sealed class AppDelegate : AvaloniaAppDelegate<App>
 
         _backgroundObserver = NSNotificationCenter.DefaultCenter.AddObserver(UIApplication.WillResignActiveNotification, OnWillResignActive);
         _foregroundObserver = NSNotificationCenter.DefaultCenter.AddObserver(UIApplication.DidBecomeActiveNotification, _ => App.Shell?.Resume());
-        _windowObserver = NSNotificationCenter.DefaultCenter.AddObserver(UIWindow.DidBecomeKeyNotification, OnWindowDidBecomeKey);
+        _windowObserver = NSNotificationCenter.DefaultCenter.AddObserver(UIWindow.DidBecomeVisibleNotification, OnWindowDidBecomeVisible);
 
         return base.CustomizeAppBuilder(builder).WithInterFont();
     }
 
     // Until Avalonia draws its first frame the window shows the launch screen picture drawn by UIKit.
-    private void OnWindowDidBecomeKey(NSNotification notification)
+    private void OnWindowDidBecomeVisible(NSNotification notification)
     {
-        if (_launchShown || notification.Object is not UIWindow window)
+        if (_launchShown || notification.Object is not UIWindow { RootViewController: not null } window)
         {
             return;
         }
-
-        _launchShown = true;
 
         var background = LaunchOverlay.Background;
 
@@ -52,8 +50,12 @@ public sealed class AppDelegate : AvaloniaAppDelegate<App>
             return;
         }
 
+        _launchShown = true;
+
         var overlay = new LaunchOverlay(window.Bounds);
 
+        // MakeKeyAndVisible can make the window key before installing the root view.
+        // Add the overlay after visibility changes so it stays above that view.
         window.AddSubview(overlay);
         overlay.RemoveWhenShown(shell);
     }

@@ -1,4 +1,7 @@
 using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Rendering.Composition;
+using Avalonia.Threading;
 using CoreGraphics;
 using UIKit;
 
@@ -6,7 +9,7 @@ namespace NovaVMS.Mobile.iOS;
 
 /// <summary>
 /// The launch screen picture (logo and name on the window background) drawn by UIKit over the window until
-/// Avalonia has drawn its first frames, so the start never shows an empty window.
+/// Avalonia has rendered the shell, so the start never shows an empty window.
 /// </summary>
 public sealed class LaunchOverlay : UIView
 {
@@ -29,29 +32,42 @@ public sealed class LaunchOverlay : UIView
         AddSubview(logo);
     }
 
-    /// <summary>Removes the overlay once the shell is shown and Avalonia has drawn two frames over it.</summary>
+    /// <summary>Removes the overlay after the loaded shell's composition batch has rendered.</summary>
     public void RemoveWhenShown(Control shell)
     {
         if (shell.IsLoaded)
         {
-            RemoveAfterFrames(shell);
+            RemoveAfterRender(shell);
 
             return;
         }
 
-        shell.Loaded += (_, _) => RemoveAfterFrames(shell);
+        shell.Loaded += OnShellLoaded;
     }
 
-    private void RemoveAfterFrames(Control shell)
+    private void OnShellLoaded(object? sender, RoutedEventArgs args)
     {
-        if (TopLevel.GetTopLevel(shell) is not { } topLevel)
+        if (sender is Control shell)
         {
-            RemoveFromSuperview();
+            shell.Loaded -= OnShellLoaded;
+            RemoveAfterRender(shell);
+        }
+    }
 
+    private async void RemoveAfterRender(Control shell)
+    {
+        if (ElementComposition.GetElementVisual(shell) is not { } visual)
+        {
             return;
         }
 
-        // The callback runs before a frame is drawn; the second one comes after the first frame is on screen.
-        topLevel.RequestAnimationFrame(_ => topLevel.RequestAnimationFrame(_ => RemoveFromSuperview()));
+        // Animation callbacks run on the UI thread and can outrun the renderer.
+        // Wait for layout and composition, then for the render thread to finish the batch.
+        var rendered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        visual.Compositor.RequestCompositionUpdate(() =>
+            rendered.SetResult());
+        await rendered.Task;
+        await visual.Compositor.RequestCompositionBatchCommitAsync().Rendered;
+        await Dispatcher.UIThread.InvokeAsync(RemoveFromSuperview);
     }
 }
