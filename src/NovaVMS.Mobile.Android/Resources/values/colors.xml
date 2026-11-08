@@ -4,6 +4,6 @@
   <color name="nova_accent">#D7263D</color>
   <color name="nova_window_background">#1B1C1F</color>
   <color name="nova_header_background">#131416</color>
-  <!-- Transparent: the launcher shows only the camera of the foreground layer. -->
-  <color name="nova_icon_background">#00000000</color>
+  <!-- White background layer of the launcher icon under the camera of the foreground layer. -->
+  <color name="nova_icon_background">#FFFFFF</color>
 </resources>

@@ -13,6 +13,7 @@ public sealed class AppDelegate : AvaloniaAppDelegate<App>
     private NSObject? _backgroundObserver;
     private NSObject? _foregroundObserver;
     private NSObject? _windowObserver;
+    private bool _launchShown;
 
     protected override AppBuilder CustomizeAppBuilder(AppBuilder builder)
     {
@@ -27,15 +28,17 @@ public sealed class AppDelegate : AvaloniaAppDelegate<App>
         return base.CustomizeAppBuilder(builder).WithInterFont();
     }
 
-    // Until Avalonia draws its first frame the window shows its own background, which matches the launch screen.
-    private static void OnWindowDidBecomeKey(NSNotification notification)
+    // Until Avalonia draws its first frame the window shows the launch screen picture drawn by UIKit.
+    private void OnWindowDidBecomeKey(NSNotification notification)
     {
-        if (notification.Object is not UIWindow window)
+        if (_launchShown || notification.Object is not UIWindow window)
         {
             return;
         }
 
-        var background = UIColor.FromName("LaunchBackground") ?? UIColor.FromRGB(0x1B, 0x1C, 0x1F);
+        _launchShown = true;
+
+        var background = LaunchOverlay.Background;
 
         window.BackgroundColor = background;
 
@@ -43,6 +46,16 @@ public sealed class AppDelegate : AvaloniaAppDelegate<App>
         {
             view.BackgroundColor = background;
         }
+
+        if (App.Shell is not { } shell)
+        {
+            return;
+        }
+
+        var overlay = new LaunchOverlay(window.Bounds);
+
+        window.AddSubview(overlay);
+        overlay.RemoveWhenShown(shell);
     }
 
     private static async void OnWillResignActive(NSNotification notification)
