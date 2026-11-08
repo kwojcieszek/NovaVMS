@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.Mobile.Localization"
+             xmlns:vm="using:NovaVMS.Mobile.ViewModels"
+             x:Class="NovaVMS.Mobile.Views.DevicesView"
+             x:DataType="vm:DevicesViewModel">
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Classes="page">
+      <TextBlock Classes="pageTitle" Text="{l:Tr Mobile_Devices}" />
+      <TextBlock Classes="error" Text="{l:Tr Mobile_StorageUnavailable}" IsVisible="{Binding StorageUnavailable}" />
+
+      <Button Classes="action primary"
+              Content="{l:Tr Mobile_AddDevice}"
+              AutomationProperties.Name="{l:Tr Mobile_AddDevice}"
+              IsVisible="{Binding StorageReady}"
+              Command="{Binding AddCommand}" />
+
+      <ItemsControl ItemsSource="{Binding Devices}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="12" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="vm:DeviceItemViewModel">
+            <Border Classes="card">
+              <StackPanel Spacing="8">
+                <TextBlock Classes="sectionTitle" Text="{Binding Name}" />
+                <TextBlock Classes="muted" Text="{Binding Details}" />
+                <TextBlock Classes="muted" Text="{Binding Hardware}" IsVisible="{Binding HasHardware}" />
+                <Button Classes="action"
+                        Content="{l:Tr Mobile_DownloadChannels}"
+                        AutomationProperties.Name="{l:Tr Mobile_DownloadChannels}"
+                        Command="{Binding DownloadChannelsCommand}" />
+                <Button Classes="action"
+                        Content="{l:Tr Mobile_Edit}"
+                        AutomationProperties.Name="{l:Tr Mobile_Edit}"
+                        Command="{Binding EditCommand}" />
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

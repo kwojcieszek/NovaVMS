@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.Mobile.Localization"
+             xmlns:vm="using:NovaVMS.Mobile.ViewModels"
+             x:Class="NovaVMS.Mobile.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+  <!-- Pages of the desktop settings window, without software updates and user accounts -->
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Classes="page">
+      <TextBlock Classes="pageTitle" Text="{l:Tr Mobile_Settings}" />
+
+      <Button Classes="row" AutomationProperties.Name="{l:Tr Settings_General}" Command="{Binding OpenGeneralCommand}">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <PathIcon Classes="muted" Data="{StaticResource IconTune}" Width="22" Height="22" />
+          <TextBlock Grid.Column="1" Margin="12,0" VerticalAlignment="Center" FontWeight="SemiBold" Text="{l:Tr Settings_General}" />
+          <PathIcon Grid.Column="2" Classes="muted" Data="{StaticResource IconChevronRight}" Width="18" Height="18" />
+        </Grid>
+      </Button>
+      <Button Classes="row" AutomationProperties.Name="{l:Tr Settings_Groups}" Command="{Binding OpenGroupsCommand}">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <PathIcon Classes="muted" Data="{StaticResource IconFolder}" Width="22" Height="22" />
+          <TextBlock Grid.Column="1" Margin="12,0" VerticalAlignment="Center" FontWeight="SemiBold" Text="{l:Tr Settings_Groups}" />
+          <PathIcon Grid.Column="2" Classes="muted" Data="{StaticResource IconChevronRight}" Width="18" Height="18" />
+        </Grid>
+      </Button>
+      <Button Classes="row" AutomationProperties.Name="{l:Tr Settings_Devices}" Command="{Binding OpenDevicesCommand}">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <PathIcon Classes="muted" Data="{StaticResource IconServer}" Width="22" Height="22" />
+          <TextBlock Grid.Column="1" Margin="12,0" VerticalAlignment="Center" FontWeight="SemiBold" Text="{l:Tr Settings_Devices}" />
+          <PathIcon Grid.Column="2" Classes="muted" Data="{StaticResource IconChevronRight}" Width="18" Height="18" />
+        </Grid>
+      </Button>
+      <Button Classes="row" AutomationProperties.Name="{l:Tr Settings_Sync}" Command="{Binding OpenSyncCommand}">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <PathIcon Classes="muted" Data="{StaticResource IconDatabaseSync}" Width="22" Height="22" />
+          <TextBlock Grid.Column="1" Margin="12,0" VerticalAlignment="Center" FontWeight="SemiBold" Text="{l:Tr Settings_Sync}" />
+          <PathIcon Grid.Column="2" Classes="muted" Data="{StaticResource IconChevronRight}" Width="18" Height="18" />
+        </Grid>
+      </Button>
+
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionTitle" Text="{l:Tr Mobile_Connection}" />
+          <TextBlock Classes="muted" Text="{l:Tr Mobile_ConnectionHint}" />
+          <TextBlock Classes="muted" Text="{l:Tr Mobile_ProtocolsHint}" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

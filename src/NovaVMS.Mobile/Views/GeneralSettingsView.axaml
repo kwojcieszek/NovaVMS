@@ -1,0 +1,105 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.Mobile.Localization"
+             xmlns:models="using:NovaVMS.Mobile.Models"
+             xmlns:vm="using:NovaVMS.Mobile.ViewModels"
+             x:Class="NovaVMS.Mobile.Views.GeneralSettingsView"
+             x:DataType="vm:GeneralSettingsViewModel">
+
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="models:LanguageOption">
+      <TextBlock Text="{Binding Label}" />
+    </DataTemplate>
+    <DataTemplate DataType="models:ThemeOption">
+      <TextBlock Text="{Binding Label}" />
+    </DataTemplate>
+    <DataTemplate DataType="models:StreamModeOption">
+      <TextBlock Text="{Binding Label}" />
+    </DataTemplate>
+    <DataTemplate DataType="models:VideoAspectModeOption">
+      <TextBlock Text="{Binding Label}" />
+    </DataTemplate>
+    <DataTemplate DataType="models:GridLayoutOption">
+      <TextBlock Text="{Binding Label}" />
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Classes="page">
+      <TextBlock Classes="pageTitle" Text="{l:Tr Settings_General}" />
+      <TextBlock Classes="muted" Text="{l:Tr General_AutoSaved}" />
+
+      <!-- Appearance -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionTitle" Text="{l:Tr General_Appearance}" />
+          <TextBlock Classes="label" Text="{l:Tr General_Language}" />
+          <ComboBox ItemsSource="{Binding Languages}" SelectedItem="{Binding SelectedLanguage}" AutomationProperties.Name="{l:Tr General_Language}" />
+          <TextBlock Classes="label" Text="{l:Tr General_Theme}" />
+          <ComboBox ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}" AutomationProperties.Name="{l:Tr General_Theme}" />
+        </StackPanel>
+      </Border>
+
+      <!-- Settings of this phone only -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionTitle" Text="{l:Tr Mobile_ThisDevice}" />
+          <TextBlock Classes="muted" Text="{l:Tr Mobile_ThisDeviceHint}" />
+          <CheckBox Content="{l:Tr General_UseOptionalProtocol}" IsChecked="{Binding UseOptionalProtocol}" />
+          <TextBlock Classes="muted" Text="{l:Tr General_UseOptionalProtocolHint}" />
+        </StackPanel>
+      </Border>
+
+      <!-- Live view -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionTitle" Text="{l:Tr App_LiveView}" />
+          <TextBlock Classes="label" Text="{l:Tr General_Stream}" />
+          <ComboBox ItemsSource="{Binding StreamModes}" SelectedItem="{Binding SelectedStreamMode}" AutomationProperties.Name="{l:Tr General_Stream}" />
+          <TextBlock Classes="label" Text="{l:Tr General_AspectMode}" />
+          <ComboBox ItemsSource="{Binding AspectModes}" SelectedItem="{Binding SelectedAspectMode}" AutomationProperties.Name="{l:Tr General_AspectMode}" />
+          <TextBlock Classes="label" Text="{l:Tr General_MainStreamMinimumHeight}" />
+          <NumericUpDown Value="{Binding MainStreamMinimumHeight}" Minimum="1" Maximum="16384" Increment="10" FormatString="0" />
+          <TextBlock Classes="muted" Text="{l:Tr General_MainStreamMinimumHeightHint}" />
+          <TextBlock Classes="label" Text="{l:Tr General_DefaultSplit}" />
+          <ComboBox ItemsSource="{Binding Layouts}" SelectedItem="{Binding DefaultLayout}" AutomationProperties.Name="{l:Tr General_DefaultSplit}" />
+          <TextBlock Classes="label" Text="{l:Tr General_NetworkBuffer}" />
+          <NumericUpDown Value="{Binding NetworkCachingMs}" Minimum="{Binding MinimumNetworkCaching}" Maximum="{Binding MaximumNetworkCaching}" Increment="50" FormatString="0" />
+          <TextBlock Classes="label" Text="{l:Tr General_MainStreamBuffer}" />
+          <NumericUpDown Value="{Binding MainStreamCachingMs}" Minimum="{Binding MinimumNetworkCaching}" Maximum="{Binding MaximumNetworkCaching}" Increment="50" FormatString="0" />
+          <TextBlock Classes="label" Text="{l:Tr General_SubStreamMaxFrameRate}" />
+          <NumericUpDown Value="{Binding SubStreamMaxFrameRate}" Minimum="{Binding MinimumFrameRate}" Maximum="{Binding MaximumFrameRate}" Increment="1" FormatString="0" />
+          <TextBlock Classes="label" Text="{l:Tr General_MainStreamMaxFrameRate}" />
+          <NumericUpDown Value="{Binding MainStreamMaxFrameRate}" Minimum="{Binding MinimumFrameRate}" Maximum="{Binding MaximumFrameRate}" Increment="1" FormatString="0" />
+          <TextBlock Classes="muted" Text="{l:Tr General_MaxFrameRateHint}" />
+          <TextBlock Classes="muted" Text="{l:Tr Mobile_PreviewFrameRateHint}" />
+          <TextBlock Classes="label" Text="{l:Tr General_HiddenTileRelease}" />
+          <NumericUpDown Value="{Binding HiddenTileReleaseSeconds}" Minimum="{Binding MinimumHiddenTileRelease}" Maximum="{Binding MaximumHiddenTileRelease}" Increment="5" FormatString="0" />
+          <CheckBox Content="{l:Tr General_ShowTitles}" IsChecked="{Binding ShowTileTitles}" />
+          <CheckBox Content="{l:Tr General_ShowSearch}" IsChecked="{Binding ShowCameraSearch}" />
+          <CheckBox Content="{l:Tr General_WarnWhenGroupExceedsLayout}" IsChecked="{Binding WarnWhenGroupExceedsLayout}" />
+        </StackPanel>
+      </Border>
+
+      <!-- Backup: the same export file format as the desktop application -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionTitle" Text="{l:Tr General_Backup}" />
+          <TextBlock Classes="muted" Text="{l:Tr General_BackupHint}" />
+          <CheckBox Content="{l:Tr General_IncludePasswords}" IsChecked="{Binding IncludePasswordsInExport}" />
+          <Button Classes="action" Content="{l:Tr General_Export}" AutomationProperties.Name="{l:Tr General_Export}" Command="{Binding ExportCommand}" />
+          <Button Classes="action" Content="{l:Tr General_Import}" AutomationProperties.Name="{l:Tr General_Import}" Command="{Binding ImportCommand}" />
+          <TextBlock Classes="muted" Text="{Binding StatusText}" />
+        </StackPanel>
+      </Border>
+
+      <!-- Groups -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionTitle" Text="{l:Tr Groups_Title}" />
+          <CheckBox Content="{l:Tr General_AutoGroups}" IsChecked="{Binding AutoCreateDeviceGroups}" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -1,0 +1,32 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.Mobile.Localization"
+             xmlns:vm="using:NovaVMS.Mobile.ViewModels"
+             x:Class="NovaVMS.Mobile.Views.RecordingsPanel"
+             x:DataType="vm:RecordingsViewModel">
+
+  <StackPanel Spacing="10">
+    <TextBlock Classes="muted" Text="{l:Tr Mobile_RecordingsHint}" TextWrapping="Wrap" />
+    <CalendarDatePicker SelectedDate="{Binding SelectedDate}" AutomationProperties.Name="{l:Tr Mobile_RecordingDay}" />
+    <Button Classes="action primary"
+            Content="{l:Tr Mobile_SearchRecordings}"
+            AutomationProperties.Name="{l:Tr Mobile_SearchRecordings}"
+            Command="{Binding SearchCommand}" />
+
+    <ItemsControl ItemsSource="{Binding Results}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="8" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate DataType="vm:RecordingItemViewModel">
+          <Button Classes="action"
+                  Content="{Binding Title}"
+                  AutomationProperties.Name="{Binding Title}"
+                  Command="{Binding PlayCommand}" />
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>

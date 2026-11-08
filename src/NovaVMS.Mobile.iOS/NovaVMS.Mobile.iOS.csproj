@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-ios</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <ApplicationId>com.novavms.mobile</ApplicationId>
+    <ApplicationTitle>NovaVMS</ApplicationTitle>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">ios-arm64</RuntimeIdentifier>
+    <MtouchLink>SdkOnly</MtouchLink>
+    <UseInterpreter>true</UseInterpreter>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../NovaVMS.Mobile/NovaVMS.Mobile.csproj" />
+    <PackageReference Include="Avalonia.iOS" Version="12.1.5" />
+    <PackageReference Include="LibVLCSharp" Version="3.10.2" />
+    <PackageReference Include="VideoLAN.LibVLC.iOS" Version="3.6.1" />
+    <Compile Include="../NovaVMS.Mobile/Native/VlcPlayer.cs" Link="Native/VlcPlayer.cs" />
+    <BundleResource Include="PrivacyInfo.xcprivacy" />
+  </ItemGroup>
+</Project>

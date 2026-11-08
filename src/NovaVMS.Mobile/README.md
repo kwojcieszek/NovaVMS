@@ -1,0 +1,76 @@
+# NovaVMS Mobile
+
+Mobile Avalonia UI application with iOS and Android entry points. All projects
+live directly in `src` and are part of the single `src/NovaVMS.sln` solution.
+
+```text
+src/
+  NovaVMS.Mobile/          # Shared mobile application (MVVM)
+    Localization/          #   Localizer and {l:Tr Key} markup extension
+    Models/                #   Settings and option lists
+    Native/                #   LibVLC player compiled by the platform heads
+    Services/              #   Encrypted device store, settings store, device connections
+    ViewModels/            #   One view model per page or list item
+    Views/                 #   AXAML views, one per file
+  NovaVMS.Mobile.Android/  # Android startup and native services
+  NovaVMS.Mobile.iOS/      # iPhone/iPad startup and native services
+  NovaVMS.Mobile.Tests/    # Mobile application tests
+```
+
+## Navigation
+
+- **Cameras** – the main page is structured like the desktop resource tree: Favorites, saved
+  Views and camera Groups. Opening one plays live previews of all its cameras (sub stream,
+  without sound); tapping a preview opens the camera full screen in landscape.
+  The back button returns camera → group → main page. Searching lists matching
+  cameras directly.
+- **Devices** – device list and form with the desktop fields (primary and optional protocol,
+  ports, secondary address, credentials, stream key) and channel download.
+- **Settings** – the pages of the desktop settings window except software updates:
+  General, Camera groups, Devices, Users and Synchronization.
+
+## Configuration and synchronization
+
+The phone keeps the same files as the desktop, with the same names and formats
+(`AppDataPaths` in `NovaVMS.Infrastructure`): `config.json` (devices, groups, views, users,
+settings), `sync.json` (settings database connection) and `local.json` (settings of this
+device only). The desktop encrypts them for the computer account, the phone with the
+Android Keystore / iOS Keychain key, so they move between devices through the settings
+database or an export file, never by copying. Synchronization uses the shared
+PostgreSQL / MySQL stores of `NovaVMS.Infrastructure` and behaves like the desktop: automatic
+checking and sending, version history and restoring an archived version. "This phone"
+settings (optional protocol) stay in `local.json` and are never synchronized. Device lists
+saved by earlier mobile versions (`devices.enc`) are migrated once and get device groups.
+
+The Hikvision SDK is not available on phones; a device using it is opened through its optional
+ISAPI/ONVIF connection when it has one.
+
+## Look and translations
+
+- `App.axaml` uses the same palette, accent colour and brush names as
+  `NovaVMS.App/App.axaml`, and the dark theme by default.
+- The Android launcher icons and the iOS app icon are generated from the desktop icon
+  `NovaVMS.App/Assets/novavms.png`. The interface has no title bar; pages start with their title.
+- Interface texts come from the shared catalog `NovaVMS.Core/Resources/Strings/*.json`
+  (keys `Mobile_*` plus shared `Common_*`, `Theme_*`, `Language_*` keys). Views use
+  `{l:Tr Key}`, code uses `Localizer.Text` / `Localizer.Format`, exactly as in the
+  desktop application. Language and theme are synchronized settings, as on the desktop.
+
+`NovaVMS.Mobile/Native/VlcPlayer.cs` is excluded from the shared project and
+compiled by the Android and iOS heads against their native LibVLC bindings.
+
+Mobile views are independent of `NovaVMS.App/Views`. Reuse the domain and
+protocol libraries through project references; do not reference the desktop
+executable or reuse its windows.
+
+Building the whole solution requires the .NET `android` and `ios` workloads.
+
+Run on an Android emulator or device:
+
+```bash
+cd src
+dotnet build NovaVMS.Mobile.Android -t:Run
+```
+
+An iPhone installation package requires building and signing on a Mac with Xcode
+and the appropriate Apple provisioning profile.

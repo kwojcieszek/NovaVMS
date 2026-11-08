@@ -1,0 +1,69 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.Mobile.Localization"
+             xmlns:models="using:NovaVMS.Mobile.Models"
+             xmlns:vm="using:NovaVMS.Mobile.ViewModels"
+             x:Class="NovaVMS.Mobile.Views.GroupEditView"
+             x:DataType="vm:GroupEditViewModel">
+
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="vm:GroupCameraRowViewModel">
+      <Border Classes="card" Padding="12,6">
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+          <StackPanel Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+            <TextBlock Classes="muted" Text="{Binding Subtitle}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="icon" IsVisible="{Binding IsInGroup}" AutomationProperties.Name="{l:Tr Groups_MoveUp}" Command="{Binding MoveUpCommand}">
+            <PathIcon Data="{StaticResource IconMenuUp}" Width="22" Height="22" />
+          </Button>
+          <Button Grid.Column="2" Classes="icon" IsVisible="{Binding IsInGroup}" AutomationProperties.Name="{l:Tr Groups_MoveDown}" Command="{Binding MoveDownCommand}">
+            <PathIcon Data="{StaticResource IconMenuDown}" Width="22" Height="22" />
+          </Button>
+          <Button Grid.Column="3" Classes="danger" IsVisible="{Binding IsInGroup}" Content="{l:Tr Common_Delete}" AutomationProperties.Name="{l:Tr Groups_RemoveFromGroup}" Command="{Binding RemoveCommand}" />
+          <Button Grid.Column="3" IsVisible="{Binding IsAvailable}" Content="{l:Tr Mobile_Add}" AutomationProperties.Name="{l:Tr Tree_AddToGroup}" Command="{Binding AddCommand}" />
+        </Grid>
+      </Border>
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Classes="page">
+      <TextBlock Classes="pageTitle" Text="{Binding Name}" />
+
+      <TextBlock Classes="label" Text="{l:Tr Groups_NameWatermark}" />
+      <TextBox Text="{Binding Name}" AutomationProperties.Name="{l:Tr Groups_NameWatermark}" />
+      <TextBlock Classes="muted" Text="{l:Tr Groups_NameTip}" />
+
+      <TextBlock Classes="sectionTitle" Text="{l:Tr Groups_CamerasInGroup}" />
+      <ItemsControl ItemsSource="{Binding Cameras}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="6" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+
+      <TextBlock Classes="sectionTitle" Text="{l:Tr Groups_Available}" />
+      <ComboBox ItemsSource="{Binding DeviceFilters}" SelectedItem="{Binding DeviceFilter}" AutomationProperties.Name="{l:Tr Groups_FilterByDevice}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate DataType="models:DeviceFilterOption">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <ItemsControl ItemsSource="{Binding AvailableCameras}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="6" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+
+      <Button Classes="action danger"
+              Content="{l:Tr Mobile_DeleteGroupTitle}"
+              AutomationProperties.Name="{l:Tr Mobile_DeleteGroupTitle}"
+              Command="{Binding DeleteCommand}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

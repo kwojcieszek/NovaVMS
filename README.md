@@ -105,10 +105,18 @@ the installation directory. Download, backup and installer logs are retained in 
 ```
 src/
 ├── NovaVMS.sln
-├── NovaVMS.App/             # Avalonia application (MVVM): views, view models, services
-├── NovaVMS.Core/            # Domain models, abstractions, exceptions, translations (Resources/Strings/*.json)
-├── NovaVMS.Infrastructure/  # Configuration storage (JSON), CSV and iVMS-4200 import
-└── NovaVMS.Protocols/       # Device clients: ISAPI, ONVIF, HCNetSDK, RTSP
+├── NovaVMS.App/                   # Desktop Avalonia application (MVVM)
+├── NovaVMS.App.Tests/             # Desktop application tests
+├── NovaVMS.Updater/               # Desktop update helper
+├── NovaVMS.Mobile/                # Shared mobile Avalonia application
+├── NovaVMS.Mobile.Android/        # Android head
+├── NovaVMS.Mobile.iOS/            # iOS head
+├── NovaVMS.Mobile.Tests/          # Mobile application tests
+├── NovaVMS.Core/                  # Domain models, abstractions, exceptions, translations (Resources/Strings/*.json)
+├── NovaVMS.Infrastructure/        # Configuration storage (JSON), CSV and iVMS-4200 import
+├── NovaVMS.Infrastructure.Tests/  # Infrastructure tests
+├── NovaVMS.Protocols/             # Device clients: ISAPI, ONVIF, HCNetSDK, RTSP
+└── NovaVMS.Protocols.Tests/       # Protocol tests
 ```
 
 Project dependencies:

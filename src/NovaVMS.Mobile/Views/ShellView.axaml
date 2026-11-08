@@ -1,0 +1,111 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.Mobile.Localization"
+             xmlns:vm="using:NovaVMS.Mobile.ViewModels"
+             xmlns:views="using:NovaVMS.Mobile.Views"
+             x:Class="NovaVMS.Mobile.Views.ShellView"
+             x:DataType="vm:ShellViewModel">
+
+  <Border Classes="window">
+    <Grid RowDefinitions="*,Auto,Auto">
+
+      <!-- Current page -->
+      <ContentControl Grid.Row="0" Content="{Binding CurrentPage}">
+        <ContentControl.DataTemplates>
+          <DataTemplate DataType="vm:CamerasViewModel">
+            <views:CamerasView />
+          </DataTemplate>
+          <DataTemplate DataType="vm:CameraViewModel">
+            <views:CameraView />
+          </DataTemplate>
+          <DataTemplate DataType="vm:DevicesViewModel">
+            <views:DevicesView />
+          </DataTemplate>
+          <DataTemplate DataType="vm:DeviceEditViewModel">
+            <views:DeviceEditView />
+          </DataTemplate>
+          <DataTemplate DataType="vm:DeviceRemovalViewModel">
+            <views:DeviceRemovalView />
+          </DataTemplate>
+          <DataTemplate DataType="vm:SettingsViewModel">
+            <views:SettingsView />
+          </DataTemplate>
+          <DataTemplate DataType="vm:CameraGroupViewModel">
+            <views:CameraGroupView />
+          </DataTemplate>
+          <DataTemplate DataType="vm:GeneralSettingsViewModel">
+            <views:GeneralSettingsView />
+          </DataTemplate>
+          <DataTemplate DataType="vm:GroupsSettingsViewModel">
+            <views:GroupsSettingsView />
+          </DataTemplate>
+          <DataTemplate DataType="vm:GroupEditViewModel">
+            <views:GroupEditView />
+          </DataTemplate>
+          <DataTemplate DataType="vm:SyncSettingsViewModel">
+            <views:SyncSettingsView />
+          </DataTemplate>
+        </ContentControl.DataTemplates>
+      </ContentControl>
+
+      <!-- Confirmation over the current page -->
+      <Border Grid.Row="0" Classes="scrim" IsVisible="{Binding HasConfirmation}">
+        <Border Classes="dialog" DataContext="{Binding Confirmation}" x:DataType="vm:ConfirmationViewModel">
+          <StackPanel Spacing="12">
+            <TextBlock Classes="sectionTitle" Text="{Binding Title}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+            <Button Classes="action primary" Content="{l:Tr Common_Yes}" AutomationProperties.Name="{l:Tr Common_Yes}" Command="{Binding AcceptCommand}" />
+            <Button Classes="action" Content="{l:Tr Common_No}" AutomationProperties.Name="{l:Tr Common_No}" Command="{Binding DeclineCommand}" />
+          </StackPanel>
+        </Border>
+      </Border>
+
+      <!-- Status bar -->
+      <StackPanel Grid.Row="1" IsVisible="{Binding IsWindowed}">
+        <ProgressBar IsIndeterminate="True" Height="3" MinHeight="3" IsVisible="{Binding IsBusy}" />
+        <TextBlock Classes="muted"
+                   FontSize="13"
+                   Margin="16,6"
+                   TextWrapping="Wrap"
+                   Text="{Binding Status}"
+                   IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      </StackPanel>
+
+      <!-- Bottom navigation -->
+      <Border Grid.Row="2" Classes="navigation" IsVisible="{Binding IsWindowed}">
+        <Grid ColumnDefinitions="*,*,*">
+          <Button Grid.Column="0"
+                  Classes="tab"
+                  Classes.active="{Binding IsCamerasTab}"
+                  AutomationProperties.Name="{l:Tr Mobile_Cameras}"
+                  Command="{Binding ShowCamerasTabCommand}">
+            <StackPanel Spacing="4" HorizontalAlignment="Center">
+              <PathIcon Data="{StaticResource IconVideo}" Width="22" Height="22" />
+              <TextBlock Text="{l:Tr Mobile_Cameras}" HorizontalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <Button Grid.Column="1"
+                  Classes="tab"
+                  Classes.active="{Binding IsDevicesTab}"
+                  AutomationProperties.Name="{l:Tr Mobile_Devices}"
+                  Command="{Binding ShowDevicesTabCommand}">
+            <StackPanel Spacing="4" HorizontalAlignment="Center">
+              <PathIcon Data="{StaticResource IconServer}" Width="22" Height="22" />
+              <TextBlock Text="{l:Tr Mobile_Devices}" HorizontalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <Button Grid.Column="2"
+                  Classes="tab"
+                  Classes.active="{Binding IsSettingsTab}"
+                  AutomationProperties.Name="{l:Tr Mobile_Settings}"
+                  Command="{Binding ShowSettingsTabCommand}">
+            <StackPanel Spacing="4" HorizontalAlignment="Center">
+              <PathIcon Data="{StaticResource IconCog}" Width="22" Height="22" />
+              <TextBlock Text="{l:Tr Mobile_Settings}" HorizontalAlignment="Center" />
+            </StackPanel>
+          </Button>
+        </Grid>
+      </Border>
+    </Grid>
+  </Border>
+</UserControl>

@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.Mobile.Localization"
+             xmlns:vm="using:NovaVMS.Mobile.ViewModels"
+             x:Class="NovaVMS.Mobile.Views.DeviceRemovalView"
+             x:DataType="vm:DeviceRemovalViewModel">
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Classes="page">
+      <TextBlock Classes="pageTitle" Text="{l:Tr Mobile_DeleteTitle}" />
+      <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+      <Button Classes="action primary"
+              Content="{l:Tr Common_Delete}"
+              AutomationProperties.Name="{l:Tr Common_Delete}"
+              Command="{Binding DeleteCommand}" />
+      <Button Classes="action"
+              Content="{l:Tr Common_Cancel}"
+              AutomationProperties.Name="{l:Tr Common_Cancel}"
+              Command="{Binding CancelCommand}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.Mobile.Localization"
+             xmlns:vm="using:NovaVMS.Mobile.ViewModels"
+             xmlns:views="using:NovaVMS.Mobile.Views"
+             x:Class="NovaVMS.Mobile.Views.CameraView"
+             x:DataType="vm:CameraViewModel">
+
+  <Grid RowDefinitions="Auto,Auto,*">
+    <StackPanel Grid.Row="0" Spacing="2" Margin="16,12" IsVisible="{Binding IsWindowed}">
+      <TextBlock Classes="pageTitle" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+      <TextBlock Classes="muted" Text="{Binding Subtitle}" TextTrimming="CharacterEllipsis" />
+    </StackPanel>
+
+    <!-- Video height follows the available size (see code-behind); full screen it takes the whole page -->
+    <Border x:Name="VideoArea" Grid.Row="1" Classes="tile" Height="220">
+      <ContentControl Content="{Binding Video}" />
+    </Border>
+
+    <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled" IsVisible="{Binding IsWindowed}">
+      <StackPanel Classes="page">
+        <Button Classes="action"
+                Content="{l:Tr Mobile_BackToCameras}"
+                AutomationProperties.Name="{l:Tr Mobile_BackToCameras}"
+                Command="{Binding BackCommand}" />
+        <Button Classes="action primary"
+                Content="{l:Tr Mobile_Reconnect}"
+                AutomationProperties.Name="{l:Tr Mobile_Reconnect}"
+                Command="{Binding ReconnectCommand}" />
+        <CheckBox Content="{l:Tr Mobile_MainStream}" IsChecked="{Binding MainStream}" />
+        <CheckBox Content="{l:Tr Mobile_Sound}" IsChecked="{Binding SoundEnabled}" />
+        <Button Classes="action"
+                Content="{l:Tr Mobile_PauseResume}"
+                AutomationProperties.Name="{l:Tr Mobile_PauseResume}"
+                Command="{Binding TogglePauseCommand}" />
+        <Button Classes="action"
+                Content="{l:Tr Mobile_StopStream}"
+                AutomationProperties.Name="{l:Tr Mobile_StopStream}"
+                Command="{Binding StopStreamCommand}" />
+        <Button Classes="action"
+                Content="{l:Tr Mobile_ToggleFavorite}"
+                AutomationProperties.Name="{l:Tr Mobile_ToggleFavorite}"
+                Command="{Binding ToggleFavoriteCommand}" />
+
+        <Expander Header="{l:Tr Mobile_PtzControl}" HorizontalAlignment="Stretch">
+          <views:PtzPanel DataContext="{Binding Ptz}" />
+        </Expander>
+        <Expander Header="{l:Tr Mobile_Recordings}" HorizontalAlignment="Stretch">
+          <views:RecordingsPanel DataContext="{Binding Recordings}" />
+        </Expander>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

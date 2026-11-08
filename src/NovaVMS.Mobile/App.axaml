@@ -1,0 +1,248 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NovaVMS.Mobile.App"
+             Name="NovaVMS"
+             RequestedThemeVariant="Dark">
+
+  <!-- Palette and brushes mirror NovaVMS.App/App.axaml so both applications share one look. -->
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="NovaWindowBackground" Color="#FF1B1C1F" />
+          <SolidColorBrush x:Key="NovaPanelBackground" Color="#FF26272B" />
+          <SolidColorBrush x:Key="NovaHeaderBackground" Color="#FF131416" />
+          <SolidColorBrush x:Key="NovaTileBackground" Color="#FF0B0B0D" />
+          <SolidColorBrush x:Key="NovaTileBorder" Color="#FF2E2F34" />
+          <SolidColorBrush x:Key="NovaStrongText" Color="#FFFFFFFF" />
+          <SolidColorBrush x:Key="NovaMutedText" Color="#FF9A9CA3" />
+          <SolidColorBrush x:Key="NovaError" Color="#FFE5534B" />
+          <SolidColorBrush x:Key="NovaHover" Color="#18FFFFFF" />
+          <SolidColorBrush x:Key="NovaFavoriteIcon" Color="#FF34D399" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="NovaWindowBackground" Color="#FFF3F4F6" />
+          <SolidColorBrush x:Key="NovaPanelBackground" Color="#FFFFFFFF" />
+          <SolidColorBrush x:Key="NovaHeaderBackground" Color="#FFE7E8EB" />
+          <SolidColorBrush x:Key="NovaTileBackground" Color="#FF141518" />
+          <SolidColorBrush x:Key="NovaTileBorder" Color="#FFCFD2D7" />
+          <SolidColorBrush x:Key="NovaStrongText" Color="#FF111214" />
+          <SolidColorBrush x:Key="NovaMutedText" Color="#FF5F6368" />
+          <SolidColorBrush x:Key="NovaError" Color="#FFC93C37" />
+          <SolidColorBrush x:Key="NovaHover" Color="#12000000" />
+          <SolidColorBrush x:Key="NovaFavoriteIcon" Color="#FF16A34A" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+
+      <SolidColorBrush x:Key="NovaAccent" Color="#FFD7263D" />
+
+      <!-- Material Design icons, the same symbols as in the desktop application -->
+      <StreamGeometry x:Key="IconVideo">M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z</StreamGeometry>
+      <StreamGeometry x:Key="IconServer">M4,1H20A1,1 0 0,1 21,2V6A1,1 0 0,1 20,7H4A1,1 0 0,1 3,6V2A1,1 0 0,1 4,1M4,9H20A1,1 0 0,1 21,10V14A1,1 0 0,1 20,15H4A1,1 0 0,1 3,14V10A1,1 0 0,1 4,9M4,17H20A1,1 0 0,1 21,18V22A1,1 0 0,1 20,23H4A1,1 0 0,1 3,22V18A1,1 0 0,1 4,17M9,5H10V3H9V5M9,13H10V11H9V13M9,21H10V19H9V21M5,3V5H7V3H5M5,11V13H7V11H5M5,19V21H7V19H5Z</StreamGeometry>
+      <StreamGeometry x:Key="IconCog">M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z</StreamGeometry>
+      <StreamGeometry x:Key="IconStar">M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z</StreamGeometry>
+      <StreamGeometry x:Key="IconViewGrid">M3,11H11V3H3M3,21H11V13H3M13,21H21V13H13M13,3V11H21V3</StreamGeometry>
+      <StreamGeometry x:Key="IconFolder">M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z</StreamGeometry>
+      <StreamGeometry x:Key="IconDatabaseSync">M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z</StreamGeometry>
+      <StreamGeometry x:Key="IconTune">M3,17V19H9V17H3M3,5V7H13V5H3M13,21V19H21V17H13V15H11V21H13M7,9V11H3V13H7V15H9V9H7M21,13V11H11V13H21M15,9H17V7H21V5H17V3H15V9Z</StreamGeometry>
+      <StreamGeometry x:Key="IconEye">M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5Z</StreamGeometry>
+      <StreamGeometry x:Key="IconEyeOff">M11.83,9L15,12.16C15,12.11 15,12.05 15,12A3,3 0 0,0 12,9C11.94,9 11.89,9 11.83,9M7.53,9.8L9.08,11.35C9.03,11.56 9,11.77 9,12A3,3 0 0,0 12,15C12.22,15 12.44,14.97 12.65,14.92L14.2,16.47C13.53,16.8 12.79,17 12,17A5,5 0 0,1 7,12C7,11.21 7.2,10.47 7.53,9.8M2,4.27L4.28,6.55L4.73,7C3.08,8.3 1.78,10 1,12C2.73,16.39 7,19.5 12,19.5C13.55,19.5 15.03,19.2 16.38,18.66L16.81,19.08L19.73,22L21,20.73L3.27,3M12,7A5,5 0 0,1 17,12C17,12.64 16.87,13.26 16.64,13.82L19.57,16.75C21.07,15.5 22.27,13.86 23,12C21.27,7.61 17,4.5 12,4.5C10.6,4.5 9.26,4.75 8,5.2L10.17,7.35C10.74,7.13 11.35,7 12,7Z</StreamGeometry>
+      <StreamGeometry x:Key="IconMenuUp">M7,15L12,10L17,15H7Z</StreamGeometry>
+      <StreamGeometry x:Key="IconMenuDown">M7,10L12,15L17,10H7Z</StreamGeometry>
+      <StreamGeometry x:Key="IconChevronRight">M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z</StreamGeometry>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Dark" Accent="#FFD7263D" RegionColor="#FF1B1C1F" />
+        <ColorPaletteResources x:Key="Light" Accent="#FFD7263D" RegionColor="#FFF3F4F6" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+
+    <!-- Touch targets -->
+    <Style Selector="Button">
+      <Setter Property="MinHeight" Value="48" />
+      <Setter Property="MinWidth" Value="48" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="MinHeight" Value="48" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <!-- Window -->
+    <Style Selector="Border.window">
+      <Setter Property="Background" Value="{DynamicResource NovaWindowBackground}" />
+    </Style>
+
+    <!-- Bottom navigation tabs: accent marker like the desktop header tabs -->
+    <Style Selector="Border.navigation">
+      <Setter Property="Background" Value="{DynamicResource NovaHeaderBackground}" />
+    </Style>
+    <Style Selector="Button.tab">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource NovaMutedText}" />
+      <Setter Property="BorderThickness" Value="0,2,0,0" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="MinHeight" Value="60" />
+      <Setter Property="Padding" Value="4,6" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.tab.active">
+      <Setter Property="Foreground" Value="{DynamicResource NovaStrongText}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource NovaAccent}" />
+    </Style>
+    <Style Selector="Button.tab.active PathIcon">
+      <Setter Property="Foreground" Value="{DynamicResource NovaAccent}" />
+    </Style>
+    <Style Selector="Button.tab:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource NovaHover}" />
+    </Style>
+
+    <!-- List rows and cards -->
+    <Style Selector="Button.row">
+      <Setter Property="Background" Value="{DynamicResource NovaPanelBackground}" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Padding" Value="12,10" />
+      <Setter Property="MinHeight" Value="60" />
+    </Style>
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource NovaPanelBackground}" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="14,12" />
+    </Style>
+
+    <!-- Action buttons -->
+    <Style Selector="Button.action">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{DynamicResource NovaAccent}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#FFE0384E" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.danger">
+      <Setter Property="Foreground" Value="{DynamicResource NovaError}" />
+    </Style>
+    <Style Selector="Button.ptz">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="Margin" Value="3" />
+    </Style>
+
+    <!-- Confirmation -->
+    <Style Selector="Border.scrim">
+      <Setter Property="Background" Value="#99000000" />
+    </Style>
+    <Style Selector="Border.dialog">
+      <Setter Property="Background" Value="{DynamicResource NovaPanelBackground}" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="20" />
+      <Setter Property="Margin" Value="24" />
+      <Setter Property="MaxWidth" Value="480" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- Camera group previews -->
+    <Style Selector="Button.tile">
+      <Setter Property="Background" Value="{DynamicResource NovaTileBackground}" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="MinWidth" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="VerticalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Stretch" />
+    </Style>
+    <!-- Previews touch each other without frames -->
+    <Style Selector="Border.preview">
+      <Setter Property="Background" Value="{DynamicResource NovaTileBackground}" />
+    </Style>
+    <Style Selector="Button.tile:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.tile:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Border.tileTitle">
+      <Setter Property="Background" Value="#FF0B0B0D" />
+      <Setter Property="Padding" Value="6,2" />
+    </Style>
+    <Style Selector="TextBlock.overlay">
+      <Setter Property="Foreground" Value="#FFE6E6E6" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="TextAlignment" Value="Center" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="8" />
+    </Style>
+    <Style Selector="Button.icon">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Padding" Value="8" />
+    </Style>
+
+    <!-- Video -->
+    <Style Selector="Border.tile">
+      <Setter Property="Background" Value="{DynamicResource NovaTileBackground}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource NovaTileBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <!-- Text -->
+    <Style Selector="TextBlock.muted">
+      <Setter Property="Foreground" Value="{DynamicResource NovaMutedText}" />
+    </Style>
+    <Style Selector="TextBlock.error">
+      <Setter Property="Foreground" Value="{DynamicResource NovaError}" />
+    </Style>
+    <Style Selector="TextBlock.pageTitle">
+      <Setter Property="FontSize" Value="20" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.sectionTitle">
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.label">
+      <Setter Property="Foreground" Value="{DynamicResource NovaMutedText}" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Margin" Value="0,4,0,-6" />
+    </Style>
+    <Style Selector="PathIcon.favorite">
+      <Setter Property="Foreground" Value="{DynamicResource NovaFavoriteIcon}" />
+    </Style>
+    <Style Selector="PathIcon.muted">
+      <Setter Property="Foreground" Value="{DynamicResource NovaMutedText}" />
+    </Style>
+
+    <!-- Page layout -->
+    <Style Selector="StackPanel.page">
+      <Setter Property="Spacing" Value="12" />
+      <Setter Property="Margin" Value="16" />
+      <Setter Property="MaxWidth" Value="720" />
+    </Style>
+    <Style Selector="StackPanel.page TextBlock.muted, StackPanel.page TextBlock.pageTitle, Border.card TextBlock">
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="CheckBox, ComboBox, CalendarDatePicker">
+      <Setter Property="MinHeight" Value="48" />
+    </Style>
+    <Style Selector="ComboBox, CalendarDatePicker">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+    </Style>
+  </Application.Styles>
+</Application>

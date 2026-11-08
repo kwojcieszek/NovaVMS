@@ -1,0 +1,92 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.Mobile.Localization"
+             xmlns:vm="using:NovaVMS.Mobile.ViewModels"
+             x:Class="NovaVMS.Mobile.Views.CamerasView"
+             x:DataType="vm:CamerasViewModel">
+
+  <UserControl.DataTemplates>
+    <!-- Favorites, a view or a group: opens the live previews of its cameras -->
+    <DataTemplate DataType="vm:CameraCollectionItemViewModel">
+      <Button Classes="row"
+              AutomationProperties.Name="{Binding Title}"
+              Command="{Binding OpenCommand}">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <Panel Grid.Column="0" VerticalAlignment="Center">
+            <PathIcon Classes="favorite" Data="{StaticResource IconStar}" Width="22" Height="22" IsVisible="{Binding IsFavorites}" />
+            <PathIcon Classes="muted" Data="{StaticResource IconViewGrid}" Width="22" Height="22" IsVisible="{Binding IsView}" />
+            <PathIcon Classes="muted" Data="{StaticResource IconFolder}" Width="22" Height="22" IsVisible="{Binding IsGroup}" />
+          </Panel>
+          <StackPanel Grid.Column="1" Spacing="2" Margin="12,0" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+            <TextBlock Classes="muted" Text="{Binding Subtitle}" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+          <PathIcon Grid.Column="2" Classes="muted" Data="{StaticResource IconChevronRight}" Width="18" Height="18" VerticalAlignment="Center" />
+        </Grid>
+      </Button>
+    </DataTemplate>
+
+    <!-- Camera found by the search: opens the camera -->
+    <DataTemplate DataType="vm:CameraItemViewModel">
+      <Button Classes="row"
+              AutomationProperties.Name="{Binding AutomationName}"
+              Command="{Binding OpenCommand}">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <Panel Grid.Column="0" VerticalAlignment="Center">
+            <PathIcon Classes="favorite" Data="{StaticResource IconStar}" Width="22" Height="22" IsVisible="{Binding IsFavorite}" />
+            <PathIcon Classes="muted" Data="{StaticResource IconVideo}" Width="22" Height="22" IsVisible="{Binding IsRegular}" />
+          </Panel>
+          <StackPanel Grid.Column="1" Spacing="2" Margin="12,0" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+            <TextBlock Classes="muted" Text="{Binding Subtitle}" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+          <PathIcon Grid.Column="2" Classes="muted" Data="{StaticResource IconChevronRight}" Width="18" Height="18" VerticalAlignment="Center" />
+        </Grid>
+      </Button>
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Classes="page">
+      <TextBlock Classes="pageTitle" Text="{l:Tr Mobile_Cameras}" />
+      <TextBox Text="{Binding SearchText}"
+               PlaceholderText="{l:Tr Tree_SearchWatermark}"
+               AutomationProperties.Name="{l:Tr Tree_SearchWatermark}"
+               IsVisible="{Binding ShowSearch}" />
+      <TextBlock Classes="muted" Text="{l:Tr Mobile_NoCameras}" IsVisible="{Binding HasNoCameras}" />
+
+      <!-- Resource tree: favorites, views, groups -->
+      <StackPanel Spacing="12" IsVisible="{Binding IsBrowsing}">
+        <ContentControl Content="{Binding Favorites}" />
+
+        <TextBlock Classes="sectionTitle" Text="{l:Tr Views_Title}" IsVisible="{Binding HasViews}" />
+        <ItemsControl ItemsSource="{Binding Views}" IsVisible="{Binding HasViews}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+
+        <TextBlock Classes="sectionTitle" Text="{l:Tr Groups_Title}" IsVisible="{Binding HasGroups}" />
+        <ItemsControl ItemsSource="{Binding Groups}" IsVisible="{Binding HasGroups}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </StackPanel>
+
+      <!-- Search results -->
+      <ItemsControl ItemsSource="{Binding SearchResults}" IsVisible="{Binding IsSearching}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="8" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+      <TextBlock Classes="muted" Text="{l:Tr Mobile_NoSearchResults}" IsVisible="{Binding HasNoResults}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

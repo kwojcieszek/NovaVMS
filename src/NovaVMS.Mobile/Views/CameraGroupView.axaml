@@ -1,0 +1,63 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.Mobile.Localization"
+             xmlns:controls="using:NovaVMS.Mobile.Controls"
+             xmlns:vm="using:NovaVMS.Mobile.ViewModels"
+             x:Class="NovaVMS.Mobile.Views.CameraGroupView"
+             x:DataType="vm:CameraGroupViewModel">
+
+  <Grid RowDefinitions="Auto,*">
+    <!-- Compact header, so the previews get as much of the screen as possible -->
+    <Grid ColumnDefinitions="*,Auto" Margin="12,2,4,2">
+      <TextBlock Classes="sectionTitle" Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+      <Button Grid.Column="1"
+              Classes="icon"
+              AutomationProperties.Name="{l:Tr Mobile_ToggleTitles}"
+              ToolTip.Tip="{l:Tr Mobile_ToggleTitles}"
+              Command="{Binding ToggleTitlesCommand}">
+        <Panel>
+          <PathIcon Data="{StaticResource IconEye}" Width="22" Height="22" IsVisible="{Binding ShowTitles}" />
+          <PathIcon Data="{StaticResource IconEyeOff}" Width="22" Height="22" IsVisible="{Binding !ShowTitles}" />
+        </Panel>
+      </Button>
+    </Grid>
+
+    <TextBlock Grid.Row="1" Classes="muted" Margin="16" Text="{l:Tr Mobile_GroupEmpty}" IsVisible="{Binding IsEmpty}" TextWrapping="Wrap" />
+
+    <!-- All live previews fit on the screen; tapping a tile opens the camera -->
+    <Border Grid.Row="1" Background="{DynamicResource NovaTileBackground}">
+      <ItemsControl ItemsSource="{Binding Tiles}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <controls:VideoTileGrid />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="vm:CameraTileViewModel">
+            <Button Classes="tile"
+                    AutomationProperties.Name="{Binding AutomationName}"
+                    Command="{Binding OpenCommand}">
+              <!-- Native video is drawn above Avalonia content, so the name is a strip below the picture, not an overlay -->
+              <Grid RowDefinitions="*,Auto">
+                <Border Classes="preview">
+                  <Panel>
+                    <ContentControl Content="{Binding Video}" />
+                    <TextBlock Classes="overlay" Text="{Binding State}" />
+                  </Panel>
+                </Border>
+                <Border Grid.Row="1"
+                        Classes="tileTitle"
+                        IsVisible="{Binding $parent[ItemsControl].((vm:CameraGroupViewModel)DataContext).ShowTitles}">
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <PathIcon Classes="favorite" Data="{StaticResource IconStar}" Width="12" Height="12" IsVisible="{Binding IsFavorite}" />
+                    <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" Foreground="#FFE6E6E6" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                </Border>
+              </Grid>
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Border>
+  </Grid>
+</UserControl>

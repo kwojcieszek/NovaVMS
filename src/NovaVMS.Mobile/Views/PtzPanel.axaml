@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.Mobile.Localization"
+             xmlns:vm="using:NovaVMS.Mobile.ViewModels"
+             x:Class="NovaVMS.Mobile.Views.PtzPanel"
+             x:DataType="vm:PtzViewModel">
+
+  <StackPanel Spacing="8">
+    <!-- Each tap moves the camera for a short pulse and then stops it -->
+    <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto,Auto">
+      <Button Grid.Row="0" Grid.Column="1" Classes="ptz" Content="{l:Tr Mobile_PtzUp}" AutomationProperties.Name="{l:Tr Mobile_PtzUp}" Command="{Binding UpCommand}" />
+      <Button Grid.Row="1" Grid.Column="0" Classes="ptz" Content="{l:Tr Mobile_PtzLeft}" AutomationProperties.Name="{l:Tr Mobile_PtzLeft}" Command="{Binding LeftCommand}" />
+      <Button Grid.Row="1" Grid.Column="1" Classes="ptz primary" Content="{l:Tr Mobile_PtzStop}" AutomationProperties.Name="{l:Tr Mobile_PtzStop}" Command="{Binding StopCommand}" />
+      <Button Grid.Row="1" Grid.Column="2" Classes="ptz" Content="{l:Tr Mobile_PtzRight}" AutomationProperties.Name="{l:Tr Mobile_PtzRight}" Command="{Binding RightCommand}" />
+      <Button Grid.Row="2" Grid.Column="0" Classes="ptz" Content="{l:Tr Mobile_PtzZoomIn}" AutomationProperties.Name="{l:Tr Mobile_PtzZoomIn}" Command="{Binding ZoomInCommand}" />
+      <Button Grid.Row="2" Grid.Column="1" Classes="ptz" Content="{l:Tr Mobile_PtzDown}" AutomationProperties.Name="{l:Tr Mobile_PtzDown}" Command="{Binding DownCommand}" />
+      <Button Grid.Row="2" Grid.Column="2" Classes="ptz" Content="{l:Tr Mobile_PtzZoomOut}" AutomationProperties.Name="{l:Tr Mobile_PtzZoomOut}" Command="{Binding ZoomOutCommand}" />
+    </Grid>
+
+    <Button Classes="action"
+            Content="{l:Tr Mobile_LoadPresets}"
+            AutomationProperties.Name="{l:Tr Mobile_LoadPresets}"
+            Command="{Binding LoadPresetsCommand}" />
+
+    <ItemsControl ItemsSource="{Binding Presets}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="6" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate DataType="vm:PresetItemViewModel">
+          <Button Classes="action"
+                  Content="{Binding Name}"
+                  AutomationProperties.Name="{Binding Name}"
+                  Command="{Binding GotoCommand}" />
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>

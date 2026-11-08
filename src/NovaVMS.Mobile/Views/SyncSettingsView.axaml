@@ -1,0 +1,102 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.Mobile.Localization"
+             xmlns:models="using:NovaVMS.Mobile.Models"
+             xmlns:vm="using:NovaVMS.Mobile.ViewModels"
+             x:Class="NovaVMS.Mobile.Views.SyncSettingsView"
+             x:DataType="vm:SyncSettingsViewModel">
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Classes="page">
+      <TextBlock Classes="pageTitle" Text="{l:Tr Sync_Title}" />
+      <TextBlock Classes="muted" Text="{l:Tr Sync_Hint}" />
+      <CheckBox Content="{l:Tr Sync_Enabled}" IsChecked="{Binding SyncEnabled}" />
+
+      <!-- Connection -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionTitle" Text="{l:Tr Sync_Connection}" />
+          <TextBlock Classes="label" Text="{l:Tr Sync_DatabaseType}" />
+          <ComboBox ItemsSource="{Binding DatabaseTypes}" SelectedItem="{Binding SelectedDatabaseType}" AutomationProperties.Name="{l:Tr Sync_DatabaseType}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate DataType="models:DatabaseTypeOption">
+                <TextBlock Text="{Binding Label}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock Classes="label" Text="{l:Tr Sync_Host}" />
+          <TextBox Text="{Binding Host}" AutomationProperties.Name="{l:Tr Sync_Host}" />
+          <TextBlock Classes="label" Text="{l:Tr Sync_Port}" />
+          <NumericUpDown Value="{Binding Port}" Minimum="1" Maximum="65535" Increment="1" FormatString="0" />
+          <TextBlock Classes="label" Text="{l:Tr Sync_Database}" />
+          <TextBox Text="{Binding Database}" AutomationProperties.Name="{l:Tr Sync_Database}" />
+          <TextBlock Classes="label" Text="{l:Tr Sync_UserName}" />
+          <TextBox Text="{Binding UserName}" AutomationProperties.Name="{l:Tr Sync_UserName}" />
+          <TextBlock Classes="label" Text="{l:Tr Sync_Password}" />
+          <TextBox Text="{Binding Password}" PasswordChar="●" AutomationProperties.Name="{l:Tr Sync_Password}" />
+        </StackPanel>
+      </Border>
+
+      <!-- Encryption -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionTitle" Text="{l:Tr Sync_Encryption}" />
+          <TextBlock Classes="muted" Text="{l:Tr Sync_EncryptionHint}" />
+          <TextBlock Classes="label" Text="{l:Tr Sync_EncryptionPassword}" />
+          <TextBox Text="{Binding EncryptionPassword}" PasswordChar="●" AutomationProperties.Name="{l:Tr Sync_EncryptionPassword}" />
+          <TextBlock Classes="label" Text="{l:Tr Sync_EncryptionPasswordConfirm}" />
+          <TextBox Text="{Binding EncryptionPasswordConfirm}" PasswordChar="●" AutomationProperties.Name="{l:Tr Sync_EncryptionPasswordConfirm}" />
+        </StackPanel>
+      </Border>
+
+      <!-- Sending and checking -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionTitle" Text="{l:Tr Sync_Options}" />
+          <CheckBox Content="{l:Tr Sync_AutoCheck}" IsChecked="{Binding AutoCheck}" />
+          <TextBlock Classes="label" Text="{l:Tr Sync_CheckInterval}" />
+          <NumericUpDown Value="{Binding CheckIntervalMinutes}" Minimum="{Binding MinimumCheckInterval}" Maximum="{Binding MaximumCheckInterval}"
+                         Increment="1" FormatString="0" IsEnabled="{Binding AutoCheck}" />
+          <CheckBox Content="{l:Tr Sync_AutoUpload}" IsChecked="{Binding AutoUpload}" />
+          <TextBlock Classes="label" Text="{l:Tr Sync_RetainedVersions}" />
+          <NumericUpDown Value="{Binding RetainedVersions}" Minimum="{Binding MinimumRetainedVersions}" Maximum="{Binding MaximumRetainedVersions}"
+                         Increment="1" FormatString="0" />
+        </StackPanel>
+      </Border>
+
+      <Button Classes="action primary" Content="{l:Tr Sync_SaveConnect}" AutomationProperties.Name="{l:Tr Sync_SaveConnect}" Command="{Binding SaveCommand}" />
+      <Button Classes="action" Content="{l:Tr Sync_UploadNow}" AutomationProperties.Name="{l:Tr Sync_UploadNow}" Command="{Binding UploadNowCommand}" IsVisible="{Binding SyncEnabled}" />
+      <Button Classes="action" Content="{l:Tr Sync_CheckNow}" AutomationProperties.Name="{l:Tr Sync_CheckNow}" Command="{Binding CheckNowCommand}" IsVisible="{Binding SyncEnabled}" />
+      <ProgressBar IsIndeterminate="True" Height="3" MinHeight="3" IsVisible="{Binding Sync.IsBusy}" />
+      <TextBlock Classes="muted" Text="{Binding StatusText}" />
+
+      <!-- Version history -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionTitle" Text="{l:Tr Sync_History}" />
+          <TextBlock Classes="muted" Text="{l:Tr Sync_HistoryHint}" />
+          <Button Classes="action" Content="{l:Tr Sync_Refresh}" AutomationProperties.Name="{l:Tr Sync_Refresh}" Command="{Binding RefreshCommand}" />
+          <ItemsControl ItemsSource="{Binding Versions}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="vm:SettingsVersionRowViewModel">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                    <TextBlock Classes="muted" Text="{Binding Details}" TextWrapping="Wrap" />
+                    <TextBlock Classes="muted" Text="{Binding StateText}" IsVisible="{Binding HasState}" />
+                  </StackPanel>
+                  <Button Grid.Column="1" Content="{l:Tr Mobile_Apply}" AutomationProperties.Name="{l:Tr Sync_ApplyVersion}" Command="{Binding ApplyCommand}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

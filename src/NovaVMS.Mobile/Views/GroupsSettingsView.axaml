@@ -1,0 +1,72 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.Mobile.Localization"
+             xmlns:core="using:NovaVMS.Core.Models"
+             xmlns:vm="using:NovaVMS.Mobile.ViewModels"
+             x:Class="NovaVMS.Mobile.Views.GroupsSettingsView"
+             x:DataType="vm:GroupsSettingsViewModel">
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Classes="page">
+      <TextBlock Classes="pageTitle" Text="{l:Tr Settings_Groups}" />
+
+      <Button Classes="action primary"
+              Content="{l:Tr Groups_New}"
+              AutomationProperties.Name="{l:Tr Groups_New}"
+              Command="{Binding AddGroupCommand}" />
+
+      <!-- A group with all cameras of a recorder -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="muted" Text="{l:Tr Groups_FromRecorder}" />
+          <ComboBox ItemsSource="{Binding Devices}"
+                    SelectedItem="{Binding SelectedSourceDevice}"
+                    PlaceholderText="{l:Tr Groups_SelectDevice}"
+                    AutomationProperties.Name="{l:Tr Groups_SelectDevice}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate DataType="core:Device">
+                <TextBlock Text="{Binding DisplayName}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <Button Classes="action"
+                  Content="{l:Tr Groups_CreateTip}"
+                  AutomationProperties.Name="{l:Tr Groups_CreateTip}"
+                  Command="{Binding CreateGroupFromDeviceCommand}" />
+        </StackPanel>
+      </Border>
+
+      <ItemsControl ItemsSource="{Binding Groups}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="8" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="vm:GroupRowViewModel">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+              <Button Classes="row" AutomationProperties.Name="{Binding Name}" Command="{Binding EditCommand}">
+                <Grid ColumnDefinitions="Auto,*">
+                  <Panel VerticalAlignment="Center">
+                    <PathIcon Classes="muted" Data="{StaticResource IconFolder}" Width="22" Height="22" IsVisible="{Binding IsCustom}" />
+                    <PathIcon Classes="muted" Data="{StaticResource IconServer}" Width="22" Height="22" IsVisible="{Binding IsDeviceGroup}" />
+                  </Panel>
+                  <StackPanel Grid.Column="1" Spacing="2" Margin="12,0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Classes="muted" Text="{Binding Subtitle}" />
+                  </StackPanel>
+                </Grid>
+              </Button>
+              <Button Grid.Column="1" Classes="icon" AutomationProperties.Name="{l:Tr Groups_MoveGroupUp}" Command="{Binding MoveUpCommand}">
+                <PathIcon Data="{StaticResource IconMenuUp}" Width="22" Height="22" />
+              </Button>
+              <Button Grid.Column="2" Classes="icon" AutomationProperties.Name="{l:Tr Groups_MoveGroupDown}" Command="{Binding MoveDownCommand}">
+                <PathIcon Data="{StaticResource IconMenuDown}" Width="22" Height="22" />
+              </Button>
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

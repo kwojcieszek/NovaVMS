@@ -1,7 +1,7 @@
 using NovaVMS.App.Models;
 using NovaVMS.Core.Abstractions;
+using NovaVMS.Core.Configuration;
 using NovaVMS.Core.Models;
-using NovaVMS.Core.Security;
 
 namespace NovaVMS.App.Services;
 
@@ -13,7 +13,7 @@ public sealed class ConfigurationService
     /// <summary>
     /// Name and password of the account created when the configuration has no users.
     /// </summary>
-    public const string DefaultUserName = "admin";
+    public const string DefaultUserName = AppConfigurationNormalizer.DefaultUserName;
 
     private readonly IConfigurationStore _store;
     private readonly IConfigurationSerializer _serializer;
@@ -44,24 +44,14 @@ public sealed class ConfigurationService
     /// </summary>
     public static bool EnsureDefaultUser(AppConfiguration configuration)
     {
-        if (configuration.Users.Count > 0)
-        {
-            return false;
-        }
-
-        var admin = new UserAccount { UserName = DefaultUserName, Permissions = UserPermissions.All };
-
-        PasswordHasher.SetPassword(admin, DefaultUserName);
-        configuration.Users.Add(admin);
-
-        return true;
+        return AppConfigurationNormalizer.EnsureDefaultUser(configuration);
     }
 
     public Task FlushAsync() => _saves.WhenIdle;
 
     public async Task LoadAsync()
     {
-        Current = Normalize(await Task.Run(() => _store.LoadAsync()));
+        Current = AppConfigurationNormalizer.Normalize(await Task.Run(() => _store.LoadAsync()));
 
         if (EnsureDefaultUser(Current))
         {
@@ -76,12 +66,12 @@ public sealed class ConfigurationService
 
     public UserAccount? FindUser(Guid userId)
     {
-        return Current.Users.FirstOrDefault(user => user.Id == userId);
+        return Current.FindUser(userId);
     }
 
     public UserAccount? FindUser(string userName)
     {
-        return Current.Users.FirstOrDefault(user => string.Equals(user.UserName, userName.Trim(), StringComparison.OrdinalIgnoreCase));
+        return Current.FindUser(userName);
     }
 
     public async Task SaveAsync()
@@ -101,7 +91,7 @@ public sealed class ConfigurationService
     /// </summary>
     public async Task ReplaceAsync(AppConfiguration configuration)
     {
-        var replacement = Normalize(configuration);
+        var replacement = AppConfigurationNormalizer.Normalize(configuration);
         replacement.Settings.HcNetSdkDirectory = Current.Settings.HcNetSdkDirectory;
 
         // A version sent before users existed must not lock everyone out.
@@ -145,33 +135,17 @@ public sealed class ConfigurationService
 
     public Device? FindDevice(Guid deviceId)
     {
-        return Current.Devices.FirstOrDefault(device => device.Id == deviceId);
+        return Current.FindDevice(deviceId);
     }
 
     public CameraGroup? FindGroup(Guid groupId)
     {
-        return Current.Groups.FirstOrDefault(group => group.Id == groupId);
+        return Current.FindGroup(groupId);
     }
 
     public CameraDescriptor? FindCamera(CameraReference reference)
     {
-        var device = FindDevice(reference.DeviceId);
-
-        if (device is null)
-        {
-            return null;
-        }
-
-        var channel = reference.IsLegacy
-            ? device.Channels.FirstOrDefault(candidate => candidate.Number == reference.ChannelNumber)
-            : device.Channels.FirstOrDefault(candidate => candidate.Id == reference.ChannelId);
-
-        if (channel is null)
-        {
-            return null;
-        }
-
-        return new CameraDescriptor(device, channel);
+        return Current.TryFindCamera(reference, out var device, out var channel) ? new CameraDescriptor(device, channel) : null;
     }
 
     public IReadOnlyList<CameraDescriptor> GetAllCameras()
@@ -183,29 +157,12 @@ public sealed class ConfigurationService
 
     public CameraGroup CreateCustomGroup(string name)
     {
-        var group = new CameraGroup { Name = name };
-
-        Current.Groups.Add(group);
-
-        return group;
+        return Current.CreateCustomGroup(name);
     }
 
     public CameraGroup CreateGroupFromDevice(Device device)
     {
-        var group = new CameraGroup
-        {
-            Name = device.DisplayName,
-            SourceDeviceId = device.Id
-        };
-
-        foreach (var channel in device.Channels)
-        {
-            group.Cameras.Add(CameraReference.For(device, channel));
-        }
-
-        Current.Groups.Add(group);
-
-        return group;
+        return Current.CreateGroupFromDevice(device);
     }
 
     /// <summary>
@@ -213,19 +170,7 @@ public sealed class ConfigurationService
     /// </summary>
     public int AddCamerasToGroup(CameraGroup group, IEnumerable<CameraReference> cameras)
     {
-        var added = 0;
-
-        foreach (var camera in cameras)
-        {
-            if (!group.Cameras.Contains(camera))
-            {
-                group.Cameras.Add(camera);
-
-                added++;
-            }
-        }
-
-        return added;
+        return AppConfigurationExtensions.AddCamerasToGroup(group, cameras);
     }
 
     /// <summary>
@@ -233,32 +178,12 @@ public sealed class ConfigurationService
     /// </summary>
     public void SyncDeviceGroup(Device device, bool allowCreate)
     {
-        var group = Current.Groups.FirstOrDefault(candidate => candidate.SourceDeviceId == device.Id);
-
-        if (group is null)
-        {
-            var referenced = Current.Groups.Any(candidate => candidate.Cameras.Any(camera => camera.DeviceId == device.Id));
-
-            if (allowCreate && Current.Settings.AutoCreateDeviceGroups && !referenced && device.Channels.Count > 0)
-            {
-                CreateGroupFromDevice(device);
-            }
-
-            return;
-        }
-
-        AddCamerasToGroup(group, device.Channels.Select(channel => CameraReference.For(device, channel)));
+        Current.SyncDeviceGroup(device, allowCreate);
     }
 
     public void RemoveDevice(Guid deviceId)
     {
-        Current.Devices.RemoveAll(device => device.Id == deviceId);
-        Current.Groups.RemoveAll(group => group.SourceDeviceId == deviceId);
-
-        foreach (var group in Current.Groups)
-        {
-            group.Cameras.RemoveAll(camera => camera.DeviceId == deviceId);
-        }
+        Current.RemoveDevice(deviceId);
     }
 
     /// <summary>
@@ -270,18 +195,7 @@ public sealed class ConfigurationService
 
         if (!includePasswords)
         {
-            foreach (var device in copy.Devices)
-            {
-                device.Password = string.Empty;
-                device.StreamEncryptionKey = string.Empty;
-            }
-
-            foreach (var user in copy.Users)
-            {
-                user.PasswordHash = string.Empty;
-                user.PasswordSalt = string.Empty;
-                user.PasswordIterations = 0;
-            }
+            AppConfigurationTransfer.RemoveSecrets(copy);
         }
 
         await Task.Run(() => _serializer.SerializeAsync(stream, copy));
@@ -289,7 +203,7 @@ public sealed class ConfigurationService
 
     public async Task<AppConfiguration> ReadImportAsync(Stream stream)
     {
-        return Normalize(await Task.Run(() => _serializer.DeserializeAsync(stream)));
+        return AppConfigurationNormalizer.Normalize(await Task.Run(() => _serializer.DeserializeAsync(stream)));
     }
 
     /// <summary>
@@ -298,213 +212,10 @@ public sealed class ConfigurationService
     /// </summary>
     public async Task<ImportResult> ImportAsync(AppConfiguration imported)
     {
-        var devicesAdded = 0;
-        var devicesUpdated = 0;
+        var result = AppConfigurationTransfer.Merge(Current, imported);
 
-        foreach (var device in imported.Devices)
-        {
-            var index = Current.Devices.FindIndex(existing => existing.Id == device.Id);
-
-            if (index < 0)
-            {
-                Current.Devices.Add(device);
-
-                devicesAdded++;
-                continue;
-            }
-
-            if (string.IsNullOrEmpty(device.Password))
-            {
-                device.Password = Current.Devices[index].Password;
-            }
-
-            if (string.IsNullOrEmpty(device.StreamEncryptionKey))
-            {
-                device.StreamEncryptionKey = Current.Devices[index].StreamEncryptionKey;
-            }
-
-            Current.Devices[index] = device;
-            devicesUpdated++;
-        }
-
-        var groupsAdded = 0;
-        var groupsUpdated = 0;
-
-        foreach (var group in imported.Groups)
-        {
-            var index = Current.Groups.FindIndex(existing => existing.Id == group.Id);
-
-            if (index < 0)
-            {
-                Current.Groups.Add(group);
-
-                groupsAdded++;
-            }
-            else
-            {
-                Current.Groups[index] = group;
-                groupsUpdated++;
-            }
-        }
-
-        Current.Settings = imported.Settings;
-
-        foreach (var view in imported.Views)
-        {
-            var index = Current.Views.FindIndex(existing => existing.Id == view.Id);
-
-            if (index < 0)
-            {
-                Current.Views.Add(view.Copy());
-            }
-            else
-            {
-                Current.Views[index] = view.Copy();
-            }
-        }
-
-        ImportUsers(imported.Users);
         await SaveAsync();
 
-        return new ImportResult(devicesAdded, devicesUpdated, groupsAdded, groupsUpdated);
-    }
-
-    // JSON files edited by hand may contain nulls for collections that the model declares as non-null.
-    private static AppConfiguration Normalize(AppConfiguration configuration)
-    {
-        configuration.Devices ??= new List<Device>();
-        configuration.Groups ??= new List<CameraGroup>();
-        configuration.Settings ??= new AppSettings();
-        configuration.GroupLiveViews ??= new();
-        configuration.Views ??= new();
-        configuration.Users ??= new();
-
-        configuration.Users.RemoveAll(user => user is null);
-
-        foreach (var user in configuration.Users)
-        {
-            user.UserName ??= string.Empty;
-            user.PasswordHash ??= string.Empty;
-            user.PasswordSalt ??= string.Empty;
-        }
-
-        foreach (var view in configuration.Views)
-        {
-            view.Layout ??= new();
-            view.Layout.Cameras ??= new();
-            view.Layout.EmptySlots ??= new();
-        }
-
-        foreach (var device in configuration.Devices)
-        {
-            device.SecondaryHost ??= string.Empty;
-            device.StreamEncryptionKey ??= string.Empty;
-
-            if (device.OptionalConnection is { } optional)
-            {
-                optional.Host ??= string.Empty;
-                optional.SecondaryHost ??= string.Empty;
-                optional.Channels ??= new();
-            }
-
-            device.Channels ??= new List<Channel>();
-
-            foreach (var channel in device.Channels)
-            {
-                // Older configurations may still hold stream numbers ("101") as channel names.
-                channel.Name = ChannelNameNormalizer.Normalize(channel.Name ?? string.Empty, channel.Number);
-            }
-        }
-
-        foreach (var group in configuration.Groups)
-        {
-            group.Cameras ??= new List<CameraReference>();
-        }
-
-        AssignCameraIdentities(configuration);
-
-        return configuration;
-    }
-
-    /// <summary>
-    /// Gives every channel a unique identity and converts references written with channel numbers to identities.
-    /// Afterwards views, groups and remembered layouts no longer depend on how a device numbers its channels.
-    /// </summary>
-    private static void AssignCameraIdentities(AppConfiguration configuration)
-    {
-        var used = new HashSet<Guid>();
-
-        foreach (var channel in configuration.Devices.SelectMany(device => device.Channels))
-        {
-            if (channel.Id == Guid.Empty || !used.Add(channel.Id))
-            {
-                channel.Id = Guid.NewGuid();
-
-                used.Add(channel.Id);
-            }
-        }
-
-        var devices = configuration.Devices.GroupBy(device => device.Id).ToDictionary(group => group.Key, group => group.First());
-        CameraReference? Convert(CameraReference? reference)
-        {
-            if (reference is not { IsLegacy: true } || !devices.TryGetValue(reference.DeviceId, out var device))
-            {
-                return reference;
-            }
-
-            var channel = device.Channels.FirstOrDefault(candidate => candidate.Number == reference.ChannelNumber);
-
-            return channel is null ? reference : CameraReference.For(device, channel);
-        }
-
-        foreach (var group in configuration.Groups)
-        {
-            group.Cameras = group.Cameras.Select(camera => Convert(camera)!).Distinct().ToList();
-        }
-
-        foreach (var layout in configuration.Views.Select(view => view.Layout).Concat(configuration.GroupLiveViews.Values.OfType<GroupLiveView>()))
-        {
-            layout.Cameras ??= new();
-            layout.Cameras = layout.Cameras.Select(Convert).ToList();
-        }
-    }
-
-    /// <summary>
-    /// Users with the same ID are replaced; an export without passwords keeps the current password.
-    /// New users without a password, or with a name already taken, are skipped so nobody gets an account without a password.
-    /// </summary>
-    private void ImportUsers(IEnumerable<UserAccount> users)
-    {
-        foreach (var user in users)
-        {
-            var index = Current.Users.FindIndex(existing => existing.Id == user.Id);
-            var sameName = FindUser(user.UserName);
-
-            if (index < 0)
-            {
-                if (user.HasPassword && sameName is null && !string.IsNullOrWhiteSpace(user.UserName))
-                {
-                    Current.Users.Add(user.Copy());
-                }
-
-                continue;
-            }
-
-            if (sameName is not null && sameName.Id != user.Id)
-            {
-                continue;
-            }
-
-            var updated = user.Copy();
-
-            if (!updated.HasPassword)
-            {
-                updated.PasswordHash = Current.Users[index].PasswordHash;
-                updated.PasswordSalt = Current.Users[index].PasswordSalt;
-                updated.PasswordIterations = Current.Users[index].PasswordIterations;
-            }
-
-            Current.Users[index] = updated;
-        }
+        return new ImportResult(result.DevicesAdded, result.DevicesUpdated, result.GroupsAdded, result.GroupsUpdated);
     }
 }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- Same palette as the desktop application (NovaVMS.App/App.axaml, dark theme). -->
+  <color name="nova_accent">#D7263D</color>
+  <color name="nova_window_background">#1B1C1F</color>
+  <color name="nova_header_background">#131416</color>
+  <color name="nova_icon_background">#1B1C1F</color>
+</resources>

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <SupportedOSPlatformVersion>23</SupportedOSPlatformVersion>
+    <ApplicationId>com.novavms.mobile</ApplicationId>
+    <ApplicationTitle>NovaVMS</ApplicationTitle>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
+    <AndroidPackageFormats>apk</AndroidPackageFormats>
+    <PublishTrimmed>false</PublishTrimmed>
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../NovaVMS.Mobile/NovaVMS.Mobile.csproj" />
+    <PackageReference Include="Avalonia.Android" Version="12.1.5" />
+    <PackageReference Include="LibVLCSharp" Version="3.10.2" />
+    <PackageReference Include="VideoLAN.LibVLC.Android" Version="3.7.0-beta" />
+    <Compile Include="../NovaVMS.Mobile/Native/VlcPlayer.cs" Link="Native/VlcPlayer.cs" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.Mobile.Localization"
+             xmlns:models="using:NovaVMS.Mobile.Models"
+             xmlns:vm="using:NovaVMS.Mobile.ViewModels"
+             x:Class="NovaVMS.Mobile.Views.DeviceEditView"
+             x:DataType="vm:DeviceEditViewModel">
+
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="models:ProtocolOption">
+      <TextBlock Text="{Binding Label}" />
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Classes="page">
+      <TextBlock Classes="pageTitle" Text="{Binding Title}" />
+
+      <TextBlock Classes="label" Text="{l:Tr Devices_Name}" />
+      <TextBox Text="{Binding Name}" PlaceholderText="{l:Tr Devices_NameWatermark}" AutomationProperties.Name="{l:Tr Devices_Name}" />
+
+      <!-- Protocols -->
+      <TextBlock Classes="label" Text="{l:Tr Devices_Protocol}" />
+      <ComboBox ItemsSource="{Binding Protocols}" SelectedItem="{Binding Protocol}" AutomationProperties.Name="{l:Tr Devices_Protocol}" />
+      <TextBlock Classes="muted" Text="{l:Tr Devices_ProtocolHint}" />
+      <CheckBox Content="{l:Tr Devices_EnableOptionalProtocol}" IsChecked="{Binding HasOptionalProtocol}" />
+      <StackPanel Spacing="12" IsVisible="{Binding HasOptionalProtocol}">
+        <TextBlock Classes="label" Text="{l:Tr Devices_OptionalProtocol}" />
+        <ComboBox ItemsSource="{Binding Protocols}" SelectedItem="{Binding OptionalProtocol}" AutomationProperties.Name="{l:Tr Devices_OptionalProtocol}" />
+        <CheckBox Content="{l:Tr Devices_UseHttps}" IsChecked="{Binding OptionalUseHttps}" />
+      </StackPanel>
+
+      <!-- Address and ports -->
+      <TextBlock Classes="label" Text="{l:Tr Devices_Host}" />
+      <TextBox Text="{Binding Host}" AutomationProperties.Name="{l:Tr Devices_Host}" />
+      <TextBlock Classes="label" Text="{l:Tr Devices_HttpPort}" />
+      <TextBox Text="{Binding HttpPort}" AutomationProperties.Name="{l:Tr Devices_HttpPort}" />
+      <TextBlock Classes="label" Text="{l:Tr Devices_RtspPort}" />
+      <TextBox Text="{Binding RtspPort}" AutomationProperties.Name="{l:Tr Devices_RtspPort}" />
+      <TextBlock Classes="label" Text="{l:Tr Devices_SdkPort}" />
+      <TextBox Text="{Binding SdkPort}" AutomationProperties.Name="{l:Tr Devices_SdkPort}" />
+      <CheckBox Content="{l:Tr Devices_UseHttps}" IsChecked="{Binding UseHttps}" IsEnabled="{Binding IsNetworkProtocol}" />
+
+      <!-- Secondary address -->
+      <TextBlock Classes="label" Text="{l:Tr Devices_SecondaryHost}" />
+      <TextBox Text="{Binding SecondaryHost}" PlaceholderText="{l:Tr Devices_SecondaryHostWatermark}" AutomationProperties.Name="{l:Tr Devices_SecondaryHost}" />
+      <TextBlock Classes="muted" Text="{l:Tr Devices_SecondaryHostHint}" />
+      <TextBlock Classes="label" Text="{l:Tr Devices_SecondaryHttpPort}" />
+      <TextBox Text="{Binding SecondaryHttpPort}" AutomationProperties.Name="{l:Tr Devices_SecondaryHttpPort}" />
+      <TextBlock Classes="label" Text="{l:Tr Devices_SecondarySdkPort}" />
+      <TextBox Text="{Binding SecondarySdkPort}" AutomationProperties.Name="{l:Tr Devices_SecondarySdkPort}" />
+      <TextBlock Classes="label" Text="{l:Tr Devices_SecondaryRtspPort}" />
+      <TextBox Text="{Binding SecondaryRtspPort}" AutomationProperties.Name="{l:Tr Devices_SecondaryRtspPort}" />
+
+      <!-- Credentials -->
+      <TextBlock Classes="label" Text="{l:Tr Devices_User}" />
+      <TextBox Text="{Binding Username}" AutomationProperties.Name="{l:Tr Devices_User}" />
+      <TextBlock Classes="label" Text="{l:Tr Devices_Password}" />
+      <TextBox Text="{Binding Password}" PasswordChar="●" AutomationProperties.Name="{l:Tr Devices_Password}" />
+      <TextBlock Classes="label" Text="{l:Tr Devices_StreamKey}" />
+      <TextBox Text="{Binding StreamEncryptionKey}" PasswordChar="●" AutomationProperties.Name="{l:Tr Devices_StreamKey}" />
+      <TextBlock Classes="muted" Text="{l:Tr Devices_StreamKeyHint}" />
+
+      <Button Classes="action primary"
+              Content="{l:Tr Mobile_Save}"
+              AutomationProperties.Name="{l:Tr Mobile_Save}"
+              Command="{Binding SaveCommand}" />
+      <Button Classes="action"
+              Content="{l:Tr Common_Cancel}"
+              AutomationProperties.Name="{l:Tr Common_Cancel}"
+              Command="{Binding CancelCommand}" />
+      <Button Classes="action danger"
+              Content="{l:Tr Mobile_DeleteDevice}"
+              AutomationProperties.Name="{l:Tr Mobile_DeleteDevice}"
+              IsVisible="{Binding CanDelete}"
+              Command="{Binding DeleteCommand}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
