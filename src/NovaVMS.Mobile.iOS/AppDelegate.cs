@@ -12,6 +12,7 @@ public sealed class AppDelegate : AvaloniaAppDelegate<App>
 {
     private NSObject? _backgroundObserver;
     private NSObject? _foregroundObserver;
+    private NSObject? _windowObserver;
 
     protected override AppBuilder CustomizeAppBuilder(AppBuilder builder)
     {
@@ -21,8 +22,27 @@ public sealed class AppDelegate : AvaloniaAppDelegate<App>
 
         _backgroundObserver = NSNotificationCenter.DefaultCenter.AddObserver(UIApplication.WillResignActiveNotification, OnWillResignActive);
         _foregroundObserver = NSNotificationCenter.DefaultCenter.AddObserver(UIApplication.DidBecomeActiveNotification, _ => App.Shell?.Resume());
+        _windowObserver = NSNotificationCenter.DefaultCenter.AddObserver(UIWindow.DidBecomeKeyNotification, OnWindowDidBecomeKey);
 
         return base.CustomizeAppBuilder(builder).WithInterFont();
+    }
+
+    // Until Avalonia draws its first frame the window shows its own background, which matches the launch screen.
+    private static void OnWindowDidBecomeKey(NSNotification notification)
+    {
+        if (notification.Object is not UIWindow window)
+        {
+            return;
+        }
+
+        var background = UIColor.FromName("LaunchBackground") ?? UIColor.FromRGB(0x1B, 0x1C, 0x1F);
+
+        window.BackgroundColor = background;
+
+        if (window.RootViewController?.View is { } view)
+        {
+            view.BackgroundColor = background;
+        }
     }
 
     private static async void OnWillResignActive(NSNotification notification)
