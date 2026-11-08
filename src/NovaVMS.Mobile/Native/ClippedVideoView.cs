@@ -38,10 +38,16 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
         _player.SetAndroidContext(_window.Handle);
     }
 
-    /// <summary>Visible part of the view in pixels of the view; null shows all of it.</summary>
-    public void SetVisibleArea(AndroidRect? area)
+    /// <summary>Visible part of the view in Avalonia units, converted with <paramref name="scale"/> to pixels; null shows all of it.</summary>
+    public void SetVisibleArea(Avalonia.Rect? area, double scale)
     {
-        ClipBounds = area;
+        ClipBounds = area is { } visible
+            ? new AndroidRect(
+                (int)Math.Floor(visible.X * scale),
+                (int)Math.Floor(visible.Y * scale),
+                (int)Math.Ceiling(visible.Right * scale),
+                (int)Math.Ceiling(visible.Bottom * scale))
+            : null;
     }
 
     /// <summary>

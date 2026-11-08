@@ -10,7 +10,7 @@
     <Grid RowDefinitions="*,Auto,Auto">
 
       <!-- Current page -->
-      <ContentControl Grid.Row="0" Content="{Binding CurrentPage}">
+      <ContentControl Grid.Row="0" Margin="{Binding ContentInsets}" Content="{Binding CurrentPage}">
         <ContentControl.DataTemplates>
           <DataTemplate DataType="vm:CamerasViewModel">
             <views:CamerasView />
@@ -61,7 +61,7 @@
       </Border>
 
       <!-- Status bar -->
-      <StackPanel Grid.Row="1" IsVisible="{Binding IsWindowed}">
+      <StackPanel Grid.Row="1" Margin="{Binding StatusInsets}" IsVisible="{Binding IsWindowed}">
         <ProgressBar IsIndeterminate="True" Height="3" MinHeight="3" IsVisible="{Binding IsBusy}" />
         <TextBlock Classes="muted"
                    FontSize="13"
@@ -72,7 +72,7 @@
       </StackPanel>
 
       <!-- Bottom navigation: icons only, the names are read by screen readers -->
-      <Border Grid.Row="2" Classes="navigation" IsVisible="{Binding IsWindowed}">
+      <Border Grid.Row="2" Classes="navigation" Padding="{Binding NavigationInsets}" IsVisible="{Binding IsWindowed}">
         <Grid ColumnDefinitions="*,*">
           <Button Grid.Column="0"
                   Classes="tab"

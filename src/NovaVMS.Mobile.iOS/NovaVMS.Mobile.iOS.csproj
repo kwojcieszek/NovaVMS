@@ -17,6 +17,7 @@
     <PackageReference Include="LibVLCSharp" Version="3.10.2" />
     <PackageReference Include="VideoLAN.LibVLC.iOS" Version="3.6.1" />
     <Compile Include="../NovaVMS.Mobile/Native/VlcPlayer.cs" Link="Native/VlcPlayer.cs" />
+    <Compile Include="../NovaVMS.Mobile/Native/ClippedVideoView.iOS.cs" Link="Native/ClippedVideoView.iOS.cs" />
     <BundleResource Include="PrivacyInfo.xcprivacy" />
   </ItemGroup>
 </Project>

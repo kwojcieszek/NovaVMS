@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Platform;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -20,6 +21,10 @@ public sealed class MobileShell : ContentPage
 
         HorizontalContentAlignment = HorizontalAlignment.Stretch;
         VerticalContentAlignment = VerticalAlignment.Stretch;
+
+        // The shell applies the safe area itself, so the header and navigation colors reach the screen edges.
+        AutomaticallyApplySafeAreaPadding = false;
+        TopLevel.SetAutoSafeAreaPadding(this, false);
         Content = new ShellView
         {
             DataContext = _viewModel
@@ -59,6 +64,14 @@ public sealed class MobileShell : ContentPage
         {
             _topLevel.BackRequested += OnBackRequested;
             _viewModel.Files = new StorageFileService(_topLevel);
+
+            if (_topLevel.InsetsManager is { } insets)
+            {
+                insets.SafeAreaChanged += OnSafeAreaChanged;
+                _topLevel.ScalingChanged += OnScalingChanged;
+
+                ApplySafeArea(insets.SafeAreaPadding);
+            }
         }
     }
 
@@ -66,6 +79,12 @@ public sealed class MobileShell : ContentPage
     {
         if (_topLevel is not null)
         {
+            if (_topLevel.InsetsManager is { } insets)
+            {
+                insets.SafeAreaChanged -= OnSafeAreaChanged;
+            }
+
+            _topLevel.ScalingChanged -= OnScalingChanged;
             _topLevel.BackRequested -= OnBackRequested;
             _topLevel = null;
             _viewModel.Files = null;
@@ -85,6 +104,27 @@ public sealed class MobileShell : ContentPage
         e.Handled = true;
 
         _ = _viewModel.GoBackAsync();
+    }
+
+    // Rotating the phone moves the notch and the home indicator.
+    private void OnSafeAreaChanged(object? sender, SafeAreaChangedArgs e)
+    {
+        ApplySafeArea(e.SafeAreaPadding);
+    }
+
+    // The first safe area arrives before the screen scaling is known and is then given in pixels.
+    private void OnScalingChanged(object? sender, EventArgs e)
+    {
+        if (_topLevel?.InsetsManager is { } insets)
+        {
+            ApplySafeArea(insets.SafeAreaPadding);
+        }
+    }
+
+    // The window is drawn under the status bar, the notch or Dynamic Island and the home indicator.
+    private void ApplySafeArea(Thickness padding)
+    {
+        _viewModel.SafeArea = padding;
     }
 
     private async void OnLoaded(object? sender, RoutedEventArgs e)

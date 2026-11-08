@@ -17,7 +17,7 @@ public sealed class AppDelegate : AvaloniaAppDelegate<App>
     {
         var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NovaVMS");
 
-        App.Platform = new MobilePlatform(directory, new KeychainProtection(), () => new VlcPlayer());
+        App.Platform = new MobilePlatform(directory, new KeychainProtection(), () => new VlcPlayer(), new IosDeviceDisplay());
 
         _backgroundObserver = NSNotificationCenter.DefaultCenter.AddObserver(UIApplication.WillResignActiveNotification, OnWillResignActive);
         _foregroundObserver = NSNotificationCenter.DefaultCenter.AddObserver(UIApplication.DidBecomeActiveNotification, _ => App.Shell?.Resume());

@@ -1,17 +1,15 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform;
+using Avalonia.VisualTree;
 using LibVLCSharp.Shared;
 using NovaVMS.Core.Models;
 using NovaVMS.Mobile.Localization;
 using NovaVMS.Mobile.Services;
 #if ANDROID
 using Avalonia.Android;
-using Avalonia.VisualTree;
-using AndroidRect = Android.Graphics.Rect;
 #else
 using Avalonia.iOS;
-using NativeVideoView = LibVLCSharp.Platforms.iOS.VideoView;
 #endif
 
 namespace NovaVMS.Mobile.Native;
@@ -197,7 +195,6 @@ public sealed class VlcPlayer : IMobilePlayer
         }
     }
 
-#if ANDROID
     /// <summary>
     /// Hosts the clippable video view. Inside a scroll viewer the view is cut to the visible part of the viewer,
     /// because native views are drawn above Avalonia content and are not clipped by it.
@@ -205,7 +202,7 @@ public sealed class VlcPlayer : IMobilePlayer
     private sealed class VideoHost(LibVLCSharp.Shared.MediaPlayer player, Action<Size> sizeChanged) : NativeControlHost
     {
         private ClippedVideoView? _native;
-        private AndroidRect? _visibleArea;
+        private Rect? _visibleArea;
 
         protected override void OnSizeChanged(SizeChangedEventArgs e)
         {
@@ -230,12 +227,20 @@ public sealed class VlcPlayer : IMobilePlayer
 
         protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)
         {
+#if ANDROID
             _native = new ClippedVideoView(global::Android.App.Application.Context, player);
+#else
+            _native = new ClippedVideoView(player);
+#endif
             _visibleArea = null;
 
             UpdateVisibleArea();
 
+#if ANDROID
             return new AndroidViewControlHandle(_native);
+#else
+            return new UIViewControlHandle(_native);
+#endif
         }
 
         protected override void DestroyNativeControlCore(IPlatformHandle control)
@@ -262,16 +267,17 @@ public sealed class VlcPlayer : IMobilePlayer
 
             var area = VisibleArea();
 
-            if (Equals(area, _visibleArea))
+            if (area == _visibleArea)
             {
                 return;
             }
 
             _visibleArea = area;
-            _native.SetVisibleArea(area);
+            _native.SetVisibleArea(area, TopLevel.GetTopLevel(this)?.RenderScaling ?? 1);
         }
 
-        private AndroidRect? VisibleArea()
+        // Part of this control inside the nearest scroll viewer, in its own coordinates; null outside a viewer.
+        private Rect? VisibleArea()
         {
             var viewer = this.FindAncestorOfType<ScrollViewer>();
 
@@ -285,52 +291,10 @@ public sealed class VlcPlayer : IMobilePlayer
 
             if (visible.Width <= 0 || visible.Height <= 0)
             {
-                return new AndroidRect(0, 0, 0, 0);
+                return default(Rect);
             }
 
-            var scale = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1;
-            var local = visible.Translate(-(Vector)origin);
-
-            return new AndroidRect(
-                (int)Math.Floor(local.X * scale),
-                (int)Math.Floor(local.Y * scale),
-                (int)Math.Ceiling(local.Right * scale),
-                (int)Math.Ceiling(local.Bottom * scale));
+            return visible.Translate(-(Vector)origin);
         }
     }
-#else
-    private sealed class VideoHost(LibVLCSharp.Shared.MediaPlayer player, Action<Size> sizeChanged) : NativeControlHost
-    {
-        private LibVLCSharp.Platforms.iOS.VideoView? _native;
-
-        protected override void OnSizeChanged(SizeChangedEventArgs e)
-        {
-            base.OnSizeChanged(e);
-
-            sizeChanged(e.NewSize);
-        }
-
-        protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)
-        {
-            _native = new LibVLCSharp.Platforms.iOS.VideoView
-            {
-                MediaPlayer = player
-            };
-
-            return new UIViewControlHandle(_native);
-        }
-
-        protected override void DestroyNativeControlCore(IPlatformHandle control)
-        {
-            if (_native is not null)
-            {
-                _native.MediaPlayer = null;
-            }
-
-            base.DestroyNativeControlCore(control);
-
-            _native = null;
-        }
-    }
-#endif
 }

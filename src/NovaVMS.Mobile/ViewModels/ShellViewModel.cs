@@ -53,7 +53,18 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsWindowed))]
+    [NotifyPropertyChangedFor(nameof(ContentInsets))]
     private bool _isFullScreen;
+
+    /// <summary>
+    /// Screen edges covered by the system: the notch or Dynamic Island, rounded corners and the home indicator.
+    /// The backgrounds reach the screen edges; only the content keeps out of these areas.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ContentInsets))]
+    [NotifyPropertyChangedFor(nameof(StatusInsets))]
+    [NotifyPropertyChangedFor(nameof(NavigationInsets))]
+    private Thickness _safeArea;
 
     public IMobilePlayer Player { get; }
 
@@ -83,6 +94,16 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
 
     /// <summary>Status bar and navigation are hidden while a camera fills the screen.</summary>
     public bool IsWindowed => !IsFullScreen;
+
+    /// <summary>Pages keep below the top system area; a full screen camera uses the whole screen.</summary>
+    public Thickness ContentInsets => IsFullScreen
+        ? default
+        : new Thickness(SafeArea.Left, SafeArea.Top, SafeArea.Right, 0);
+
+    public Thickness StatusInsets => new(SafeArea.Left, 0, SafeArea.Right, 0);
+
+    /// <summary>The navigation bar extends under the home indicator; its buttons stay above it.</summary>
+    public Thickness NavigationInsets => new(SafeArea.Left, 0, SafeArea.Right, SafeArea.Bottom);
 
     /// <summary>True when the back button closes a question or returns to a previous page instead of leaving the application.</summary>
     public bool CanGoBack => Confirmation is not null || CurrentPage is { IsRoot: false };
