@@ -6,8 +6,8 @@ namespace NovaVMS.Mobile.Services;
 public interface IDeviceDisplay
 {
     /// <summary>
-    /// Part of the screen covered by the status bar, the notch or Dynamic Island and the home indicator, read
-    /// from the platform in Avalonia units; null uses the safe area reported by Avalonia.
+    /// Part of the screen the shell keeps free of the status bar, the notch or Dynamic Island and the home
+    /// indicator, read from the platform in Avalonia units; null uses the safe area reported by Avalonia.
     /// </summary>
     Thickness? SafeArea => null;
 

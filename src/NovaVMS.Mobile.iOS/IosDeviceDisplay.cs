@@ -12,7 +12,10 @@ namespace NovaVMS.Mobile.iOS;
 /// </summary>
 public sealed class IosDeviceDisplay : IDeviceDisplay
 {
-    /// <summary>Safe area of the application window in points, which are Avalonia units on iOS.</summary>
+    /// <summary>
+    /// Safe area of the application window in points, which are Avalonia units on iOS. The bottom inset of the
+    /// home indicator is left out, so the navigation tabs sit at the bottom edge of the screen.
+    /// </summary>
     public Thickness? SafeArea
     {
         get
@@ -27,7 +30,7 @@ public sealed class IosDeviceDisplay : IDeviceDisplay
 
             var insets = window.SafeAreaInsets;
 
-            return new Thickness(insets.Left, insets.Top, insets.Right, insets.Bottom);
+            return new Thickness(insets.Left, insets.Top, insets.Right, 0);
         }
     }
 
