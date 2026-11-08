@@ -12,6 +12,25 @@ namespace NovaVMS.Mobile.iOS;
 /// </summary>
 public sealed class IosDeviceDisplay : IDeviceDisplay
 {
+    /// <summary>Safe area of the application window in points, which are Avalonia units on iOS.</summary>
+    public Thickness? SafeArea
+    {
+        get
+        {
+            var windows = Scene()?.Windows ?? [];
+            var window = windows.FirstOrDefault(candidate => candidate.IsKeyWindow) ?? windows.FirstOrDefault();
+
+            if (window is null)
+            {
+                return null;
+            }
+
+            var insets = window.SafeAreaInsets;
+
+            return new Thickness(insets.Left, insets.Top, insets.Right, insets.Bottom);
+        }
+    }
+
     public void EnterFullScreen()
     {
         Apply(UIInterfaceOrientationMask.Landscape, systemBarVisible: false);
@@ -35,10 +54,7 @@ public sealed class IosDeviceDisplay : IDeviceDisplay
             return;
         }
 
-        var scene = UIApplication.SharedApplication.ConnectedScenes
-            .ToArray()
-            .OfType<UIWindowScene>()
-            .FirstOrDefault();
+        var scene = Scene();
 
         if (scene is null)
         {
@@ -53,6 +69,14 @@ public sealed class IosDeviceDisplay : IDeviceDisplay
         {
             // The system refuses a rotation the application does not declare; the screen then stays as it is.
         });
+    }
+
+    private static UIWindowScene? Scene()
+    {
+        return UIApplication.SharedApplication.ConnectedScenes
+            .ToArray()
+            .OfType<UIWindowScene>()
+            .FirstOrDefault();
     }
 
     private static TopLevel? MainTopLevel()

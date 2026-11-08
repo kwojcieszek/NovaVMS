@@ -13,11 +13,13 @@ namespace NovaVMS.Mobile.Views;
 public sealed class MobileShell : ContentPage
 {
     private readonly ShellViewModel _viewModel;
+    private readonly IDeviceDisplay? _display;
     private TopLevel? _topLevel;
 
     public MobileShell(MobilePlatform platform)
     {
         _viewModel = new ShellViewModel(platform);
+        _display = platform.Display;
 
         HorizontalContentAlignment = HorizontalAlignment.Stretch;
         VerticalContentAlignment = VerticalAlignment.Stretch;
@@ -75,6 +77,14 @@ public sealed class MobileShell : ContentPage
         }
     }
 
+    // Rotation resizes the page; the platform safe area is read again for the new orientation.
+    protected override void OnSizeChanged(SizeChangedEventArgs e)
+    {
+        base.OnSizeChanged(e);
+
+        ApplySafeArea(_topLevel?.InsetsManager?.SafeAreaPadding ?? default);
+    }
+
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         if (_topLevel is not null)
@@ -122,13 +132,16 @@ public sealed class MobileShell : ContentPage
     }
 
     // The window is drawn under the status bar, the notch or Dynamic Island and the home indicator.
+    // On iOS the window insets are read directly, because Avalonia may report an empty safe area.
     private void ApplySafeArea(Thickness padding)
     {
-        _viewModel.SafeArea = padding;
+        _viewModel.SafeArea = _display?.SafeArea ?? padding;
     }
 
     private async void OnLoaded(object? sender, RoutedEventArgs e)
     {
+        ApplySafeArea(_topLevel?.InsetsManager?.SafeAreaPadding ?? default);
+
         await _viewModel.LoadAsync();
     }
 
