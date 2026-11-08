@@ -17,5 +17,6 @@
     <PackageReference Include="LibVLCSharp" Version="3.10.2" />
     <PackageReference Include="VideoLAN.LibVLC.Android" Version="3.7.0-beta" />
     <Compile Include="../NovaVMS.Mobile/Native/VlcPlayer.cs" Link="Native/VlcPlayer.cs" />
+    <Compile Include="../NovaVMS.Mobile/Native/ClippedVideoView.cs" Link="Native/ClippedVideoView.cs" />
   </ItemGroup>
 </Project>

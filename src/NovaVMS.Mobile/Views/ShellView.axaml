@@ -71,41 +71,35 @@
                    IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       </StackPanel>
 
-      <!-- Bottom navigation -->
+      <!-- Bottom navigation: icons only, the names are read by screen readers -->
       <Border Grid.Row="2" Classes="navigation" IsVisible="{Binding IsWindowed}">
-        <Grid ColumnDefinitions="*,*,*">
+        <Grid ColumnDefinitions="*,*">
           <Button Grid.Column="0"
                   Classes="tab"
                   Classes.active="{Binding IsCamerasTab}"
                   AutomationProperties.Name="{l:Tr Mobile_Cameras}"
+                  ToolTip.Tip="{l:Tr Mobile_Cameras}"
                   Command="{Binding ShowCamerasTabCommand}">
-            <StackPanel Spacing="4" HorizontalAlignment="Center">
-              <PathIcon Data="{StaticResource IconVideo}" Width="22" Height="22" />
-              <TextBlock Text="{l:Tr Mobile_Cameras}" HorizontalAlignment="Center" />
-            </StackPanel>
+            <PathIcon Data="{StaticResource IconVideo}" Width="26" Height="26" HorizontalAlignment="Center" />
           </Button>
           <Button Grid.Column="1"
                   Classes="tab"
-                  Classes.active="{Binding IsDevicesTab}"
-                  AutomationProperties.Name="{l:Tr Mobile_Devices}"
-                  Command="{Binding ShowDevicesTabCommand}">
-            <StackPanel Spacing="4" HorizontalAlignment="Center">
-              <PathIcon Data="{StaticResource IconServer}" Width="22" Height="22" />
-              <TextBlock Text="{l:Tr Mobile_Devices}" HorizontalAlignment="Center" />
-            </StackPanel>
-          </Button>
-          <Button Grid.Column="2"
-                  Classes="tab"
                   Classes.active="{Binding IsSettingsTab}"
                   AutomationProperties.Name="{l:Tr Mobile_Settings}"
+                  ToolTip.Tip="{l:Tr Mobile_Settings}"
                   Command="{Binding ShowSettingsTabCommand}">
-            <StackPanel Spacing="4" HorizontalAlignment="Center">
-              <PathIcon Data="{StaticResource IconCog}" Width="22" Height="22" />
-              <TextBlock Text="{l:Tr Mobile_Settings}" HorizontalAlignment="Center" />
-            </StackPanel>
+            <PathIcon Data="{StaticResource IconCog}" Width="26" Height="26" HorizontalAlignment="Center" />
           </Button>
         </Grid>
       </Border>
+
+      <!-- Start screen while the configuration is read -->
+      <Grid Grid.RowSpan="3" Background="{DynamicResource NovaWindowBackground}" IsVisible="{Binding IsLoading}">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
+          <Image Source="/Assets/logo.png" Width="128" Height="128" />
+          <TextBlock Text="NovaVMS" HorizontalAlignment="Center" FontSize="28" FontWeight="SemiBold" Foreground="{DynamicResource NovaStrongText}" />
+        </StackPanel>
+      </Grid>
     </Grid>
   </Border>
 </UserControl>

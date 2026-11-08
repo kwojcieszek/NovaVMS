@@ -38,14 +38,6 @@
           <PathIcon Grid.Column="2" Classes="muted" Data="{StaticResource IconChevronRight}" Width="18" Height="18" />
         </Grid>
       </Button>
-
-      <Border Classes="card">
-        <StackPanel Spacing="8">
-          <TextBlock Classes="sectionTitle" Text="{l:Tr Mobile_Connection}" />
-          <TextBlock Classes="muted" Text="{l:Tr Mobile_ConnectionHint}" />
-          <TextBlock Classes="muted" Text="{l:Tr Mobile_ProtocolsHint}" />
-        </StackPanel>
-      </Border>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

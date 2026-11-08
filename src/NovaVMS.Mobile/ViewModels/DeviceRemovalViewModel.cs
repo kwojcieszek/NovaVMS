@@ -11,7 +11,7 @@ public sealed partial class DeviceRemovalViewModel : PageViewModel
     private readonly ShellViewModel _shell;
     private readonly Device _device;
 
-    public override MobileTab Tab => MobileTab.Devices;
+    public override MobileTab Tab => MobileTab.Settings;
 
     public string Message => Localizer.Format("Mobile_DeleteConfirm", _device.DisplayName);
 

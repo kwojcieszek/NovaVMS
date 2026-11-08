@@ -99,10 +99,9 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
 
         ApplySchedule();
 
+        // The start-up check runs silently; only a received version or an error is reported.
         if (IsActive && _options.AutoCheck)
         {
-            Notified?.Invoke(this, Localizer.Text("Sync_Checking"));
-
             await CheckForUpdatesAsync();
         }
     }

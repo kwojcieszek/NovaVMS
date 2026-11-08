@@ -35,6 +35,9 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
     private bool _useOptionalProtocol;
 
     [ObservableProperty]
+    private PreviewColumnsOption _selectedPreviewColumns;
+
+    [ObservableProperty]
     private StreamModeOption _selectedStreamMode;
 
     [ObservableProperty]
@@ -91,6 +94,8 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
 
     public IReadOnlyList<GridLayoutOption> Layouts => GridLayoutOption.All;
 
+    public IReadOnlyList<PreviewColumnsOption> PreviewColumns => PreviewColumnsOption.All;
+
     public decimal MinimumNetworkCaching => MinNetworkCachingMs;
 
     public decimal MaximumNetworkCaching => MaxNetworkCachingMs;
@@ -111,6 +116,7 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
         _selectedLanguage = LanguageOption.Find(settings.Language);
         _selectedTheme = ThemeOption.Find(settings.Theme);
         _useOptionalProtocol = shell.LocalSettings.UseOptionalProtocol;
+        _selectedPreviewColumns = PreviewColumnsOption.Find(shell.LocalSettings.PreviewColumns);
         _selectedStreamMode = StreamModeOption.Find(settings.GridStreamMode);
         _selectedAspectMode = VideoAspectModeOption.Find(settings.VideoAspectMode);
         _defaultLayout = GridLayoutOption.Find(settings.DefaultLayoutId, settings.DefaultLayoutCount);
@@ -243,6 +249,12 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
     partial void OnUseOptionalProtocolChanged(bool value)
     {
         _shell.LocalSettings.UseOptionalProtocol = value;
+        _ = _shell.SaveLocalSettingsAsync();
+    }
+
+    partial void OnSelectedPreviewColumnsChanged(PreviewColumnsOption value)
+    {
+        _shell.LocalSettings.PreviewColumns = value.Value;
         _ = _shell.SaveLocalSettingsAsync();
     }
 

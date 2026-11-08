@@ -502,7 +502,7 @@
   "General_UseOptionalProtocolHint": "Local setting for this computer. Changes take effect after restarting the application. Devices without an optional configuration use the primary protocol.",
   "Devices_SecondarySdkPort": "Secondary SDK port",
   "Devices_SecondaryHttpPort": "Secondary HTTP port",
-  "Mobile_Cameras": "Cameras",
+  "Mobile_Cameras": "Camera preview",
   "Mobile_Devices": "Devices",
   "Mobile_Settings": "Settings",
   "Mobile_NoCameras": "No cameras. Add a device and download its channels on the Devices tab.",
@@ -550,9 +550,6 @@
   "Mobile_SearchRecordings": "Search recordings",
   "Mobile_NoRecordings": "No recordings on the selected day.",
   "Mobile_RecordingsFound": "Found {0} segments.",
-  "Mobile_Connection": "Connection",
-  "Mobile_ConnectionHint": "Connecting to cameras requires access to their network (Wi-Fi or VPN). Passwords are saved in the encrypted storage of this device.",
-  "Mobile_ProtocolsHint": "Supported protocols: ISAPI and ONVIF. ONVIF recordings require Profile G. Devices using the Hikvision SDK are opened through their optional ISAPI/ONVIF protocol.",
   "Mobile_StreamSuspended": "Streaming stopped. Select a camera to reconnect.",
   "Mobile_OperationCancelled": "Operation cancelled. You can try again.",
   "Mobile_OperationFailed": "The operation failed. Check the address, password, permissions and the local network/VPN.",
@@ -572,5 +569,10 @@
   "Mobile_ThisDevice": "This phone",
   "Mobile_ThisDeviceHint": "Saved only on this phone and never sent to the settings database.",
   "Mobile_ToggleTitles": "Show or hide camera names",
-  "Mobile_PreviewFrameRateHint": "On this phone the first 4 previews use the hardware decoder. The others are decoded more cheaply in software, with a frame limit: the sub stream limit when it is set, otherwise automatic (12 fps up to 9 cameras, 8 fps up to 16, 5 fps for more). Previews are played without audio."
+  "Mobile_PreviewFrameRateHint": "On this phone the first 4 previews use the hardware decoder. The others are decoded more cheaply in software, with a frame limit: the sub stream limit when it is set, otherwise automatic (12 fps up to 9 cameras, 8 fps up to 16, 5 fps for more). Previews are played without audio.",
+  "Mobile_PreviewColumns": "Cameras per row in the preview",
+  "Mobile_PreviewColumnsAuto": "Automatic (largest pictures)",
+  "Mobile_PreviewColumnsAutoShort": "Auto",
+  "Mobile_PreviewColumnsHint": "Split of the live preview of a group or view on this phone. Automatic shows every camera at once; with a chosen count the pictures keep 16:9 proportions and the preview is scrolled by touch. It can also be changed in the list above the preview.",
+  "Mobile_ChangePreviewColumns": "Cameras per row"
 }

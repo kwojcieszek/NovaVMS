@@ -502,7 +502,7 @@
   "General_UseOptionalProtocolHint": "Ustawienie lokalne tego komputera. Zmiana obowiązuje po ponownym uruchomieniu aplikacji. Urządzenia bez konfiguracji opcjonalnej korzystają z protokołu podstawowego.",
   "Devices_SecondarySdkPort": "Drugi port SDK",
   "Devices_SecondaryHttpPort": "Drugi port HTTP",
-  "Mobile_Cameras": "Kamery",
+  "Mobile_Cameras": "Podgląd kamer",
   "Mobile_Devices": "Urządzenia",
   "Mobile_Settings": "Ustawienia",
   "Mobile_NoCameras": "Brak kamer. Dodaj urządzenie i pobierz jego kanały w zakładce Urządzenia.",
@@ -550,9 +550,6 @@
   "Mobile_SearchRecordings": "Szukaj nagrań",
   "Mobile_NoRecordings": "Brak nagrań w wybranym dniu.",
   "Mobile_RecordingsFound": "Znaleziono {0} fragmentów.",
-  "Mobile_Connection": "Połączenie",
-  "Mobile_ConnectionHint": "Połączenie z kamerami wymaga dostępu do ich sieci (Wi-Fi lub VPN). Hasła są zapisywane w zaszyfrowanym magazynie tego urządzenia.",
-  "Mobile_ProtocolsHint": "Obsługiwane protokoły: ISAPI i ONVIF. Nagrania ONVIF wymagają Profile G. Urządzenia korzystające z Hikvision SDK są otwierane przez ich opcjonalny protokół ISAPI/ONVIF.",
   "Mobile_StreamSuspended": "Transmisja zatrzymana. Wybierz kamerę, aby połączyć ponownie.",
   "Mobile_OperationCancelled": "Operacja przerwana. Możesz spróbować ponownie.",
   "Mobile_OperationFailed": "Nie udało się wykonać operacji. Sprawdź adres, hasło, uprawnienia oraz sieć lokalną/VPN.",
@@ -572,5 +569,10 @@
   "Mobile_ThisDevice": "Ten telefon",
   "Mobile_ThisDeviceHint": "Zapisywane tylko na tym telefonie i nigdy nie wysyłane do bazy ustawień.",
   "Mobile_ToggleTitles": "Pokaż lub ukryj nazwy kamer",
-  "Mobile_PreviewFrameRateHint": "Na tym telefonie pierwsze 4 podglądy korzystają z dekodera sprzętowego. Pozostałe są dekodowane programowo w uproszczony sposób i z limitem klatek: limitem strumienia pomocniczego, jeśli jest ustawiony, a w przeciwnym razie automatycznym (12 kl./s do 9 kamer, 8 kl./s do 16, 5 kl./s powyżej). Podglądy są odtwarzane bez dźwięku."
+  "Mobile_PreviewFrameRateHint": "Na tym telefonie pierwsze 4 podglądy korzystają z dekodera sprzętowego. Pozostałe są dekodowane programowo w uproszczony sposób i z limitem klatek: limitem strumienia pomocniczego, jeśli jest ustawiony, a w przeciwnym razie automatycznym (12 kl./s do 9 kamer, 8 kl./s do 16, 5 kl./s powyżej). Podglądy są odtwarzane bez dźwięku.",
+  "Mobile_PreviewColumns": "Kamer w rzędzie w podglądzie",
+  "Mobile_PreviewColumnsAuto": "Automatycznie (największe obrazy)",
+  "Mobile_PreviewColumnsAutoShort": "Auto",
+  "Mobile_PreviewColumnsHint": "Podział podglądu grupy lub widoku na tym telefonie. Automatycznie pokazuje wszystkie kamery naraz; przy wybranej liczbie obrazy zachowują proporcje 16:9, a podgląd przewija się dotykiem. Można go też zmienić z listy nad podglądem.",
+  "Mobile_ChangePreviewColumns": "Kamer w rzędzie"
 }

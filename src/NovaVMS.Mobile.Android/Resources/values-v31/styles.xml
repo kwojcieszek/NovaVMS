@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- Android 12+ always shows the system start screen: the application icon and the name below it. -->
+  <style name="NovaTheme" parent="Theme.AppCompat.NoActionBar">
+    <item name="android:windowActionModeOverlay">true</item>
+    <item name="android:colorAccent">@color/nova_accent</item>
+    <item name="colorAccent">@color/nova_accent</item>
+    <item name="android:windowBackground">@drawable/splash</item>
+    <item name="android:statusBarColor">@color/nova_header_background</item>
+    <item name="android:navigationBarColor">@color/nova_header_background</item>
+    <item name="android:windowSplashScreenBackground">@color/nova_window_background</item>
+    <item name="android:windowSplashScreenAnimatedIcon">@mipmap/icon_foreground</item>
+    <item name="android:windowSplashScreenBrandingImage">@drawable/splash_name</item>
+  </style>
+</resources>

@@ -62,6 +62,7 @@ public sealed partial class CameraTileViewModel : ViewModelBase
             await starts.WaitAsync(token);
 
             startSlot = true;
+            State = Localizer.Text("Mobile_Connecting");
 
             _player = _shell.CreatePreviewPlayer();
             _player.SetFillArea(_shell.Current.Settings.VideoAspectMode == VideoAspectMode.Fit);
@@ -94,10 +95,22 @@ public sealed partial class CameraTileViewModel : ViewModelBase
         }
     }
 
-    /// <summary>
-    /// Stops the preview before its native surface is removed, then releases the player.
-    /// A LibVLC video output whose surface disappears while it plays is never shut down.
-    /// </summary>
+    /// <summary>Stops the preview of a tile that leaves the screen; it can be started again.</summary>
+    public async Task StopAsync()
+    {
+        await _gate.WaitAsync();
+
+        try
+        {
+            await StopPlayerAsync();
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>Stops the preview for good; called when the camera group is left.</summary>
     public async Task ReleaseAsync()
     {
         await _gate.WaitAsync();
@@ -106,6 +119,28 @@ public sealed partial class CameraTileViewModel : ViewModelBase
         {
             _released = true;
 
+            await StopPlayerAsync();
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    [RelayCommand]
+    private Task OpenAsync()
+    {
+        return _shell.GuardAsync(() => _shell.OpenCameraAsync(_camera.Device, _camera.Channel, _collection));
+    }
+
+    /// <summary>
+    /// Stops the preview before its native surface is removed, then releases the player.
+    /// A LibVLC video output whose surface disappears while it plays is never shut down.
+    /// </summary>
+    private async Task StopPlayerAsync()
+    {
+        try
+        {
             if (_player is { } player)
             {
                 _player = null;
@@ -126,15 +161,5 @@ public sealed partial class CameraTileViewModel : ViewModelBase
         {
             // The platform may already have destroyed the native surface.
         }
-        finally
-        {
-            _gate.Release();
-        }
-    }
-
-    [RelayCommand]
-    private Task OpenAsync()
-    {
-        return _shell.GuardAsync(() => _shell.OpenCameraAsync(_camera.Device, _camera.Channel, _collection));
     }
 }

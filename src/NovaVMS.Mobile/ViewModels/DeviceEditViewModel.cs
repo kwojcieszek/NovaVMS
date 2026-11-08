@@ -70,7 +70,7 @@ public sealed partial class DeviceEditViewModel : PageViewModel
     [ObservableProperty]
     private string _streamEncryptionKey;
 
-    public override MobileTab Tab => MobileTab.Devices;
+    public override MobileTab Tab => MobileTab.Settings;
 
     public string Title => Localizer.Text(_existing is null ? "Mobile_NewDevice" : "Mobile_EditDevice");
 

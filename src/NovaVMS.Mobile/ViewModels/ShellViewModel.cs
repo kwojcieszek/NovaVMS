@@ -34,9 +34,12 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsCamerasTab))]
-    [NotifyPropertyChangedFor(nameof(IsDevicesTab))]
     [NotifyPropertyChangedFor(nameof(IsSettingsTab))]
     private PageViewModel? _currentPage;
+
+    /// <summary>True until the configuration is read; the start screen with the logo is shown meanwhile.</summary>
+    [ObservableProperty]
+    private bool _isLoading = true;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasConfirmation))]
@@ -85,8 +88,6 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
     public bool CanGoBack => Confirmation is not null || CurrentPage is { IsRoot: false };
 
     public bool IsCamerasTab => CurrentPage?.Tab == MobileTab.Cameras;
-
-    public bool IsDevicesTab => CurrentPage?.Tab == MobileTab.Devices;
 
     public bool IsSettingsTab => CurrentPage?.Tab == MobileTab.Settings;
 
@@ -138,6 +139,8 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
             MainStream = Current.Settings.GridStreamMode == GridStreamMode.Main;
             ShowCameras();
         });
+
+        IsLoading = false;
 
         if (!StorageReady)
         {
@@ -487,16 +490,6 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         {
             await CloseCameraAsync();
             ShowCameras();
-        });
-    }
-
-    [RelayCommand]
-    private Task ShowDevicesTabAsync()
-    {
-        return GuardAsync(async () =>
-        {
-            await CloseCameraAsync();
-            ShowDevices();
         });
     }
 

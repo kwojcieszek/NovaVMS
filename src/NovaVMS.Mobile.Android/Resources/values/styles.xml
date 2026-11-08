@@ -4,7 +4,7 @@
     <item name="android:windowActionModeOverlay">true</item>
     <item name="android:colorAccent">@color/nova_accent</item>
     <item name="colorAccent">@color/nova_accent</item>
-    <item name="android:windowBackground">@color/nova_window_background</item>
+    <item name="android:windowBackground">@drawable/splash</item>
     <item name="android:statusBarColor">@color/nova_header_background</item>
     <item name="android:navigationBarColor">@color/nova_header_background</item>
   </style>

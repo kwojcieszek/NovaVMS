@@ -8,7 +8,7 @@ public sealed partial class DevicesViewModel : PageViewModel
 {
     private readonly ShellViewModel _shell;
 
-    public override MobileTab Tab => MobileTab.Devices;
+    public override MobileTab Tab => MobileTab.Settings;
 
     public bool StorageReady => _shell.StorageReady;
 
@@ -23,6 +23,11 @@ public sealed partial class DevicesViewModel : PageViewModel
         Devices = shell.StorageReady
             ? shell.Devices.Select(device => new DeviceItemViewModel(shell, device)).ToList()
             : [];
+    }
+
+    public override void NavigateBack(ShellViewModel shell)
+    {
+        shell.ShowSettings();
     }
 
     [RelayCommand]

@@ -22,6 +22,9 @@
     <DataTemplate DataType="models:GridLayoutOption">
       <TextBlock Text="{Binding Label}" />
     </DataTemplate>
+    <DataTemplate DataType="models:PreviewColumnsOption">
+      <TextBlock Text="{Binding Label}" />
+    </DataTemplate>
   </UserControl.DataTemplates>
 
   <ScrollViewer HorizontalScrollBarVisibility="Disabled">
@@ -47,6 +50,9 @@
           <TextBlock Classes="muted" Text="{l:Tr Mobile_ThisDeviceHint}" />
           <CheckBox Content="{l:Tr General_UseOptionalProtocol}" IsChecked="{Binding UseOptionalProtocol}" />
           <TextBlock Classes="muted" Text="{l:Tr General_UseOptionalProtocolHint}" />
+          <TextBlock Classes="label" Text="{l:Tr Mobile_PreviewColumns}" />
+          <ComboBox ItemsSource="{Binding PreviewColumns}" SelectedItem="{Binding SelectedPreviewColumns}" AutomationProperties.Name="{l:Tr Mobile_PreviewColumns}" />
+          <TextBlock Classes="muted" Text="{l:Tr Mobile_PreviewColumnsHint}" />
         </StackPanel>
       </Border>
 

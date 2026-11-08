@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shown from the launch until the first frame of the application: the logo and the name on the window background. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+  <item android:drawable="@color/nova_window_background" />
+  <item android:gravity="center" android:bottom="96dp" android:width="192dp" android:height="192dp" android:drawable="@mipmap/icon_foreground" />
+  <item android:gravity="center" android:top="160dp" android:width="200dp" android:height="80dp" android:drawable="@drawable/splash_name" />
+</layer-list>

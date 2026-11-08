@@ -7,7 +7,8 @@ using NovaVMS.Mobile.Localization;
 using NovaVMS.Mobile.Services;
 #if ANDROID
 using Avalonia.Android;
-using NativeVideoView = LibVLCSharp.Platforms.Android.VideoView;
+using Avalonia.VisualTree;
+using AndroidRect = Android.Graphics.Rect;
 #else
 using Avalonia.iOS;
 using NativeVideoView = LibVLCSharp.Platforms.iOS.VideoView;
@@ -196,9 +197,111 @@ public sealed class VlcPlayer : IMobilePlayer
         }
     }
 
+#if ANDROID
+    /// <summary>
+    /// Hosts the clippable video view. Inside a scroll viewer the view is cut to the visible part of the viewer,
+    /// because native views are drawn above Avalonia content and are not clipped by it.
+    /// </summary>
     private sealed class VideoHost(LibVLCSharp.Shared.MediaPlayer player, Action<Size> sizeChanged) : NativeControlHost
     {
-        private NativeVideoView? _native;
+        private ClippedVideoView? _native;
+        private AndroidRect? _visibleArea;
+
+        protected override void OnSizeChanged(SizeChangedEventArgs e)
+        {
+            base.OnSizeChanged(e);
+
+            sizeChanged(e.NewSize);
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+
+            LayoutUpdated += OnLayoutUpdated;
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            LayoutUpdated -= OnLayoutUpdated;
+
+            base.OnDetachedFromVisualTree(e);
+        }
+
+        protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)
+        {
+            _native = new ClippedVideoView(global::Android.App.Application.Context, player);
+            _visibleArea = null;
+
+            UpdateVisibleArea();
+
+            return new AndroidViewControlHandle(_native);
+        }
+
+        protected override void DestroyNativeControlCore(IPlatformHandle control)
+        {
+            _native?.Detach();
+
+            base.DestroyNativeControlCore(control);
+
+            _native = null;
+        }
+
+        // Scrolling arranges the list again, so every layout pass may move the view in or out of the viewer.
+        private void OnLayoutUpdated(object? sender, EventArgs e)
+        {
+            UpdateVisibleArea();
+        }
+
+        private void UpdateVisibleArea()
+        {
+            if (_native is null)
+            {
+                return;
+            }
+
+            var area = VisibleArea();
+
+            if (Equals(area, _visibleArea))
+            {
+                return;
+            }
+
+            _visibleArea = area;
+            _native.SetVisibleArea(area);
+        }
+
+        private AndroidRect? VisibleArea()
+        {
+            var viewer = this.FindAncestorOfType<ScrollViewer>();
+
+            if (viewer is null || this.TranslatePoint(default, viewer) is not { } origin)
+            {
+                return null;
+            }
+
+            var own = new Rect(origin, Bounds.Size);
+            var visible = own.Intersect(new Rect(viewer.Bounds.Size));
+
+            if (visible.Width <= 0 || visible.Height <= 0)
+            {
+                return new AndroidRect(0, 0, 0, 0);
+            }
+
+            var scale = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1;
+            var local = visible.Translate(-(Vector)origin);
+
+            return new AndroidRect(
+                (int)Math.Floor(local.X * scale),
+                (int)Math.Floor(local.Y * scale),
+                (int)Math.Ceiling(local.Right * scale),
+                (int)Math.Ceiling(local.Bottom * scale));
+        }
+    }
+#else
+    private sealed class VideoHost(LibVLCSharp.Shared.MediaPlayer player, Action<Size> sizeChanged) : NativeControlHost
+    {
+        private LibVLCSharp.Platforms.iOS.VideoView? _native;
 
         protected override void OnSizeChanged(SizeChangedEventArgs e)
         {
@@ -209,21 +312,12 @@ public sealed class VlcPlayer : IMobilePlayer
 
         protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)
         {
-#if ANDROID
-            _native = new NativeVideoView(global::Android.App.Application.Context)
-            {
-                MediaPlayer = player
-            };
-
-            return new AndroidViewControlHandle(_native);
-#else
-            _native = new NativeVideoView
+            _native = new LibVLCSharp.Platforms.iOS.VideoView
             {
                 MediaPlayer = player
             };
 
             return new UIViewControlHandle(_native);
-#endif
         }
 
         protected override void DestroyNativeControlCore(IPlatformHandle control)
@@ -238,4 +332,5 @@ public sealed class VlcPlayer : IMobilePlayer
             _native = null;
         }
     }
+#endif
 }

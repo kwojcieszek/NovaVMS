@@ -115,12 +115,13 @@ public sealed class MobileLayoutTests
             window.Show();
             Dispatcher.UIThread.RunJobs();
 
-            var navigation = FindButton(shell, Localizer.Text("Mobile_Devices"));
+            var navigation = FindButton(shell, Localizer.Text("Mobile_Settings"));
 
             Assert.InRange(navigation.Bounds.Width, 48, width);
             Assert.True(navigation.Bounds.Height >= 48);
 
-            await OpenAsync(shell, Localizer.Text("Mobile_Devices"), typeof(DevicesViewModel));
+            await OpenAsync(shell, Localizer.Text("Mobile_Settings"), typeof(SettingsViewModel));
+            await OpenAsync(shell, Localizer.Text("Settings_Devices"), typeof(DevicesViewModel));
             await OpenAsync(shell, Localizer.Text("Mobile_AddDevice"), typeof(DeviceEditViewModel));
             Dispatcher.UIThread.RunJobs();
 
