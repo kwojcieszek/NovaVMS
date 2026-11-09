@@ -3,7 +3,7 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Platform video player is compiled by the Android and iOS heads against native LibVLC bindings. -->
+    <!-- The video player uses the native decoders, so it is compiled by the Android and iOS heads. -->
     <Compile Remove="Native/**" />
   </ItemGroup>
   <ItemGroup>

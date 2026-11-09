@@ -9,14 +9,16 @@
     <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">ios-arm64</RuntimeIdentifier>
     <MtouchLink>SdkOnly</MtouchLink>
+    <!-- Every assembly is AOT compiled; the interpreter only runs code generated at runtime.
+         Interpreting all code made rendering, connections and stream reading slow on the phone. -->
     <UseInterpreter>true</UseInterpreter>
+    <MtouchInterpreter>-all</MtouchInterpreter>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../NovaVMS.Mobile/NovaVMS.Mobile.csproj" />
     <PackageReference Include="Avalonia.iOS" Version="12.1.5" />
-    <PackageReference Include="LibVLCSharp" Version="3.10.2" />
-    <PackageReference Include="VideoLAN.LibVLC.iOS" Version="3.6.1" />
-    <Compile Include="../NovaVMS.Mobile/Native/VlcPlayer.cs" Link="Native/VlcPlayer.cs" />
+    <Compile Include="../NovaVMS.Mobile/Native/IVideoRenderer.cs" Link="Native/IVideoRenderer.cs" />
+    <Compile Include="../NovaVMS.Mobile/Native/SystemVideoPlayer.cs" Link="Native/SystemVideoPlayer.cs" />
     <Compile Include="../NovaVMS.Mobile/Native/ClippedVideoView.iOS.cs" Link="Native/ClippedVideoView.iOS.cs" />
     <BundleResource Include="PrivacyInfo.xcprivacy" />
   </ItemGroup>

@@ -20,8 +20,6 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
     private const int MaxHiddenTileReleaseSeconds = 3600;
     private const int MinFrameRate = 0;
     private const int MaxFrameRate = 60;
-    private const int MinMainStreamHeight = 1;
-    private const int MaxMainStreamHeight = 16384;
 
     private readonly ShellViewModel _shell;
 
@@ -38,6 +36,9 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
     private PreviewColumnsOption _selectedPreviewColumns;
 
     [ObservableProperty]
+    private bool _lockRotation;
+
+    [ObservableProperty]
     private StreamModeOption _selectedStreamMode;
 
     [ObservableProperty]
@@ -45,9 +46,6 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
 
     [ObservableProperty]
     private GridLayoutOption _defaultLayout;
-
-    [ObservableProperty]
-    private decimal? _mainStreamMinimumHeight;
 
     [ObservableProperty]
     private decimal? _networkCachingMs;
@@ -117,10 +115,10 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
         _selectedTheme = ThemeOption.Find(settings.Theme);
         _useOptionalProtocol = shell.LocalSettings.UseOptionalProtocol;
         _selectedPreviewColumns = PreviewColumnsOption.Find(shell.LocalSettings.PreviewColumns);
+        _lockRotation = shell.LocalSettings.LockRotation;
         _selectedStreamMode = StreamModeOption.Find(settings.GridStreamMode);
         _selectedAspectMode = VideoAspectModeOption.Find(settings.VideoAspectMode);
         _defaultLayout = GridLayoutOption.Find(settings.DefaultLayoutId, settings.DefaultLayoutCount);
-        _mainStreamMinimumHeight = settings.MainStreamMinimumHeight;
         _networkCachingMs = settings.NetworkCachingMs;
         _mainStreamCachingMs = settings.MainStreamCachingMs;
         _subStreamMaxFrameRate = settings.SubStreamMaxFrameRate;
@@ -222,7 +220,6 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
         settings.VideoAspectMode = SelectedAspectMode.Value;
         settings.DefaultLayoutCount = DefaultLayout.Count;
         settings.DefaultLayoutId = DefaultLayout.Id;
-        settings.MainStreamMinimumHeight = (int)Math.Clamp(MainStreamMinimumHeight ?? settings.MainStreamMinimumHeight, MinMainStreamHeight, MaxMainStreamHeight);
         settings.NetworkCachingMs = (int)Math.Clamp(NetworkCachingMs ?? settings.NetworkCachingMs, MinNetworkCachingMs, MaxNetworkCachingMs);
         settings.MainStreamCachingMs = (int)Math.Clamp(MainStreamCachingMs ?? settings.MainStreamCachingMs, MinNetworkCachingMs, MaxNetworkCachingMs);
         settings.SubStreamMaxFrameRate = (int)Math.Clamp(SubStreamMaxFrameRate ?? settings.SubStreamMaxFrameRate, MinFrameRate, MaxFrameRate);
@@ -258,6 +255,11 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
         _ = _shell.SaveLocalSettingsAsync();
     }
 
+    partial void OnLockRotationChanged(bool value)
+    {
+        _ = _shell.SetRotationLockedAsync(value);
+    }
+
     partial void OnSelectedStreamModeChanged(StreamModeOption value)
     {
         _shell.MainStream = value.Value == GridStreamMode.Main;
@@ -271,11 +273,6 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
     }
 
     partial void OnDefaultLayoutChanged(GridLayoutOption value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnMainStreamMinimumHeightChanged(decimal? value)
     {
         ApplyChanges();
     }

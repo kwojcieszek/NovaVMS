@@ -8,7 +8,7 @@ src/
   NovaVMS.Mobile/          # Shared mobile application (MVVM)
     Localization/          #   Localizer and {l:Tr Key} markup extension
     Models/                #   Settings and option lists
-    Native/                #   LibVLC player compiled by the platform heads
+    Native/                #   Hardware decoder video player compiled by the platform heads
     Services/              #   Encrypted device store, settings store, device connections
     ViewModels/            #   One view model per page or list item
     Views/                 #   AXAML views, one per file
@@ -22,7 +22,8 @@ src/
 - **Cameras** – the main page is structured like the desktop resource tree: Favorites, saved
   Views and camera Groups. Opening one plays live previews of all its cameras (sub stream,
   without sound); tapping a preview opens the camera full screen in landscape.
-  The back button returns camera → group → main page. Searching lists matching
+  The back button above the page (and the Android system back button) returns
+  camera → group → main page; a full screen camera is left by tapping the picture twice. Searching lists matching
   cameras directly.
 - **Devices** – device list and form with the desktop fields (primary and optional protocol,
   ports, secondary address, credentials, stream key) and channel download.
@@ -56,8 +57,16 @@ ISAPI/ONVIF connection when it has one.
   `{l:Tr Key}`, code uses `Localizer.Text` / `Localizer.Format`, exactly as in the
   desktop application. Language and theme are synchronized settings, as on the desktop.
 
-`NovaVMS.Mobile/Native/VlcPlayer.cs` is excluded from the shared project and
-compiled by the Android and iOS heads against their native LibVLC bindings.
+## Video
+
+Phones play video without LibVLC: `NovaVMS.Protocols/Rtsp` receives the RTSP stream over TCP on the
+thread pool and hands every H.264/H.265 picture to the hardware decoder of the platform
+(iOS `AVSampleBufferDisplayLayer`, Android `MediaCodec` rendering into a `TextureView`). The interface
+thread only places the native view, so connecting cameras never blocks it. LibVLC was replaced
+because its RTSP library (live555) waited about 10 seconds per stream for a multicast test that
+iOS does not allow. Sound is not played, and streams of the Hikvision SDK or with a stream
+encryption key, which need the desktop decoders, are not shown.
+`NovaVMS.Mobile/Native` is excluded from the shared project and compiled by the Android and iOS heads.
 
 Mobile views are independent of `NovaVMS.App/Views`. Reuse the domain and
 protocol libraries through project references; do not reference the desktop

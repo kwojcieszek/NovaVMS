@@ -19,6 +19,12 @@ public sealed class LocalSettings
     public int PreviewColumns { get; set; }
 
     /// <summary>
+    /// Keeps the mobile interface in portrait whatever way the phone is held; a full screen camera still
+    /// turns to landscape. On by default, also for settings files saved before the option existed.
+    /// </summary>
+    public bool LockRotation { get; set; } = true;
+
+    /// <summary>
     /// User logged in without a password when the application starts; empty shows the login window.
     /// </summary>
     public string AutoLoginUserName { get; set; } = string.Empty;

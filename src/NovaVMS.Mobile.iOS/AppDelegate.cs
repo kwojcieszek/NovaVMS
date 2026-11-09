@@ -13,13 +13,21 @@ public sealed class AppDelegate : AvaloniaAppDelegate<App>
     private NSObject? _backgroundObserver;
     private NSObject? _foregroundObserver;
     private NSObject? _windowObserver;
+    private readonly IosDeviceDisplay _display = new();
     private bool _launchShown;
+
+    /// <summary>Limits rotation to the orientations of the current screen mode (portrait lock, full screen landscape).</summary>
+    [Export("application:supportedInterfaceOrientationsForWindow:")]
+    public UIInterfaceOrientationMask GetSupportedInterfaceOrientations(UIApplication application, UIWindow? forWindow)
+    {
+        return _display.SupportedOrientations;
+    }
 
     protected override AppBuilder CustomizeAppBuilder(AppBuilder builder)
     {
         var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NovaVMS");
 
-        App.Platform = new MobilePlatform(directory, new KeychainProtection(), () => new VlcPlayer(), new IosDeviceDisplay());
+        App.Platform = new MobilePlatform(directory, new KeychainProtection(), () => new SystemVideoPlayer(), _display);
 
         _backgroundObserver = NSNotificationCenter.DefaultCenter.AddObserver(UIApplication.WillResignActiveNotification, OnWillResignActive);
         _foregroundObserver = NSNotificationCenter.DefaultCenter.AddObserver(UIApplication.DidBecomeActiveNotification, _ => App.Shell?.Resume());

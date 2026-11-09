@@ -62,7 +62,17 @@ public static class MobileDevices
         return optional ? device.ForProtocol(true) : null;
     }
 
-    public static async Task<IDeviceClient> ConnectAsync(Device device, bool preferOptional, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Chooses the reachable address and creates the client on the thread pool; the returned client also runs
+    /// every request there, so connecting never blocks the interface thread.
+    /// </summary>
+    public static Task<IDeviceClient> ConnectAsync(Device device, bool preferOptional, CancellationToken cancellationToken = default)
+    {
+        return Task.Run<IDeviceClient>(async () =>
+            new BackgroundDeviceClient(await CreateClientAsync(device, preferOptional, cancellationToken)), cancellationToken);
+    }
+
+    private static async Task<IDeviceClient> CreateClientAsync(Device device, bool preferOptional, CancellationToken cancellationToken)
     {
         var resolved = Resolve(device, preferOptional);
 

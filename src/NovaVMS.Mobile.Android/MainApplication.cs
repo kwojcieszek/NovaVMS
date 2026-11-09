@@ -12,7 +12,7 @@ public sealed class MainApplication(nint handle, JniHandleOwnership ownership) :
 {
     protected override AppBuilder CustomizeAppBuilder(AppBuilder builder)
     {
-        App.Platform = new MobilePlatform(FilesDir!.AbsolutePath, new AndroidProtection(), () => new VlcPlayer(), AndroidDeviceDisplay.Instance);
+        App.Platform = new MobilePlatform(FilesDir!.AbsolutePath, new AndroidProtection(), () => new SystemVideoPlayer(), AndroidDeviceDisplay.Instance);
 
         return base.CustomizeAppBuilder(builder).WithInterFont();
     }

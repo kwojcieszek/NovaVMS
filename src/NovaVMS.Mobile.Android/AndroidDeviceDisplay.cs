@@ -10,11 +10,29 @@ public sealed class AndroidDeviceDisplay : IDeviceDisplay
 {
     public static AndroidDeviceDisplay Instance { get; } = new();
 
-    /// <summary>Activity currently shown; set by <see cref="MainActivity"/>.</summary>
-    public Activity? Activity { get; set; }
+    private Activity? _activity;
+    private bool _rotationLocked = true;
+    private bool _fullScreen;
+
+    /// <summary>Activity currently shown; set by <see cref="MainActivity"/>, which takes the current rotation lock.</summary>
+    public Activity? Activity
+    {
+        get => _activity;
+        set
+        {
+            _activity = value;
+
+            if (value is not null && !_fullScreen)
+            {
+                value.RequestedOrientation = WindowedOrientation();
+            }
+        }
+    }
 
     public void EnterFullScreen()
     {
+        _fullScreen = true;
+
         Run(activity =>
         {
             activity.RequestedOrientation = ScreenOrientation.SensorLandscape;
@@ -25,13 +43,30 @@ public sealed class AndroidDeviceDisplay : IDeviceDisplay
 
     public void ExitFullScreen()
     {
+        _fullScreen = false;
+
         Run(activity =>
         {
-            // "User" returns to the orientation chosen by the user even when auto-rotation is off.
-            activity.RequestedOrientation = ScreenOrientation.User;
+            activity.RequestedOrientation = WindowedOrientation();
 
             SetSystemBarsVisible(activity, true);
         });
+    }
+
+    public void SetRotationLocked(bool locked)
+    {
+        _rotationLocked = locked;
+
+        if (!_fullScreen)
+        {
+            Run(activity => activity.RequestedOrientation = WindowedOrientation());
+        }
+    }
+
+    // "User" returns to the orientation chosen by the user even when auto-rotation is off.
+    private ScreenOrientation WindowedOrientation()
+    {
+        return _rotationLocked ? ScreenOrientation.Portrait : ScreenOrientation.User;
     }
 
     private static void SetSystemBarsVisible(Activity activity, bool visible)

@@ -53,6 +53,8 @@
           <TextBlock Classes="label" Text="{l:Tr Mobile_PreviewColumns}" />
           <ComboBox ItemsSource="{Binding PreviewColumns}" SelectedItem="{Binding SelectedPreviewColumns}" AutomationProperties.Name="{l:Tr Mobile_PreviewColumns}" />
           <TextBlock Classes="muted" Text="{l:Tr Mobile_PreviewColumnsHint}" />
+          <CheckBox Content="{l:Tr Mobile_LockRotation}" IsChecked="{Binding LockRotation}" />
+          <TextBlock Classes="muted" Text="{l:Tr Mobile_LockRotationHint}" />
         </StackPanel>
       </Border>
 
@@ -64,9 +66,6 @@
           <ComboBox ItemsSource="{Binding StreamModes}" SelectedItem="{Binding SelectedStreamMode}" AutomationProperties.Name="{l:Tr General_Stream}" />
           <TextBlock Classes="label" Text="{l:Tr General_AspectMode}" />
           <ComboBox ItemsSource="{Binding AspectModes}" SelectedItem="{Binding SelectedAspectMode}" AutomationProperties.Name="{l:Tr General_AspectMode}" />
-          <TextBlock Classes="label" Text="{l:Tr General_MainStreamMinimumHeight}" />
-          <NumericUpDown Value="{Binding MainStreamMinimumHeight}" Minimum="1" Maximum="16384" Increment="10" FormatString="0" />
-          <TextBlock Classes="muted" Text="{l:Tr General_MainStreamMinimumHeightHint}" />
           <TextBlock Classes="label" Text="{l:Tr General_DefaultSplit}" />
           <ComboBox ItemsSource="{Binding Layouts}" SelectedItem="{Binding DefaultLayout}" AutomationProperties.Name="{l:Tr General_DefaultSplit}" />
           <TextBlock Classes="label" Text="{l:Tr General_NetworkBuffer}" />

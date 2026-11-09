@@ -10,6 +10,9 @@ public sealed partial class SettingsViewModel : PageViewModel
 
     public override MobileTab Tab => MobileTab.Settings;
 
+    /// <summary>First page of the settings tab; the tab bar leads back to the cameras.</summary>
+    public override bool HasBackButton => false;
+
     public SettingsViewModel(ShellViewModel shell)
     {
         _shell = shell;

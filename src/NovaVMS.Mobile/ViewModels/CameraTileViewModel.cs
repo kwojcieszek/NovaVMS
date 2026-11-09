@@ -135,7 +135,7 @@ public sealed partial class CameraTileViewModel : ViewModelBase
 
     /// <summary>
     /// Stops the preview before its native surface is removed, then releases the player.
-    /// A LibVLC video output whose surface disappears while it plays is never shut down.
+    /// A decoder whose surface disappears while it plays must not receive further pictures.
     /// </summary>
     private async Task StopPlayerAsync()
     {

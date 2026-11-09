@@ -7,6 +7,8 @@ namespace NovaVMS.Mobile.Services;
 /// Phones have only a few hardware decoders; the first previews use them (zero-copy rendering, no filters).
 /// The remaining previews are decoded in software on purpose, cheaply and with a frame limit, instead of
 /// silently falling back when the hardware decoders run out. Previews never decode audio.
+/// The hardware decoder player of the phones (<c>SystemVideoPlayer</c>) decodes every picture in hardware without
+/// a buffer and uses none of these limits; they remain for players with software decoding.
 /// </summary>
 public static class PlaybackPolicy
 {

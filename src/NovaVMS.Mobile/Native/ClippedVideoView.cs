@@ -1,44 +1,150 @@
 using Android.Content;
+using Avalonia.Android;
+using Avalonia.Controls;
+using Avalonia.Media;
 using Android.Graphics;
+using Android.Media;
 using Android.Views;
 using Android.Widget;
-using LibVLCSharp.Platforms.Android;
-using Org.Videolan.Libvlc;
+using Java.Nio;
+using NovaVMS.Protocols.Rtsp;
 using AndroidRect = Android.Graphics.Rect;
 
 namespace NovaVMS.Mobile.Native;
 
 /// <summary>
-/// LibVLC video rendered to a <see cref="TextureView"/>, which, unlike the SurfaceView of the LibVLCSharp
-/// video view, is drawn within the view hierarchy and can be clipped. A preview scrolled partly out of the
-/// preview list is cut at its edge instead of covering the header and the navigation.
+/// Hardware decoded video: pictures go to a <see cref="MediaCodec"/> decoder that renders into a
+/// <see cref="TextureView"/>. Unlike a SurfaceView, the texture is drawn within the view hierarchy and can be clipped,
+/// so a preview scrolled partly out of the preview list is cut at its edge. Decoding runs on the receiving thread.
 /// </summary>
-public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureListener
+public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureListener, IVideoRenderer
 {
-    private readonly LibVLCSharp.Shared.MediaPlayer _player;
-    private readonly TextureView _texture;
-    private readonly AWindow _window;
-    private readonly LayoutChangeListener _layoutListener;
-    private bool _attached;
+    private static readonly TimeSpan InputTimeout = TimeSpan.FromMilliseconds(50);
 
-    public ClippedVideoView(Context context, LibVLCSharp.Shared.MediaPlayer player)
+    private readonly object _gate = new();
+    private readonly TextureView _texture;
+    private readonly MediaCodec.BufferInfo _info = new();
+    private Surface? _surface;
+    private MediaCodec? _decoder;
+    private IReadOnlyList<byte[]>? _decoderParameters;
+    private VideoCodec _decoderCodec;
+    private bool _needKeyFrame = true;
+    private bool _detached;
+    private AvaloniaView? _overlay;
+    private bool _fill;
+    private int _videoWidth;
+    private int _videoHeight;
+
+    public ClippedVideoView(Context context)
         : base(context)
     {
-        _player = player;
-        _texture = new TextureView(context);
-        _window = new AWindow(null);
-        _layoutListener = new LayoutChangeListener(_window);
+        SetBackgroundColor(Color.Black);
+
+        _texture = new TextureView(context)
+        {
+            SurfaceTextureListener = this
+        };
 
         AddView(_texture, new LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent));
-
-        // The player waits for the surface; the views are attached once the texture exists.
-        _window.SetVideoView(_texture);
-        _texture.SurfaceTextureListener = this;
-        _texture.AddOnLayoutChangeListener(_layoutListener);
-        _player.SetAndroidContext(_window.Handle);
     }
 
-    /// <summary>Visible part of the view in Avalonia units, converted with <paramref name="scale"/> to pixels; null shows all of it.</summary>
+    public bool Render(VideoAccessUnit picture)
+    {
+        lock (_gate)
+        {
+            if (_detached || _surface is null)
+            {
+                return false;
+            }
+
+            if (_needKeyFrame && !picture.IsKeyFrame)
+            {
+                return false;
+            }
+
+            try
+            {
+                if (_decoder is null || picture.Codec != _decoderCodec || !ReferenceEquals(picture.ParameterSets, _decoderParameters))
+                {
+                    if (!picture.IsKeyFrame)
+                    {
+                        _needKeyFrame = true;
+
+                        return false;
+                    }
+
+                    StartDecoder(picture);
+                }
+
+                var decoder = _decoder!;
+                var index = decoder.DequeueInputBuffer((long)InputTimeout.TotalMicroseconds);
+
+                if (index < 0)
+                {
+                    // The decoder is behind; a skipped picture would damage the following ones.
+                    _needKeyFrame = true;
+                    Drain(decoder);
+
+                    return false;
+                }
+
+                var input = decoder.GetInputBuffer(index)!;
+                var size = picture.AnnexBSize(false);
+
+                if (size > input.Capacity())
+                {
+                    decoder.QueueInputBuffer(index, 0, 0, 0, 0);
+                    _needKeyFrame = true;
+
+                    return false;
+                }
+
+                var data = new byte[size];
+
+                picture.CopyAnnexB(data, false);
+                input.Clear();
+                input.Put(data);
+                decoder.QueueInputBuffer(index, 0, size, picture.Timestamp * 100 / 9, picture.IsKeyFrame ? MediaCodecBufferFlags.KeyFrame : 0);
+                _needKeyFrame = false;
+
+                Drain(decoder);
+
+                return true;
+            }
+            catch (Exception exception) when (exception is Java.Lang.IllegalStateException or MediaCodec.CodecException or Java.IO.IOException)
+            {
+                StopDecoder();
+                _needKeyFrame = true;
+
+                return false;
+            }
+        }
+    }
+
+    public void RequireKeyFrame()
+    {
+        lock (_gate)
+        {
+            _needKeyFrame = true;
+        }
+    }
+
+    public void Clear()
+    {
+        lock (_gate)
+        {
+            StopDecoder();
+            _needKeyFrame = true;
+        }
+    }
+
+    public void SetFill(bool fill)
+    {
+        _fill = fill;
+
+        Post(ApplyTransform);
+    }
+
     public void SetVisibleArea(Avalonia.Rect? area, double scale)
     {
         ClipBounds = area is { } visible
@@ -50,49 +156,213 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
             : null;
     }
 
-    /// <summary>
-    /// Releases the surface from the player; the view is not used afterwards. Avalonia destroys native views
-    /// later than the tile disposes its player, and a disposed LibVLC player must not be called.
-    /// </summary>
-    public void Detach()
+    public void SetOverlay(Control? overlay)
     {
-        if (_player.NativeReference != IntPtr.Zero)
+        if (_overlay is { } previous)
         {
-            _player.SetAndroidContext(IntPtr.Zero);
+            _overlay = null;
+            previous.Content = null;
+            RemoveView(previous);
+            previous.Dispose();
         }
 
-        _texture.RemoveOnLayoutChangeListener(_layoutListener);
-
-        if (_attached)
-        {
-            _attached = false;
-            _window.DetachViews();
-        }
-    }
-
-    // AWindow replaces this listener with its own when the views are attached.
-    public void OnSurfaceTextureAvailable(SurfaceTexture surface, int width, int height)
-    {
-        if (_attached)
+        if (overlay is null)
         {
             return;
         }
 
-        _attached = true;
-        _window.AttachViews();
-        _window.SetWindowSize(width, height);
+        // A second Avalonia view with a transparent background, above the video texture.
+        var view = new AvaloniaView(Context!)
+        {
+            Content = overlay,
+            Visibility = ViewStates.Gone
+        };
+
+        view.SetBackgroundColor(Color.Transparent);
+
+        if (TopLevel.GetTopLevel(overlay) is { } topLevel)
+        {
+            topLevel.TransparencyLevelHint = [WindowTransparencyLevel.Transparent];
+            topLevel.Background = Brushes.Transparent;
+        }
+
+        AddView(view, new LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent));
+        _overlay = view;
+    }
+
+    public void SetOverlayVisible(bool visible)
+    {
+        if (_overlay is { } overlay)
+        {
+            overlay.Visibility = visible ? ViewStates.Visible : ViewStates.Gone;
+        }
+    }
+
+    public void Detach()
+    {
+        SetOverlay(null);
+
+        lock (_gate)
+        {
+            _detached = true;
+            StopDecoder();
+            _surface?.Release();
+            _surface = null;
+        }
+    }
+
+    public void OnSurfaceTextureAvailable(SurfaceTexture surface, int width, int height)
+    {
+        lock (_gate)
+        {
+            if (!_detached)
+            {
+                _surface = new Surface(surface);
+                _needKeyFrame = true;
+            }
+        }
+
+        ApplyTransform();
     }
 
     public bool OnSurfaceTextureDestroyed(SurfaceTexture surface)
     {
+        lock (_gate)
+        {
+            StopDecoder();
+            _surface?.Release();
+            _surface = null;
+        }
+
         return true;
     }
 
     public void OnSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height)
     {
+        ApplyTransform();
     }
 
     public void OnSurfaceTextureUpdated(SurfaceTexture surface)
     {
+    }
+
+    private void StartDecoder(VideoAccessUnit picture)
+    {
+        StopDecoder();
+
+        var mime = picture.Codec == VideoCodec.H265 ? MediaFormat.MimetypeVideoHevc : MediaFormat.MimetypeVideoAvc;
+        // The real size is read from the parameter sets; the decoder reports it once it starts.
+        var format = MediaFormat.CreateVideoFormat(mime!, 1920, 1080);
+        var parameters = picture.ParameterSets;
+
+        if (picture.Codec == VideoCodec.H265)
+        {
+            format.SetByteBuffer("csd-0", AnnexB(parameters));
+        }
+        else
+        {
+            format.SetByteBuffer("csd-0", AnnexB(parameters.Take(parameters.Count - 1)));
+            format.SetByteBuffer("csd-1", AnnexB(parameters.Skip(parameters.Count - 1)));
+        }
+
+        // Live video: decode with the lowest latency the device offers.
+        if (OperatingSystem.IsAndroidVersionAtLeast(30))
+        {
+            format.SetInteger(MediaFormat.KeyLowLatency, 1);
+        }
+
+        var decoder = MediaCodec.CreateDecoderByType(mime!);
+
+        decoder.Configure(format, _surface, null, MediaCodecConfigFlags.None);
+        decoder.Start();
+
+        _decoder = decoder;
+        _decoderCodec = picture.Codec;
+        _decoderParameters = parameters;
+    }
+
+    private void StopDecoder()
+    {
+        if (_decoder is not { } decoder)
+        {
+            return;
+        }
+
+        _decoder = null;
+        _decoderParameters = null;
+
+        try
+        {
+            decoder.Stop();
+        }
+        catch (Java.Lang.IllegalStateException)
+        {
+        }
+
+        decoder.Release();
+    }
+
+    // Decoded pictures are shown as soon as they are ready.
+    private void Drain(MediaCodec decoder)
+    {
+        while (true)
+        {
+            var index = decoder.DequeueOutputBuffer(_info, 0);
+
+            if (index >= 0)
+            {
+                decoder.ReleaseOutputBuffer(index, true);
+
+                continue;
+            }
+
+            if (index == (int)MediaCodecInfoState.OutputFormatChanged)
+            {
+                var format = decoder.OutputFormat;
+                var width = format.GetInteger(MediaFormat.KeyWidth);
+                var height = format.GetInteger(MediaFormat.KeyHeight);
+
+                if (format.ContainsKey("crop-right") && format.ContainsKey("crop-left"))
+                {
+                    width = format.GetInteger("crop-right") - format.GetInteger("crop-left") + 1;
+                    height = format.GetInteger("crop-bottom") - format.GetInteger("crop-top") + 1;
+                }
+
+                _videoWidth = width;
+                _videoHeight = height;
+                Post(ApplyTransform);
+
+                continue;
+            }
+
+            return;
+        }
+    }
+
+    // The texture stretches the picture to the view; keeping the camera proportions scales it back.
+    private void ApplyTransform()
+    {
+        var width = _texture.Width;
+        var height = _texture.Height;
+        var matrix = new Matrix();
+
+        if (!_fill && width > 0 && height > 0 && _videoWidth > 0 && _videoHeight > 0)
+        {
+            var view = (float)width / height;
+            var video = (float)_videoWidth / _videoHeight;
+            var scaleX = video < view ? video / view : 1f;
+            var scaleY = video > view ? view / video : 1f;
+
+            matrix.SetScale(scaleX, scaleY, width / 2f, height / 2f);
+        }
+
+        _texture.SetTransform(matrix);
+    }
+
+    private static ByteBuffer AnnexB(IEnumerable<byte[]> nals)
+    {
+        var bytes = nals.SelectMany(nal => new byte[] { 0, 0, 0, 1 }.Concat(nal)).ToArray();
+
+        return ByteBuffer.Wrap(bytes)!;
     }
 }

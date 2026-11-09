@@ -11,6 +11,12 @@ public abstract class PageViewModel : ViewModelBase
     /// <summary>The camera list is the root page; the back button leaves the application there.</summary>
     public virtual bool IsRoot => false;
 
+    /// <summary>
+    /// Shows the back button above the page. iOS has no system back button, so every page below a tab offers one;
+    /// the first page of a tab does not.
+    /// </summary>
+    public virtual bool HasBackButton => !IsRoot;
+
     /// <summary>Shows the page the back button returns to.</summary>
     public virtual void NavigateBack(ShellViewModel shell)
     {

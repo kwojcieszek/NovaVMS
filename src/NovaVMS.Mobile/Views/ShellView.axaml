@@ -9,44 +9,59 @@
   <Border Classes="window">
     <Grid RowDefinitions="*,Auto,Auto">
 
-      <!-- Current page -->
-      <ContentControl Grid.Row="0" Margin="{Binding ContentInsets}" Content="{Binding CurrentPage}">
-        <ContentControl.DataTemplates>
-          <DataTemplate DataType="vm:CamerasViewModel">
-            <views:CamerasView />
-          </DataTemplate>
-          <DataTemplate DataType="vm:CameraViewModel">
-            <views:CameraView />
-          </DataTemplate>
-          <DataTemplate DataType="vm:DevicesViewModel">
-            <views:DevicesView />
-          </DataTemplate>
-          <DataTemplate DataType="vm:DeviceEditViewModel">
-            <views:DeviceEditView />
-          </DataTemplate>
-          <DataTemplate DataType="vm:DeviceRemovalViewModel">
-            <views:DeviceRemovalView />
-          </DataTemplate>
-          <DataTemplate DataType="vm:SettingsViewModel">
-            <views:SettingsView />
-          </DataTemplate>
-          <DataTemplate DataType="vm:CameraGroupViewModel">
-            <views:CameraGroupView />
-          </DataTemplate>
-          <DataTemplate DataType="vm:GeneralSettingsViewModel">
-            <views:GeneralSettingsView />
-          </DataTemplate>
-          <DataTemplate DataType="vm:GroupsSettingsViewModel">
-            <views:GroupsSettingsView />
-          </DataTemplate>
-          <DataTemplate DataType="vm:GroupEditViewModel">
-            <views:GroupEditView />
-          </DataTemplate>
-          <DataTemplate DataType="vm:SyncSettingsViewModel">
-            <views:SyncSettingsView />
-          </DataTemplate>
-        </ContentControl.DataTemplates>
-      </ContentControl>
+      <!-- Current page; pages below a tab get a back button, because iOS has no system back button -->
+      <DockPanel Grid.Row="0" Margin="{Binding ContentInsets}">
+        <Button DockPanel.Dock="Top"
+                Classes="icon"
+                HorizontalAlignment="Left"
+                Margin="4,2,0,0"
+                Padding="6,8,12,8"
+                IsVisible="{Binding ShowBackButton}"
+                AutomationProperties.Name="{l:Tr Mobile_Back}"
+                Command="{Binding NavigateBackCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="2">
+            <PathIcon Data="{StaticResource IconChevronLeft}" Width="24" Height="24" Foreground="{DynamicResource NovaAccent}" />
+            <TextBlock Text="{l:Tr Mobile_Back}" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource NovaAccent}" />
+          </StackPanel>
+        </Button>
+        <ContentControl Content="{Binding CurrentPage}">
+          <ContentControl.DataTemplates>
+            <DataTemplate DataType="vm:CamerasViewModel">
+              <views:CamerasView />
+            </DataTemplate>
+            <DataTemplate DataType="vm:CameraViewModel">
+              <views:CameraView />
+            </DataTemplate>
+            <DataTemplate DataType="vm:DevicesViewModel">
+              <views:DevicesView />
+            </DataTemplate>
+            <DataTemplate DataType="vm:DeviceEditViewModel">
+              <views:DeviceEditView />
+            </DataTemplate>
+            <DataTemplate DataType="vm:DeviceRemovalViewModel">
+              <views:DeviceRemovalView />
+            </DataTemplate>
+            <DataTemplate DataType="vm:SettingsViewModel">
+              <views:SettingsView />
+            </DataTemplate>
+            <DataTemplate DataType="vm:CameraGroupViewModel">
+              <views:CameraGroupView />
+            </DataTemplate>
+            <DataTemplate DataType="vm:GeneralSettingsViewModel">
+              <views:GeneralSettingsView />
+            </DataTemplate>
+            <DataTemplate DataType="vm:GroupsSettingsViewModel">
+              <views:GroupsSettingsView />
+            </DataTemplate>
+            <DataTemplate DataType="vm:GroupEditViewModel">
+              <views:GroupEditView />
+            </DataTemplate>
+            <DataTemplate DataType="vm:SyncSettingsViewModel">
+              <views:SyncSettingsView />
+            </DataTemplate>
+          </ContentControl.DataTemplates>
+        </ContentControl>
+      </DockPanel>
 
       <!-- Confirmation over the current page -->
       <Border Grid.Row="0" Classes="scrim" IsVisible="{Binding HasConfirmation}">

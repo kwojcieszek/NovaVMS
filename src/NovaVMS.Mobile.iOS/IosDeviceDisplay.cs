@@ -12,6 +12,15 @@ namespace NovaVMS.Mobile.iOS;
 /// </summary>
 public sealed class IosDeviceDisplay : IDeviceDisplay
 {
+    private bool _rotationLocked = true;
+    private bool _fullScreen;
+
+    /// <summary>
+    /// Orientations the interface may take now; returned to UIKit by <see cref="AppDelegate"/>, so turning the
+    /// phone cannot rotate a locked interface. Portrait until the settings are read, as rotation is locked by default.
+    /// </summary>
+    public UIInterfaceOrientationMask SupportedOrientations { get; private set; } = UIInterfaceOrientationMask.Portrait;
+
     /// <summary>
     /// Safe area of the application window in points, which are Avalonia units on iOS. The bottom inset of the
     /// home indicator is left out, so the navigation tabs sit at the bottom edge of the screen.
@@ -36,16 +45,37 @@ public sealed class IosDeviceDisplay : IDeviceDisplay
 
     public void EnterFullScreen()
     {
+        _fullScreen = true;
+
         Apply(UIInterfaceOrientationMask.Landscape, systemBarVisible: false);
     }
 
     public void ExitFullScreen()
     {
-        Apply(UIInterfaceOrientationMask.AllButUpsideDown, systemBarVisible: true);
+        _fullScreen = false;
+
+        Apply(WindowedOrientations(), systemBarVisible: true);
     }
 
-    private static void Apply(UIInterfaceOrientationMask orientations, bool systemBarVisible)
+    public void SetRotationLocked(bool locked)
     {
+        _rotationLocked = locked;
+
+        if (!_fullScreen)
+        {
+            Apply(WindowedOrientations(), systemBarVisible: true);
+        }
+    }
+
+    private UIInterfaceOrientationMask WindowedOrientations()
+    {
+        return _rotationLocked ? UIInterfaceOrientationMask.Portrait : UIInterfaceOrientationMask.AllButUpsideDown;
+    }
+
+    private void Apply(UIInterfaceOrientationMask orientations, bool systemBarVisible)
+    {
+        SupportedOrientations = orientations;
+
         if (MainTopLevel()?.InsetsManager is { } insets)
         {
             insets.IsSystemBarVisible = systemBarVisible;

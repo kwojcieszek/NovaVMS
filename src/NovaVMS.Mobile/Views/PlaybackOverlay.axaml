@@ -1,0 +1,62 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.Mobile.Localization"
+             xmlns:vm="using:NovaVMS.Mobile.ViewModels"
+             x:Class="NovaVMS.Mobile.Views.PlaybackOverlay"
+             x:DataType="vm:CameraViewModel"
+             Background="Transparent">
+
+  <UserControl.Styles>
+    <Style Selector="Button.mode">
+      <Setter Property="Background" Value="#66000000" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="#99FFFFFF" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="18" />
+      <Setter Property="MinHeight" Value="40" />
+      <Setter Property="Padding" Value="18,8" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.mode.active">
+      <Setter Property="Background" Value="{DynamicResource NovaAccent}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource NovaAccent}" />
+    </Style>
+    <Style Selector="Button.mode:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.mode.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource NovaAccent}" />
+    </Style>
+  </UserControl.Styles>
+
+  <!-- A tap outside the bar hides the menu; the picture stays visible through it -->
+  <Grid RowDefinitions="Auto,*" Margin="{Binding OverlayInsets}">
+    <Border Grid.Row="0" Background="#99000000" CornerRadius="0,0,14,14" Padding="6,6,12,6">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <Button Grid.Column="0"
+                Classes="icon"
+                Foreground="White"
+                AutomationProperties.Name="{l:Tr Mobile_Back}"
+                Command="{Binding BackCommand}">
+          <PathIcon Data="{StaticResource IconChevronLeft}" Width="28" Height="28" Foreground="White" />
+        </Button>
+        <StackPanel Grid.Column="1" Margin="4,0" VerticalAlignment="Center" Spacing="1">
+          <TextBlock Text="{Binding Title}" Foreground="White" FontWeight="SemiBold" FontSize="16" TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{Binding ModeText}" Foreground="#CCFFFFFF" FontSize="13" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button Classes="mode"
+                  Classes.active="{Binding IsLive}"
+                  Content="{l:Tr Mobile_Live}"
+                  AutomationProperties.Name="{l:Tr Mobile_Live}"
+                  Command="{Binding ShowLiveCommand}" />
+          <Button Classes="mode"
+                  Classes.active="{Binding IsPlayback}"
+                  Content="{l:Tr Mobile_Recordings}"
+                  AutomationProperties.Name="{l:Tr Mobile_Recordings}"
+                  Command="{Binding ShowRecordingsCommand}" />
+        </StackPanel>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

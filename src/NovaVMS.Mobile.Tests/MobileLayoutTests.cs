@@ -263,6 +263,10 @@ public sealed class MobileLayoutTests
         {
             IsFullScreen = false;
         }
+
+        public void SetRotationLocked(bool locked)
+        {
+        }
     }
 
     private sealed class FakePlayer : IMobilePlayer

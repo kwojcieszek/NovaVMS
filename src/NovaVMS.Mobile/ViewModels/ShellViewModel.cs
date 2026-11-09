@@ -35,6 +35,7 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsCamerasTab))]
     [NotifyPropertyChangedFor(nameof(IsSettingsTab))]
+    [NotifyPropertyChangedFor(nameof(ShowBackButton))]
     private PageViewModel? _currentPage;
 
     /// <summary>True until the configuration is read; the start screen with the logo is shown meanwhile.</summary>
@@ -54,6 +55,7 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsWindowed))]
     [NotifyPropertyChangedFor(nameof(ContentInsets))]
+    [NotifyPropertyChangedFor(nameof(ShowBackButton))]
     private bool _isFullScreen;
 
     /// <summary>
@@ -108,6 +110,9 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
     /// <summary>True when the back button closes a question or returns to a previous page instead of leaving the application.</summary>
     public bool CanGoBack => Confirmation is not null || CurrentPage is { IsRoot: false };
 
+    /// <summary>Back button above the page; a full screen camera is left by tapping the picture twice.</summary>
+    public bool ShowBackButton => !IsFullScreen && CurrentPage is { HasBackButton: true };
+
     public bool IsCamerasTab => CurrentPage?.Tab == MobileTab.Cameras;
 
     public bool IsSettingsTab => CurrentPage?.Tab == MobileTab.Settings;
@@ -130,10 +135,11 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         Configuration.Changed += OnConfigurationChanged;
         Configuration.Replaced += OnConfigurationReplaced;
 
-        Sync = new SettingsSyncService(Configuration, optionsStore, new RemoteSettingsStoreFactory(serializer));
+        Sync = new SettingsSyncService(Configuration, optionsStore, new BackgroundRemoteSettingsStoreFactory(new RemoteSettingsStoreFactory(serializer)));
         Sync.Notified += OnSyncNotified;
 
         LocalSettings = _localSettingsStore.Load();
+        _display?.SetRotationLocked(LocalSettings.LockRotation);
 
         _createPlayer = platform.CreatePlayer;
         _display = platform.Display;
@@ -401,6 +407,15 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
+    /// <summary>Keeps the interface in portrait or lets it turn with the phone; saved for this phone only.</summary>
+    internal async Task SetRotationLockedAsync(bool locked)
+    {
+        LocalSettings.LockRotation = locked;
+        _display?.SetRotationLocked(locked);
+
+        await SaveLocalSettingsAsync();
+    }
+
     internal async Task SaveLocalSettingsAsync()
     {
         try
@@ -502,6 +517,12 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
             ThemeMode.Dark => ThemeVariant.Dark,
             _ => ThemeVariant.Default
         };
+    }
+
+    [RelayCommand]
+    private Task NavigateBackAsync()
+    {
+        return GuardAsync(GoBackAsync);
     }
 
     [RelayCommand]

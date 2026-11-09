@@ -14,6 +14,9 @@ public interface IDeviceDisplay
     /// <summary>Hides the system bars and turns the screen to landscape.</summary>
     void EnterFullScreen();
 
-    /// <summary>Shows the system bars and lets the screen follow the device orientation again.</summary>
+    /// <summary>Shows the system bars and returns to portrait or to the device orientation, as set by <see cref="SetRotationLocked"/>.</summary>
     void ExitFullScreen();
+
+    /// <summary>Keeps the interface in portrait (true) or lets it follow the device orientation (false) outside full screen.</summary>
+    void SetRotationLocked(bool locked);
 }
