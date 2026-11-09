@@ -9,6 +9,7 @@ using Android.Widget;
 using Java.Nio;
 using NovaVMS.Protocols.Rtsp;
 using AndroidRect = Android.Graphics.Rect;
+using Color = Android.Graphics.Color;
 
 namespace NovaVMS.Mobile.Native;
 
