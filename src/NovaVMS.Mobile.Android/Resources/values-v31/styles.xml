@@ -5,7 +5,8 @@
     <item name="android:windowActionModeOverlay">true</item>
     <item name="android:colorAccent">@color/nova_accent</item>
     <item name="colorAccent">@color/nova_accent</item>
-    <item name="android:windowBackground">@drawable/splash</item>
+    <!-- The system start screen is the only one; the window below it is plain, without a second logo -->
+    <item name="android:windowBackground">@color/nova_window_background</item>
     <item name="android:statusBarColor">@color/nova_header_background</item>
     <item name="android:navigationBarColor">@color/nova_header_background</item>
     <item name="android:windowSplashScreenBackground">@color/nova_window_background</item>

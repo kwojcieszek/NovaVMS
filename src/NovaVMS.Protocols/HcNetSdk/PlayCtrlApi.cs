@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-using NovaVMS.Protocols.Resources;
+using NovaVMS.Core.Localization;
 
 namespace NovaVMS.Protocols.HcNetSdk;
 
@@ -72,7 +72,7 @@ internal sealed class PlayCtrlApi : IPlayCtrlApi
         }
         catch (Exception exception) when (exception is DllNotFoundException or BadImageFormatException or EntryPointNotFoundException)
         {
-            throw new NotSupportedException(ProtocolText.Get("StreamDecoderUnavailable"), exception);
+            throw new NotSupportedException(LibraryText.Get("StreamDecoderUnavailable"), exception);
         }
     }
 

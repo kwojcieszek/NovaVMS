@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -11,13 +12,14 @@ public partial class CameraView : UserControl
     private const double MinimumVideoHeight = 100;
     private const double MaximumVideoHeight = 420;
     private const double MaximumHeightShare = 0.4;
-    private static readonly TimeSpan DoubleTapTime = TimeSpan.FromMilliseconds(450);
     private const double DoubleTapDistance = 40;
+
+    private static readonly TimeSpan DoubleTapTime = TimeSpan.FromMilliseconds(450);
 
     private DateTime _lastTapTime;
     private Point _lastTapPosition;
     private DispatcherTimer? _singleTap;
-    private PlaybackOverlay? _overlay;
+    private CameraViewModel? _camera;
 
     public CameraView()
     {
@@ -35,14 +37,19 @@ public partial class CameraView : UserControl
     {
         base.OnDataContextChanged(e);
 
-        ResizeVideo();
-
-        // The playback menu of a full screen camera lives in the player's layer above the picture.
-        if (DataContext is CameraViewModel { IsFullScreen: true } camera)
+        if (_camera is not null)
         {
-            _overlay = new PlaybackOverlay { DataContext = camera };
-            camera.AttachOverlay(_overlay);
+            _camera.PropertyChanged -= OnCameraPropertyChanged;
         }
+
+        _camera = DataContext as CameraViewModel;
+
+        if (_camera is not null)
+        {
+            _camera.PropertyChanged += OnCameraPropertyChanged;
+        }
+
+        ApplyFullScreen();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -52,15 +59,34 @@ public partial class CameraView : UserControl
         base.OnDetachedFromVisualTree(e);
     }
 
+    private void OnCameraPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(CameraViewModel.IsFullScreen))
+        {
+            ApplyFullScreen();
+        }
+    }
+
+    // The playback menu of a full screen camera lives in the player's layer above the picture.
+    private void ApplyFullScreen()
+    {
+        ResizeVideo();
+
+        if (_camera is { IsFullScreen: true } camera)
+        {
+            camera.AttachOverlay(new PlaybackOverlay { DataContext = camera });
+        }
+    }
+
     // Native video is drawn above Avalonia content, so a full screen camera has no visible buttons; iOS also has
-    // no system back button. A double tap on the picture returns to the previews; a single tap does nothing,
-    // so touching the picture by accident does not close the camera.
-    // The double tap is recognized when the finger is lifted, and the page is left only after that touch has ended:
+    // no system back button. A double tap on the picture switches full screen; a single tap on a full screen
+    // picture opens the playback menu, so touching the picture by accident does not close the camera.
+    // The double tap is recognized when the finger is lifted, and acted on only after that touch has ended:
     // removing the native video view under a finger that is still down makes UIKit cancel the touch, and the
     // lost end of the touch then kept the next double tap from being recognized.
     private void OnVideoPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        if (DataContext is not CameraViewModel { IsFullScreen: true } camera)
+        if (DataContext is not CameraViewModel camera)
         {
             return;
         }
@@ -76,10 +102,13 @@ public partial class CameraView : UserControl
             _lastTapTime = now;
             _lastTapPosition = position;
 
-            // A single tap opens the playback menu once no second tap follows.
-            _singleTap ??= new DispatcherTimer(DoubleTapTime, DispatcherPriority.Normal, OnSingleTap);
-            _singleTap.Stop();
-            _singleTap.Start();
+            if (camera.IsFullScreen)
+            {
+                // A single tap opens the playback menu once no second tap follows.
+                _singleTap ??= new DispatcherTimer(DoubleTapTime, DispatcherPriority.Normal, OnSingleTap);
+                _singleTap.Stop();
+                _singleTap.Start();
+            }
 
             return;
         }
@@ -88,13 +117,7 @@ public partial class CameraView : UserControl
         _lastTapTime = default;
         e.Handled = true;
 
-        Dispatcher.UIThread.Post(() =>
-        {
-            if (camera.BackCommand.CanExecute(null))
-            {
-                camera.BackCommand.Execute(null);
-            }
-        }, DispatcherPriority.Background);
+        Dispatcher.UIThread.Post(camera.ToggleFullScreen, DispatcherPriority.Background);
     }
 
     private void OnSingleTap(object? sender, EventArgs e)

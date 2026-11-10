@@ -4,8 +4,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Xml.Linq;
 using Microsoft.Data.Sqlite;
+using NovaVMS.Core.Localization;
 using NovaVMS.Core.Models;
-using NovaVMS.Infrastructure.Resources;
 
 namespace NovaVMS.Infrastructure.Import;
 
@@ -71,7 +71,7 @@ public sealed class IvmsDeviceReader
 
         if (skipped > 0)
         {
-            warnings.Add(ImportText.Format("IvmsSkippedGroupCameras", skipped));
+            warnings.Add(LibraryText.Format("IvmsSkippedGroupCameras", skipped));
         }
 
         return groups.Values.ToList();
@@ -132,7 +132,7 @@ public sealed class IvmsDeviceReader
 
                 if (!string.Equals(integrity.ExecuteScalar() as string, "ok", StringComparison.Ordinal))
                 {
-                    throw new FormatException(ImportText.Get("IvmsDamaged"));
+                    throw new FormatException(LibraryText.Get("IvmsDamaged"));
                 }
             }
 
@@ -156,7 +156,7 @@ public sealed class IvmsDeviceReader
 
                     if (rows.GetInt32(2) != 0 || string.IsNullOrWhiteSpace(host))
                     {
-                        warnings.Add(ImportText.Format("IvmsUnsupportedDevice", name));
+                        warnings.Add(LibraryText.Format("IvmsUnsupportedDevice", name));
                         continue;
                     }
 
@@ -164,7 +164,7 @@ public sealed class IvmsDeviceReader
 
                     if (port is < 1 or > 65535)
                     {
-                        throw new FormatException(ImportText.Get("IvmsDamaged"));
+                        throw new FormatException(LibraryText.Get("IvmsDamaged"));
                     }
 
                     var device = new Device
@@ -204,7 +204,7 @@ public sealed class IvmsDeviceReader
 
                     if (number <= 0 || item.Device.Channels.Any(channel => channel.Number == number))
                     {
-                        throw new FormatException(ImportText.Get("IvmsDamaged"));
+                        throw new FormatException(LibraryText.Get("IvmsDamaged"));
                     }
 
                     var channel = new Channel { Number = number, Name = DecodeName((byte[])rows.GetValue(1)) };
@@ -221,7 +221,7 @@ public sealed class IvmsDeviceReader
         }
         catch (Exception exception) when (exception is SqliteException or InvalidCastException or ArgumentException)
         {
-            throw new FormatException(ImportText.Get("IvmsDamaged"), exception);
+            throw new FormatException(LibraryText.Get("IvmsDamaged"), exception);
         }
         finally
         {
@@ -299,7 +299,7 @@ public sealed class IvmsDeviceReader
         }
         catch (Exception exception) when (exception is FormatException or System.Xml.XmlException or CryptographicException)
         {
-            throw new FormatException(ImportText.Get("IvmsSetupInvalid"), exception);
+            throw new FormatException(LibraryText.Get("IvmsSetupInvalid"), exception);
         }
     }
 
@@ -319,7 +319,7 @@ public sealed class IvmsDeviceReader
     {
         if (encrypted.Length == 0 || encrypted.Length % PageSize != 0)
         {
-            throw new FormatException(ImportText.Get("IvmsDamaged"));
+            throw new FormatException(LibraryText.Get("IvmsDamaged"));
         }
 
         var key = Rfc2898DeriveBytes.Pbkdf2(secret, encrypted.AsSpan(0, 16), 64000, HashAlgorithmName.SHA1, 32);
@@ -353,7 +353,7 @@ public sealed class IvmsDeviceReader
 
                 if (!CryptographicOperations.FixedTimeEquals(mac, page.Slice(992, 20)))
                 {
-                    throw new FormatException(ImportText.Get("IvmsAuthenticationFailed"));
+                    throw new FormatException(LibraryText.Get("IvmsAuthenticationFailed"));
                 }
 
                 var decrypted = aes.DecryptCbc(page[start..976], page[976..992], PaddingMode.None);
@@ -366,7 +366,7 @@ public sealed class IvmsDeviceReader
 
             if (!output.AsSpan(16, 8).SequenceEqual(new byte[] { 4, 0, 1, 1, 48, 64, 32, 32 }))
             {
-                throw new FormatException(ImportText.Get("IvmsDamaged"));
+                throw new FormatException(LibraryText.Get("IvmsDamaged"));
             }
 
             return output;
@@ -408,7 +408,7 @@ public sealed class IvmsDeviceReader
         }
         catch (Exception exception) when (exception is FormatException or CryptographicException or DecoderFallbackException)
         {
-            throw new FormatException(ImportText.Get("IvmsCredentialsInvalid"), exception);
+            throw new FormatException(LibraryText.Get("IvmsCredentialsInvalid"), exception);
         }
     }
 
@@ -446,7 +446,7 @@ public sealed class IvmsDeviceReader
 
         if (entries.Count != 1)
         {
-            throw new FormatException(ImportText.Format("IvmsMissingEntry", name));
+            throw new FormatException(LibraryText.Format("IvmsMissingEntry", name));
         }
 
         await using var stream = entries[0].Open();
@@ -464,7 +464,7 @@ public sealed class IvmsDeviceReader
         {
             if (buffer.Length + count > limit)
             {
-                throw new FormatException(ImportText.Get("IvmsFileTooLarge"));
+                throw new FormatException(LibraryText.Get("IvmsFileTooLarge"));
             }
 
             await buffer.WriteAsync(chunk.AsMemory(0, count), cancellationToken);

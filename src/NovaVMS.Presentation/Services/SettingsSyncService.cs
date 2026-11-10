@@ -1,18 +1,17 @@
 using System.Security.Cryptography;
 using System.Text.Json;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Exceptions;
 using NovaVMS.Core.Models;
-using NovaVMS.Mobile.Localization;
+using NovaVMS.Presentation.Localization;
 
-namespace NovaVMS.Mobile.Services;
+namespace NovaVMS.Presentation.Services;
 
 /// <summary>
-/// Keeps the configuration in the shared settings database, exactly like the desktop application: sends local
+/// Keeps the configuration in the shared settings database for the desktop and the mobile application: sends local
 /// changes, periodically applies newer versions sent from other installations and restores archived versions.
-/// Used on the UI thread; database operations run one at a time.
+/// Used on the interface thread; database operations run one at a time.
 /// </summary>
 public sealed partial class SettingsSyncService : ObservableObject, IDisposable
 {
@@ -23,12 +22,13 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
 
     private static readonly TimeSpan UploadDelay = TimeSpan.FromSeconds(5);
 
-    private readonly MobileConfigurationService _configuration;
+    private readonly ISynchronizedConfiguration _configuration;
     private readonly ISettingsSyncOptionsStore _optionsStore;
     private readonly IRemoteSettingsStoreFactory _storeFactory;
+    private readonly Action<string, Exception>? _logError;
     private readonly SemaphoreSlim _gate = new(1, 1);
-    private readonly DispatcherTimer _checkTimer;
-    private readonly DispatcherTimer _uploadTimer;
+    private readonly UiTimer _checkTimer = new();
+    private readonly UiTimer _uploadTimer = new() { Interval = UploadDelay };
     private SettingsSyncOptions _options = new();
     private IRemoteSettingsStore? _store;
 
@@ -60,18 +60,22 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
     /// </summary>
     public event EventHandler<string>? Notified;
 
+    /// <param name="configuration">Configuration of the application.</param>
+    /// <param name="optionsStore">Connection settings of this installation.</param>
+    /// <param name="storeFactory">Creates the connection to the settings database.</param>
+    /// <param name="logError">Writes failures to the application log; null when the application keeps none.</param>
     public SettingsSyncService(
-        MobileConfigurationService configuration,
+        ISynchronizedConfiguration configuration,
         ISettingsSyncOptionsStore optionsStore,
-        IRemoteSettingsStoreFactory storeFactory)
+        IRemoteSettingsStoreFactory storeFactory,
+        Action<string, Exception>? logError = null)
     {
         _configuration = configuration;
         _optionsStore = optionsStore;
         _storeFactory = storeFactory;
+        _logError = logError;
 
-        _checkTimer = new DispatcherTimer();
         _checkTimer.Tick += OnCheckTimerTick;
-        _uploadTimer = new DispatcherTimer { Interval = UploadDelay };
         _uploadTimer.Tick += OnUploadTimerTick;
         _configuration.Saved += OnConfigurationSaved;
     }
@@ -84,7 +88,8 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
     /// <summary>
     /// Loads the connection and, when automatic checking is on, applies a newer version.
     /// </summary>
-    public async Task StartAsync()
+    /// <param name="announceCheck">Reports the start-up check in the status bar; otherwise only a received version or an error is reported.</param>
+    public async Task StartAsync(bool announceCheck = false)
     {
         try
         {
@@ -92,6 +97,8 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or CryptographicException)
         {
+            _logError?.Invoke("Loading settings database connection", exception);
+
             StatusText = Localizer.Format("Sync_LoadFailed", exception.Message);
 
             return;
@@ -99,11 +106,17 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
 
         ApplySchedule();
 
-        // The start-up check runs silently; only a received version or an error is reported.
-        if (IsActive && _options.AutoCheck)
+        if (!IsActive || !_options.AutoCheck)
         {
-            await CheckForUpdatesAsync();
+            return;
         }
+
+        if (announceCheck)
+        {
+            Notified?.Invoke(this, Localizer.Text("Sync_Checking"));
+        }
+
+        await CheckForUpdatesAsync();
     }
 
     /// <summary>
@@ -136,6 +149,8 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or CryptographicException)
         {
+            _logError?.Invoke("Saving settings database connection", exception);
+
             StatusText = Localizer.Format("Sync_SaveFailed", exception.Message);
 
             return false;
@@ -173,7 +188,7 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Sends changes still waiting for the automatic upload, e.g. when the application goes to the background.
+    /// Sends changes still waiting for the automatic upload, e.g. when the application closes or goes to the background.
     /// </summary>
     public async Task FlushAsync()
     {
@@ -271,7 +286,7 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or CryptographicException)
         {
-            ReportError(exception.Message);
+            ReportError(exception, exception.Message);
         }
         finally
         {
@@ -289,10 +304,10 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
         _isDisposed = true;
         _configuration.Saved -= OnConfigurationSaved;
 
-        _checkTimer.Stop();
         _checkTimer.Tick -= OnCheckTimerTick;
-        _uploadTimer.Stop();
+        _checkTimer.Dispose();
         _uploadTimer.Tick -= OnUploadTimerTick;
+        _uploadTimer.Dispose();
 
         _store?.Dispose();
         _store = null;
@@ -404,14 +419,14 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
         }
         catch (SettingsSyncException exception)
         {
-            ReportError(Describe(exception));
+            ReportError(exception, Describe(exception));
 
             return failed;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or CryptographicException)
         {
-            // Saving the applied configuration or the known version on this device failed.
-            ReportError(exception.Message);
+            // Saving the applied configuration or the known version on this installation failed.
+            ReportError(exception, exception.Message);
 
             return failed;
         }
@@ -423,8 +438,10 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
         }
     }
 
-    private void ReportError(string message)
+    private void ReportError(Exception exception, string message)
     {
+        _logError?.Invoke("Settings database synchronization", exception);
+
         StatusText = Localizer.Format("Sync_Failed", message);
 
         Notified?.Invoke(this, StatusText);
@@ -477,7 +494,7 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
         }
         catch (Exception exception)
         {
-            ReportError(exception.Message);
+            ReportError(exception, exception.Message);
         }
     }
 
@@ -489,7 +506,7 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
         }
         catch (Exception exception)
         {
-            ReportError(exception.Message);
+            ReportError(exception, exception.Message);
         }
     }
 }

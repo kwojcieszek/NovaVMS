@@ -5,9 +5,9 @@ using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 using NovaVMS.Core.Exceptions;
+using NovaVMS.Core.Localization;
 using NovaVMS.Core.Models;
 using NovaVMS.Protocols.Common;
-using NovaVMS.Protocols.Resources;
 
 namespace NovaVMS.Protocols.Onvif;
 
@@ -83,14 +83,14 @@ internal sealed class OnvifSoapClient : IDisposable
 
             if (!response.IsSuccessStatusCode)
             {
-                throw new DeviceCommunicationException(ProtocolText.Format("HttpStatus", (int)response.StatusCode, uri.AbsolutePath), response.StatusCode);
+                throw new DeviceCommunicationException(LibraryText.Format("HttpStatus", (int)response.StatusCode, uri.AbsolutePath), response.StatusCode);
             }
 
             return await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (HttpRequestException exception)
         {
-            throw new DeviceCommunicationException(ProtocolText.Format("ConnectionFailed", exception.Message), exception);
+            throw new DeviceCommunicationException(LibraryText.Format("ConnectionFailed", exception.Message), exception);
         }
     }
 
@@ -128,10 +128,10 @@ internal sealed class OnvifSoapClient : IDisposable
         // Authentication failures are reported as SOAP faults by most cameras.
         if (reason.Contains("auth", StringComparison.OrdinalIgnoreCase) || reason.Contains("NotAuthorized", StringComparison.OrdinalIgnoreCase))
         {
-            return ProtocolText.Get("InvalidCredentials");
+            return LibraryText.Get("InvalidCredentials");
         }
 
-        return ProtocolText.Format("OnvifFault", reason);
+        return LibraryText.Format("OnvifFault", reason);
     }
 
     // GetSystemDateAndTime does not require authentication; it lets the token use the device's clock.
@@ -184,7 +184,7 @@ internal sealed class OnvifSoapClient : IDisposable
 
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
-                throw new DeviceCommunicationException(ProtocolText.Get("InvalidCredentials"), response.StatusCode);
+                throw new DeviceCommunicationException(LibraryText.Get("InvalidCredentials"), response.StatusCode);
             }
 
             var document = TryParse(body);
@@ -197,7 +197,7 @@ internal sealed class OnvifSoapClient : IDisposable
 
             if (!response.IsSuccessStatusCode || document?.Root is null)
             {
-                throw new DeviceCommunicationException(ProtocolText.Format("HttpStatus", (int)response.StatusCode, serviceUri.AbsolutePath), response.StatusCode);
+                throw new DeviceCommunicationException(LibraryText.Format("HttpStatus", (int)response.StatusCode, serviceUri.AbsolutePath), response.StatusCode);
             }
 
             var responseBody = document.Root.Elements().FirstOrDefault(element => element.Name.LocalName == "Body");
@@ -206,11 +206,11 @@ internal sealed class OnvifSoapClient : IDisposable
         }
         catch (HttpRequestException exception)
         {
-            throw new DeviceCommunicationException(ProtocolText.Format("ConnectionFailed", exception.Message), exception);
+            throw new DeviceCommunicationException(LibraryText.Format("ConnectionFailed", exception.Message), exception);
         }
         catch (TaskCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new DeviceCommunicationException(ProtocolText.Get("Timeout"), exception);
+            throw new DeviceCommunicationException(LibraryText.Get("Timeout"), exception);
         }
     }
 

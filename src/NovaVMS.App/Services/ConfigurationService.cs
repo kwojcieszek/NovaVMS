@@ -2,13 +2,14 @@ using NovaVMS.App.Models;
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Configuration;
 using NovaVMS.Core.Models;
+using NovaVMS.Presentation.Services;
 
 namespace NovaVMS.App.Services;
 
 /// <summary>
 /// Current configuration held in memory together with operations on devices, groups and settings files.
 /// </summary>
-public sealed class ConfigurationService
+public sealed class ConfigurationService : ISynchronizedConfiguration
 {
     /// <summary>
     /// Name and password of the account created when the configuration has no users.
@@ -91,16 +92,10 @@ public sealed class ConfigurationService
     /// </summary>
     public async Task ReplaceAsync(AppConfiguration configuration)
     {
-        var replacement = AppConfigurationNormalizer.Normalize(configuration);
-        replacement.Settings.HcNetSdkDirectory = Current.Settings.HcNetSdkDirectory;
+        var replacement = AppConfigurationTransfer.PrepareReplacement(Current, configuration);
 
         // A version sent before users existed must not lock everyone out.
-        if (replacement.Users.Count == 0)
-        {
-            replacement.Users = Current.Users.Select(user => user.Copy()).ToList();
-
-            EnsureDefaultUser(replacement);
-        }
+        EnsureDefaultUser(replacement);
 
         Current = replacement;
 
@@ -191,19 +186,12 @@ public sealed class ConfigurationService
     /// </summary>
     public async Task ExportAsync(Stream stream, bool includePasswords)
     {
-        var copy = Current.CreateSnapshot();
-
-        if (!includePasswords)
-        {
-            AppConfigurationTransfer.RemoveSecrets(copy);
-        }
-
-        await Task.Run(() => _serializer.SerializeAsync(stream, copy));
+        await AppConfigurationTransfer.ExportAsync(_serializer, stream, Current, includePasswords);
     }
 
-    public async Task<AppConfiguration> ReadImportAsync(Stream stream)
+    public Task<AppConfiguration> ReadImportAsync(Stream stream)
     {
-        return AppConfigurationNormalizer.Normalize(await Task.Run(() => _serializer.DeserializeAsync(stream)));
+        return AppConfigurationTransfer.ReadAsync(_serializer, stream);
     }
 
     /// <summary>

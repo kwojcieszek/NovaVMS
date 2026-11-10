@@ -3,12 +3,12 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LibVLCSharp.Shared;
-using NovaVMS.App.Localization;
 using NovaVMS.App.Models;
 using NovaVMS.App.Services;
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Exceptions;
 using NovaVMS.Core.Models;
+using NovaVMS.Presentation.Localization;
 
 namespace NovaVMS.App.ViewModels;
 

@@ -15,6 +15,7 @@
     <ProjectReference Include="../NovaVMS.Mobile/NovaVMS.Mobile.csproj" />
     <PackageReference Include="Avalonia.Android" Version="12.1.5" />
     <Compile Include="../NovaVMS.Mobile/Native/IVideoRenderer.cs" Link="Native/IVideoRenderer.cs" />
+    <Compile Include="../NovaVMS.Mobile/Native/OverlayBackground.cs" Link="Native/OverlayBackground.cs" />
     <Compile Include="../NovaVMS.Mobile/Native/SystemVideoPlayer.cs" Link="Native/SystemVideoPlayer.cs" />
     <Compile Include="../NovaVMS.Mobile/Native/ClippedVideoView.cs" Link="Native/ClippedVideoView.cs" />
   </ItemGroup>

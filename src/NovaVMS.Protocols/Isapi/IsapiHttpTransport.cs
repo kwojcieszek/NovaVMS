@@ -3,8 +3,8 @@ using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 using NovaVMS.Core.Exceptions;
+using NovaVMS.Core.Localization;
 using NovaVMS.Core.Models;
-using NovaVMS.Protocols.Resources;
 
 namespace NovaVMS.Protocols.Isapi;
 
@@ -101,19 +101,19 @@ internal sealed class IsapiHttpTransport : IIsapiTransport
         {
             case HttpStatusCode.Unauthorized:
                 {
-                    return ProtocolText.Get("InvalidCredentials");
+                    return LibraryText.Get("InvalidCredentials");
                 }
             case HttpStatusCode.Forbidden:
                 {
-                    return ProtocolText.Get("Forbidden");
+                    return LibraryText.Get("Forbidden");
                 }
             case HttpStatusCode.NotFound:
                 {
-                    return ProtocolText.Format("FunctionNotSupported", path);
+                    return LibraryText.Format("FunctionNotSupported", path);
                 }
             default:
                 {
-                    return ProtocolText.Format("HttpStatus", (int)statusCode, path);
+                    return LibraryText.Format("HttpStatus", (int)statusCode, path);
                 }
         }
     }
@@ -126,15 +126,15 @@ internal sealed class IsapiHttpTransport : IIsapiTransport
         }
         catch (HttpRequestException exception)
         {
-            throw new DeviceCommunicationException(ProtocolText.Format("ConnectionFailed", exception.Message), exception);
+            throw new DeviceCommunicationException(LibraryText.Format("ConnectionFailed", exception.Message), exception);
         }
         catch (TaskCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new DeviceCommunicationException(ProtocolText.Get("Timeout"), exception);
+            throw new DeviceCommunicationException(LibraryText.Get("Timeout"), exception);
         }
         catch (XmlException exception)
         {
-            throw new DeviceCommunicationException(ProtocolText.Get("InvalidXml"), exception);
+            throw new DeviceCommunicationException(LibraryText.Get("InvalidXml"), exception);
         }
     }
 

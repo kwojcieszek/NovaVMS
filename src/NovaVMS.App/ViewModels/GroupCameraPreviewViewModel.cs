@@ -1,10 +1,10 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using LibVLCSharp.Shared;
-using NovaVMS.App.Localization;
 using NovaVMS.App.Models;
 using NovaVMS.App.Services;
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
+using NovaVMS.Presentation.Localization;
 
 namespace NovaVMS.App.ViewModels;
 

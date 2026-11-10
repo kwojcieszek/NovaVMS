@@ -5,12 +5,12 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LibVLCSharp.Shared;
-using NovaVMS.App.Localization;
 using NovaVMS.App.Models;
 using NovaVMS.App.Services;
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Exceptions;
 using NovaVMS.Core.Models;
+using NovaVMS.Presentation.Localization;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -235,10 +235,6 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         Localizer.Instance.LanguageChanged += OnLanguageChanged;
     }
 
-    internal static TimeSpan? ParseExportTime(string value) =>
-        TimeSpan.TryParseExact(value, [@"hh\:mm\:ss", @"hh\:mm"], CultureInfo.InvariantCulture, out var result)
-        && result >= TimeSpan.Zero && result < TimeSpan.FromDays(1) ? result : null;
-
     internal void ConfigureSynchronizedRange(DateTime? date, TimeSpan? from, TimeSpan? to)
     {
         _suspendAutomaticSearch = true;
@@ -373,15 +369,15 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     public void Dispose() => _disposal ??= DisposeCoreAsync();
 
-    partial void OnExportFromTextChanged(string value) => ExportFromTime = ParseExportTime(value);
+    partial void OnExportFromTextChanged(string value) => ExportFromTime = ExportTimeRange.Parse(value);
 
-    partial void OnExportToTextChanged(string value) => ExportToTime = ParseExportTime(value);
+    partial void OnExportToTextChanged(string value) => ExportToTime = ExportTimeRange.Parse(value);
 
     partial void OnExportFromTimeChanged(TimeSpan? value)
     {
         if (value.HasValue)
         {
-            ExportFromText = value.Value.ToString(@"hh\:mm\:ss");
+            ExportFromText = ExportTimeRange.Format(value.Value);
         }
     }
 
@@ -389,7 +385,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     {
         if (value.HasValue)
         {
-            ExportToText = value.Value.ToString(@"hh\:mm\:ss");
+            ExportToText = ExportTimeRange.Format(value.Value);
         }
     }
 
@@ -1056,8 +1052,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     }
 
     private bool CanExport() => !_isShutDown && HasCamera && !IsExporting
-        && ExportFromDate.HasValue && ExportToDate.HasValue && ExportFromTime.HasValue && ExportToTime.HasValue
-        && ExportFromDate.Value.Date + ExportFromTime.Value < ExportToDate.Value.Date + ExportToTime.Value;
+        && ExportTimeRange.IsValid(ExportFromDate, ExportFromTime, ExportToDate, ExportToTime);
 
     [RelayCommand(CanExecute = nameof(CanExport))]
     private Task ExportAsync()

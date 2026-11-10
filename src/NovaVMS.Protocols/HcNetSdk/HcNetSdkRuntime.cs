@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using NovaVMS.Core.Exceptions;
-using NovaVMS.Protocols.Resources;
+using NovaVMS.Core.Localization;
 
 namespace NovaVMS.Protocols.HcNetSdk;
 
@@ -114,7 +114,7 @@ public static class HcNetSdkRuntime
 
             if (!IsPlatformSupported)
             {
-                throw new NotSupportedException(ProtocolText.Get("SdkUnsupportedPlatform"));
+                throw new NotSupportedException(LibraryText.Get("SdkUnsupportedPlatform"));
             }
 
             var directory = ResolveDirectory(LibraryDirectory);
@@ -122,7 +122,7 @@ public static class HcNetSdkRuntime
 
             if (!File.Exists(libraryPath))
             {
-                throw new DeviceCommunicationException(ProtocolText.Format("SdkNotFound", directory));
+                throw new DeviceCommunicationException(LibraryText.Format("SdkNotFound", directory));
             }
 
             LoadLibrary(libraryPath);
@@ -130,7 +130,7 @@ public static class HcNetSdkRuntime
 
             if (!HcNetSdkNative.Init())
             {
-                throw new DeviceCommunicationException(ProtocolText.Format("SdkInitFailed", HcNetSdkNative.GetLastError()));
+                throw new DeviceCommunicationException(LibraryText.Format("SdkInitFailed", HcNetSdkNative.GetLastError()));
             }
 
             HcNetSdkNative.SetConnectTime(3000, 1);
@@ -155,7 +155,7 @@ public static class HcNetSdkRuntime
         }
         catch (Exception exception) when (exception is DllNotFoundException or BadImageFormatException)
         {
-            throw new DeviceCommunicationException(ProtocolText.Format("SdkLoadFailed", exception.Message), exception);
+            throw new DeviceCommunicationException(LibraryText.Format("SdkLoadFailed", exception.Message), exception);
         }
 
         NativeLibrary.SetDllImportResolver(typeof(HcNetSdkRuntime).Assembly, ResolveImport);

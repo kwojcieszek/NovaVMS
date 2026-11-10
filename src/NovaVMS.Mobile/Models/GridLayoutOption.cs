@@ -1,4 +1,5 @@
-using NovaVMS.Mobile.Localization;
+using NovaVMS.Presentation.Localization;
+
 
 namespace NovaVMS.Mobile.Models;
 

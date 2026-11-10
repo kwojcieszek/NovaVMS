@@ -3,11 +3,12 @@ using System.Globalization;
 using NovaVMS.Core.Localization;
 using NovaVMS.Core.Models;
 
-namespace NovaVMS.Mobile.Localization;
+namespace NovaVMS.Presentation.Localization;
 
 /// <summary>
-/// Translated interface texts (shared catalog in NovaVMS.Core/Resources/Strings). XAML binds to the indexer (through <see cref="TrExtension"/>),
-/// so switching the language updates the whole interface without a restart.
+/// Translated interface texts of the desktop and the mobile application (shared catalog in NovaVMS.Core/Resources/Strings).
+/// XAML binds to the indexer (through the TrExtension of each application), so switching the language updates the whole
+/// interface without a restart.
 /// </summary>
 public sealed class Localizer : INotifyPropertyChanged
 {
@@ -18,11 +19,6 @@ public sealed class Localizer : INotifyPropertyChanged
 
     private readonly JsonTextCatalog _catalog = JsonTextCatalog.Shared;
     private CultureInfo _culture = ResolveCulture(string.Empty);
-
-    /// <summary>
-    /// Languages with a complete translation. The first one is the fallback.
-    /// </summary>
-    public static readonly IReadOnlyList<string> SupportedLanguages = new[] { "en", "pl" };
 
     public static Localizer Instance { get; } = new();
 
@@ -77,11 +73,11 @@ public sealed class Localizer : INotifyPropertyChanged
     {
         var requested = string.IsNullOrWhiteSpace(languageCode)
             ? CultureInfo.InstalledUICulture.TwoLetterISOLanguageName
-            : languageCode.Trim().ToLowerInvariant();
+            : languageCode.Trim();
 
-        var supported = SupportedLanguages.Contains(requested) ? requested : SupportedLanguages[0];
+        var language = InterfaceLanguage.Find(requested);
 
-        return CultureInfo.GetCultureInfo(supported);
+        return CultureInfo.GetCultureInfo(language.CultureName);
     }
 
     // Library messages (protocol errors, import notes) are resolved in the current UI culture.

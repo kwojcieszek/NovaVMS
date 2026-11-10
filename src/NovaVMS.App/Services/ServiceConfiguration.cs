@@ -5,6 +5,7 @@ using NovaVMS.Core.Abstractions;
 using NovaVMS.Infrastructure.Import;
 using NovaVMS.Infrastructure.Storage;
 using NovaVMS.Infrastructure.Sync;
+using NovaVMS.Presentation.Services;
 using NovaVMS.Protocols;
 using NovaVMS.Protocols.Onvif;
 
@@ -40,7 +41,19 @@ internal static class ServiceConfiguration
         services.AddSingleton<UserSessionService>();
         services.AddSingleton<ApplicationUpdateService>();
         services.AddSingleton<DeviceSyncService>();
-        services.AddSingleton<SettingsSyncService>();
+        services.AddSingleton(provider =>
+        {
+            var statusBar = provider.GetRequiredService<StatusBarService>();
+            var sync = new SettingsSyncService(
+                provider.GetRequiredService<ConfigurationService>(),
+                provider.GetRequiredService<ISettingsSyncOptionsStore>(),
+                provider.GetRequiredService<IRemoteSettingsStoreFactory>(),
+                UnhandledExceptionLogger.Log);
+
+            sync.Notified += (_, message) => statusBar.Message = message;
+
+            return sync;
+        });
         services.AddSingleton<DeviceConnectionCleanupService>();
         services.AddSingleton<StatusBarService>();
         services.AddSingleton<ThemeService>();

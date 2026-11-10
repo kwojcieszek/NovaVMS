@@ -1,5 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using NovaVMS.App.Localization;
+using NovaVMS.Presentation.Localization;
 
 namespace NovaVMS.App.Services;
 

@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using NovaVMS.Core.Exceptions;
+using NovaVMS.Core.Localization;
 using NovaVMS.Core.Models;
-using NovaVMS.Protocols.Resources;
 
 namespace NovaVMS.Protocols.HcNetSdk;
 
@@ -72,7 +72,7 @@ internal sealed class HcNetSdkRecordingService(IHcNetSdkRecordingApi api)
                         case 1002: // NET_DVR_ISFINDING: wait without busy-polling.
                             if (Stopwatch.GetElapsedTime(waitingSince) >= SearchTimeout)
                             {
-                                throw new DeviceCommunicationException(ProtocolText.Get("Timeout"));
+                                throw new DeviceCommunicationException(LibraryText.Get("Timeout"));
                             }
 
                             await Task.Delay(50, cancellationToken).ConfigureAwait(false);

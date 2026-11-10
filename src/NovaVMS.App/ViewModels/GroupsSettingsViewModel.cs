@@ -1,10 +1,11 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using NovaVMS.App.Localization;
 using NovaVMS.App.Models;
 using NovaVMS.App.Services;
 using NovaVMS.Core.Models;
+using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.Models;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -409,7 +410,7 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
 
         foreach (var camera in _configuration.GetAllCameras())
         {
-            if (AvailableDeviceFilter?.Matches(camera) != false)
+            if (AvailableDeviceFilter?.Matches(camera.Device) != false)
             {
                 AvailableCameras.Add(camera);
             }

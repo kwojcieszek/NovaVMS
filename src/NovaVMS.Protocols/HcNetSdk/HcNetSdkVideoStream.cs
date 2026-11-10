@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using NovaVMS.Core.Exceptions;
+using NovaVMS.Core.Localization;
 using NovaVMS.Core.Models;
 using NovaVMS.Protocols.Common;
-using NovaVMS.Protocols.Resources;
 
 namespace NovaVMS.Protocols.HcNetSdk;
 
@@ -41,7 +41,7 @@ internal sealed class HcNetSdkVideoStream : BlockingPipeStream, IVideoStreamStat
     private string? _errorMessage;
 
     public string? ErrorMessage => _errorMessage ?? (_decoder is { HasFrames: false }
-        ? ProtocolText.Get("StreamDecryptionNoFrames") : null);
+        ? LibraryText.Get("StreamDecryptionNoFrames") : null);
 
     private HcNetSdkVideoStream(bool isPlayback, string encryptionKey, bool decodeVideo = false)
         : base(decodeVideo || !string.IsNullOrEmpty(encryptionKey) ? 64 * 1024 * 1024 : (isPlayback ? PlaybackBufferBytes : LiveBufferBytes),

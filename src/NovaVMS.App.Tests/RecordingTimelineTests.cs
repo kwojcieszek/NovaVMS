@@ -1,3 +1,4 @@
+using NovaVMS.App.Models;
 using NovaVMS.App.Services;
 using NovaVMS.App.ViewModels;
 using NovaVMS.Core.Models;
@@ -52,7 +53,7 @@ public sealed class RecordingTimelineTests
     [InlineData("", null)]
     public void ExportTimeRequiresValidTimeOfDay(string text, int? expectedSeconds)
     {
-        Assert.Equal(expectedSeconds, PlaybackViewModel.ParseExportTime(text)?.TotalSeconds);
+        Assert.Equal(expectedSeconds, ExportTimeRange.Parse(text)?.TotalSeconds);
     }
 
     private static RecordingSegment Segment(int start, int end, int channel = 1) =>

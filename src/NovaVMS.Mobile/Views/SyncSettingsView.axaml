@@ -1,12 +1,14 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:l="using:NovaVMS.Mobile.Localization"
-             xmlns:models="using:NovaVMS.Mobile.Models"
+             xmlns:options="using:NovaVMS.Presentation.Models"
              xmlns:vm="using:NovaVMS.Mobile.ViewModels"
+             xmlns:shared="using:NovaVMS.Presentation.ViewModels"
              x:Class="NovaVMS.Mobile.Views.SyncSettingsView"
              x:DataType="vm:SyncSettingsViewModel">
 
-  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+  <!-- The content binds to the synchronization form shared with the desktop application -->
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" DataContext="{Binding Form}" x:DataType="shared:SyncSettingsForm">
     <StackPanel Classes="page">
       <TextBlock Classes="pageTitle" Text="{l:Tr Sync_Title}" />
       <TextBlock Classes="muted" Text="{l:Tr Sync_Hint}" />
@@ -19,7 +21,7 @@
           <TextBlock Classes="label" Text="{l:Tr Sync_DatabaseType}" />
           <ComboBox ItemsSource="{Binding DatabaseTypes}" SelectedItem="{Binding SelectedDatabaseType}" AutomationProperties.Name="{l:Tr Sync_DatabaseType}">
             <ComboBox.ItemTemplate>
-              <DataTemplate DataType="models:DatabaseTypeOption">
+              <DataTemplate DataType="options:DatabaseTypeOption">
                 <TextBlock Text="{Binding Label}" />
               </DataTemplate>
             </ComboBox.ItemTemplate>
@@ -83,7 +85,7 @@
               </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
-              <DataTemplate DataType="vm:SettingsVersionRowViewModel">
+              <DataTemplate DataType="shared:SettingsVersionRow">
                 <Grid ColumnDefinitions="*,Auto">
                   <StackPanel Spacing="2" VerticalAlignment="Center">
                     <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />

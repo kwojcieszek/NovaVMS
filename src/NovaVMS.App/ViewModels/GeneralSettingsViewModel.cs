@@ -1,10 +1,11 @@
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using NovaVMS.App.Localization;
 using NovaVMS.App.Models;
 using NovaVMS.App.Services;
 using NovaVMS.Core.Models;
+using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.Models;
 using NovaVMS.Protocols.HcNetSdk;
 
 namespace NovaVMS.App.ViewModels;
@@ -15,13 +16,6 @@ namespace NovaVMS.App.ViewModels;
 /// </summary>
 public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposable
 {
-    private const int MinNetworkCachingMs = 0;
-    private const int MaxNetworkCachingMs = 5000;
-    private const int MinHiddenTileReleaseSeconds = 0;
-    private const int MaxHiddenTileReleaseSeconds = 3600;
-    private const int MinFrameRate = 0;
-    private const int MaxFrameRate = 60;
-
     private readonly ConfigurationService _configuration;
     private readonly LocalSettingsService _localSettings;
     private readonly IDialogService _dialogs;
@@ -125,17 +119,17 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
 
     public IReadOnlyList<GridLayoutOption> Layouts => GridLayoutOption.All;
 
-    public decimal MinimumNetworkCaching => MinNetworkCachingMs;
+    public decimal MinimumNetworkCaching => GeneralSettingsLimits.MinNetworkCachingMs;
 
-    public decimal MaximumNetworkCaching => MaxNetworkCachingMs;
+    public decimal MaximumNetworkCaching => GeneralSettingsLimits.MaxNetworkCachingMs;
 
-    public decimal MinimumHiddenTileRelease => MinHiddenTileReleaseSeconds;
+    public decimal MinimumHiddenTileRelease => GeneralSettingsLimits.MinHiddenTileReleaseSeconds;
 
-    public decimal MaximumHiddenTileRelease => MaxHiddenTileReleaseSeconds;
+    public decimal MaximumHiddenTileRelease => GeneralSettingsLimits.MaxHiddenTileReleaseSeconds;
 
-    public decimal MinimumFrameRate => MinFrameRate;
+    public decimal MinimumFrameRate => GeneralSettingsLimits.MinFrameRate;
 
-    public decimal MaximumFrameRate => MaxFrameRate;
+    public decimal MaximumFrameRate => GeneralSettingsLimits.MaxFrameRate;
 
     public GeneralSettingsViewModel(ConfigurationService configuration, LocalSettingsService localSettings, IDialogService dialogs, ApplicationUpdateService updates)
     {
@@ -346,12 +340,12 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         settings.VideoAspectMode = SelectedAspectMode.Value;
         settings.DefaultLayoutCount = DefaultLayout.Count;
         settings.DefaultLayoutId = DefaultLayout.Id;
-        settings.NetworkCachingMs = (int)Math.Clamp(NetworkCachingMs ?? settings.NetworkCachingMs, MinNetworkCachingMs, MaxNetworkCachingMs);
-        settings.MainStreamCachingMs = (int)Math.Clamp(MainStreamCachingMs ?? settings.MainStreamCachingMs, MinNetworkCachingMs, MaxNetworkCachingMs);
+        settings.NetworkCachingMs = GeneralSettingsLimits.NetworkCaching(NetworkCachingMs, settings.NetworkCachingMs);
+        settings.MainStreamCachingMs = GeneralSettingsLimits.NetworkCaching(MainStreamCachingMs, settings.MainStreamCachingMs);
         settings.MainStreamMinimumHeight = (int)Math.Clamp(MainStreamMinimumHeight ?? settings.MainStreamMinimumHeight, 1, 16384);
-        settings.HiddenTileReleaseSeconds = (int)Math.Clamp(HiddenTileReleaseSeconds ?? settings.HiddenTileReleaseSeconds, MinHiddenTileReleaseSeconds, MaxHiddenTileReleaseSeconds);
-        settings.SubStreamMaxFrameRate = (int)Math.Clamp(SubStreamMaxFrameRate ?? settings.SubStreamMaxFrameRate, MinFrameRate, MaxFrameRate);
-        settings.MainStreamMaxFrameRate = (int)Math.Clamp(MainStreamMaxFrameRate ?? settings.MainStreamMaxFrameRate, MinFrameRate, MaxFrameRate);
+        settings.HiddenTileReleaseSeconds = GeneralSettingsLimits.HiddenTileRelease(HiddenTileReleaseSeconds, settings.HiddenTileReleaseSeconds);
+        settings.SubStreamMaxFrameRate = GeneralSettingsLimits.FrameRate(SubStreamMaxFrameRate, settings.SubStreamMaxFrameRate);
+        settings.MainStreamMaxFrameRate = GeneralSettingsLimits.FrameRate(MainStreamMaxFrameRate, settings.MainStreamMaxFrameRate);
         settings.AutoCreateDeviceGroups = AutoCreateDeviceGroups;
         settings.WarnWhenGroupExceedsLayout = WarnWhenGroupExceedsLayout;
         settings.ShowTileTitles = ShowTileTitles;

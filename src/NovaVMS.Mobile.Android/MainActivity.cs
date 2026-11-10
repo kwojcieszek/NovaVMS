@@ -20,6 +20,12 @@ public sealed class MainActivity : AvaloniaMainActivity
 
         AndroidDeviceDisplay.Instance.Activity = this;
         _shell = App.Shell;
+
+        // The start screen stays until the shell has read the configuration, so it is shown only once.
+        if (_shell is not null && FindViewById(global::Android.Resource.Id.Content) is { } content)
+        {
+            _ = new StartScreenHold(content, _shell);
+        }
     }
 
     protected override async void OnPause()

@@ -4,9 +4,9 @@ using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 using NovaVMS.Core.Exceptions;
+using NovaVMS.Core.Localization;
 using NovaVMS.Core.Models;
 using NovaVMS.Protocols.Isapi;
-using NovaVMS.Protocols.Resources;
 
 namespace NovaVMS.Protocols.HcNetSdk;
 
@@ -66,7 +66,7 @@ internal sealed class HcNetSdkIsapiTransport : IIsapiTransport
         }
         catch (XmlException exception)
         {
-            throw new DeviceCommunicationException(ProtocolText.Get("InvalidXml"), exception);
+            throw new DeviceCommunicationException(LibraryText.Get("InvalidXml"), exception);
         }
     }
 
@@ -166,6 +166,6 @@ internal sealed class HcNetSdkIsapiTransport : IIsapiTransport
             return HcNetSdkErrors.FromCode(code, _device.Host, _device.SdkPort);
         }
 
-        return new DeviceCommunicationException(ProtocolText.Format("FunctionNotSupported", path), HttpStatusCode.NotFound);
+        return new DeviceCommunicationException(LibraryText.Format("FunctionNotSupported", path), HttpStatusCode.NotFound);
     }
 }

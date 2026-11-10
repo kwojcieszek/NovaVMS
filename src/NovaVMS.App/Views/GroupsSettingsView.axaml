@@ -4,6 +4,7 @@
              xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:vm="using:NovaVMS.App.ViewModels"
              xmlns:models="using:NovaVMS.App.Models"
+             xmlns:options="using:NovaVMS.Presentation.Models"
              xmlns:views="using:NovaVMS.App.Views"
              xmlns:core="using:NovaVMS.Core.Models"
              x:Class="NovaVMS.App.Views.GroupsSettingsView"
@@ -103,7 +104,7 @@
                 HorizontalAlignment="Stretch"
                 ToolTip.Tip="{l:Tr Groups_FilterByDevice}">
         <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="models:DeviceFilterOption">
+          <DataTemplate x:DataType="options:DeviceFilterOption">
             <TextBlock Text="{Binding Label}" />
           </DataTemplate>
         </ComboBox.ItemTemplate>

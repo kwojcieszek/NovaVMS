@@ -3,8 +3,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NovaVMS.Core.Configuration;
 using NovaVMS.Core.Models;
-using NovaVMS.Mobile.Localization;
 using NovaVMS.Mobile.Models;
+using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.Models;
 
 namespace NovaVMS.Mobile.ViewModels;
 
@@ -112,7 +113,7 @@ public sealed partial class GroupEditViewModel : PageViewModel
             {
                 var camera = new MobileCamera(device, channel);
 
-                if (DeviceFilter.Matches(camera) && !_group.Cameras.Contains(CameraReference.For(device, channel)))
+                if (DeviceFilter.Matches(device) && !_group.Cameras.Contains(CameraReference.For(device, channel)))
                 {
                     AvailableCameras.Add(new GroupCameraRowViewModel(this, camera, false, false, false));
                 }

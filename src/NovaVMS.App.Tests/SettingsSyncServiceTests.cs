@@ -1,6 +1,7 @@
 using NovaVMS.App.Services;
 using NovaVMS.Core.Models;
 using NovaVMS.Infrastructure.Storage;
+using NovaVMS.Presentation.Services;
 using Xunit;
 
 namespace NovaVMS.App.Tests;
@@ -116,7 +117,7 @@ public sealed class SettingsSyncServiceTests
     {
         await _configuration.LoadAsync();
 
-        var sync = new SettingsSyncService(_configuration, _optionsStore, _remote, new StatusBarService());
+        var sync = new SettingsSyncService(_configuration, _optionsStore, _remote);
 
         await sync.StartAsync();
 

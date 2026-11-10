@@ -1,3 +1,4 @@
+using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
 
 namespace NovaVMS.Core.Configuration;
@@ -5,6 +6,49 @@ namespace NovaVMS.Core.Configuration;
 /// <summary>Settings export and import rules shared by the desktop and mobile applications.</summary>
 public static class AppConfigurationTransfer
 {
+    /// <summary>
+    /// Writes a copy of the configuration to a stream. Passwords are cleared unless explicitly requested.
+    /// </summary>
+    public static async Task ExportAsync(IConfigurationSerializer serializer, Stream stream, AppConfiguration current, bool includePasswords)
+    {
+        var copy = current.CreateSnapshot();
+
+        if (!includePasswords)
+        {
+            RemoveSecrets(copy);
+        }
+
+        await Task.Run(() => serializer.SerializeAsync(stream, copy));
+    }
+
+    /// <summary>
+    /// Reads an exported configuration from a stream.
+    /// </summary>
+    public static async Task<AppConfiguration> ReadAsync(IConfigurationSerializer serializer, Stream stream)
+    {
+        var configuration = await Task.Run(() => serializer.DeserializeAsync(stream));
+
+        return AppConfigurationNormalizer.Normalize(configuration);
+    }
+
+    /// <summary>
+    /// Prepares a configuration received from the settings database to replace the current one. The SDK folder stays
+    /// a setting of the installation that set it, and a version without users keeps the users known here.
+    /// </summary>
+    public static AppConfiguration PrepareReplacement(AppConfiguration current, AppConfiguration received)
+    {
+        var replacement = AppConfigurationNormalizer.Normalize(received);
+
+        replacement.Settings.HcNetSdkDirectory = current.Settings.HcNetSdkDirectory;
+
+        if (replacement.Users.Count == 0)
+        {
+            replacement.Users = current.Users.Select(user => user.Copy()).ToList();
+        }
+
+        return replacement;
+    }
+
     /// <summary>
     /// Clears device passwords, stream keys and user password hashes of an exported copy.
     /// </summary>

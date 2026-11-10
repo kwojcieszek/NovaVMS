@@ -1,9 +1,9 @@
 using NovaVMS.Core.Abstractions;
+using NovaVMS.Core.Localization;
 using NovaVMS.Core.Models;
 using NovaVMS.Protocols.HcNetSdk;
 using NovaVMS.Protocols.Isapi;
 using NovaVMS.Protocols.Onvif;
-using NovaVMS.Protocols.Resources;
 
 namespace NovaVMS.Protocols;
 
@@ -100,7 +100,7 @@ public sealed class DeviceClientFactory : IDeviceClientFactory, IDisposable
                 }
             default:
                 {
-                    throw new NotSupportedException(ProtocolText.Format("ProtocolNotSupported", device.Protocol));
+                    throw new NotSupportedException(LibraryText.Format("ProtocolNotSupported", device.Protocol));
                 }
         }
     }

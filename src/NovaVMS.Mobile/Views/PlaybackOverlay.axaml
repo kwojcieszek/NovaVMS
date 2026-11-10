@@ -1,16 +1,25 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:l="using:NovaVMS.Mobile.Localization"
+             xmlns:controls="using:NovaVMS.Mobile.Controls"
              xmlns:vm="using:NovaVMS.Mobile.ViewModels"
              x:Class="NovaVMS.Mobile.Views.PlaybackOverlay"
              x:DataType="vm:CameraViewModel"
              Background="Transparent">
 
+  <!-- Both bars share one look: dark glass over the picture, white text and the accent colour for the active choice -->
   <UserControl.Styles>
-    <Style Selector="Button.mode">
-      <Setter Property="Background" Value="#66000000" />
+    <Style Selector="Border.bar">
+      <Setter Property="Background" Value="#B3131416" />
+      <Setter Property="BorderBrush" Value="#26FFFFFF" />
+    </Style>
+    <Style Selector="Border.bar TextBlock">
       <Setter Property="Foreground" Value="White" />
-      <Setter Property="BorderBrush" Value="#99FFFFFF" />
+    </Style>
+    <Style Selector="Button.mode">
+      <Setter Property="Background" Value="#33FFFFFF" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="#4DFFFFFF" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="18" />
       <Setter Property="MinHeight" Value="40" />
@@ -22,27 +31,56 @@
       <Setter Property="BorderBrush" Value="{DynamicResource NovaAccent}" />
     </Style>
     <Style Selector="Button.mode:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#4DFFFFFF" />
       <Setter Property="Foreground" Value="White" />
     </Style>
     <Style Selector="Button.mode.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource NovaAccent}" />
     </Style>
+    <Style Selector="Button.glass">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="CornerRadius" Value="20" />
+      <Setter Property="Padding" Value="6" />
+      <Setter Property="MinHeight" Value="40" />
+      <Setter Property="MinWidth" Value="40" />
+    </Style>
+    <Style Selector="Button.glass:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.glass:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#33FFFFFF" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.glass:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="#59FFFFFF" />
+    </Style>
+    <Style Selector="Button.glass.active /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#33FFFFFF" />
+    </Style>
+    <Style Selector="Border.sheet">
+      <Setter Property="Background" Value="#E6131416" />
+      <Setter Property="BorderBrush" Value="#26FFFFFF" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="14" />
+      <Setter Property="Padding" Value="8" />
+    </Style>
+    <Style Selector="Button.glass PathIcon">
+      <Setter Property="Foreground" Value="{Binding $parent[Button].Foreground}" />
+    </Style>
   </UserControl.Styles>
 
-  <!-- A tap outside the bar hides the menu; the picture stays visible through it -->
-  <Grid RowDefinitions="Auto,*" Margin="{Binding OverlayInsets}">
-    <Border Grid.Row="0" Background="#99000000" CornerRadius="0,0,14,14" Padding="6,6,12,6">
+  <!-- A tap outside the bars hides the menu; the picture stays visible through it -->
+  <Grid RowDefinitions="Auto,*,Auto" Margin="{Binding OverlayInsets}">
+    <Border Grid.Row="0" Classes="bar" BorderThickness="0,0,0,1" CornerRadius="0,0,14,14" Padding="6,6,12,6">
       <Grid ColumnDefinitions="Auto,*,Auto">
         <Button Grid.Column="0"
-                Classes="icon"
-                Foreground="White"
+                Classes="glass"
                 AutomationProperties.Name="{l:Tr Mobile_Back}"
                 Command="{Binding BackCommand}">
-          <PathIcon Data="{StaticResource IconChevronLeft}" Width="28" Height="28" Foreground="White" />
+          <PathIcon Data="{StaticResource IconChevronLeft}" Width="28" Height="28" />
         </Button>
         <StackPanel Grid.Column="1" Margin="4,0" VerticalAlignment="Center" Spacing="1">
-          <TextBlock Text="{Binding Title}" Foreground="White" FontWeight="SemiBold" FontSize="16" TextTrimming="CharacterEllipsis" />
-          <TextBlock Text="{Binding ModeText}" Foreground="#CCFFFFFF" FontSize="13" TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="16" TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{Binding ModeText}" Opacity="0.8" FontSize="13" TextTrimming="CharacterEllipsis" />
         </StackPanel>
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
           <Button Classes="mode"
@@ -56,6 +94,76 @@
                   AutomationProperties.Name="{l:Tr Mobile_Recordings}"
                   Command="{Binding ShowRecordingsCommand}" />
         </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Calendar opened by a tap on the date; it shrinks to the height left between the bars of the landscape screen.
+         It is dark in every theme, like the bars, and the picture stays visible around it -->
+    <ThemeVariantScope Grid.Row="1"
+                       RequestedThemeVariant="Dark"
+                       HorizontalAlignment="Left"
+                       VerticalAlignment="Bottom">
+      <Border Classes="sheet"
+              Margin="0,8"
+              DataContext="{Binding Recordings}"
+              x:DataType="vm:RecordingsViewModel"
+              IsVisible="{Binding IsCalendarOpen}">
+        <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
+          <Calendar Background="Transparent"
+                    BorderThickness="0"
+                    SelectedDate="{Binding SelectedDate}"
+                    DisplayDate="{Binding Day, Mode=OneWay}"
+                    DisplayDateEnd="{Binding Today}"
+                    AutomationProperties.Name="{l:Tr Mobile_ChooseDay}" />
+        </Viewbox>
+      </Border>
+    </ThemeVariantScope>
+
+    <!-- Day of the recordings and its 24 hours; a tap on the date opens the calendar, a tap on the bar plays from that time -->
+    <Border Grid.Row="2"
+            Classes="bar"
+            BorderThickness="0,1,0,0"
+            CornerRadius="14,14,0,0"
+            Padding="8,4,12,8"
+            DataContext="{Binding Recordings}"
+            x:DataType="vm:RecordingsViewModel">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,*" RowDefinitions="Auto">
+        <Button Grid.Column="0"
+                Classes="glass"
+                AutomationProperties.Name="{l:Tr Mobile_PreviousDay}"
+                Command="{Binding PreviousDayCommand}">
+          <PathIcon Data="{StaticResource IconChevronLeft}" Width="24" Height="24" />
+        </Button>
+        <Button Grid.Column="1"
+                Classes="glass"
+                Classes.active="{Binding IsCalendarOpen}"
+                MinWidth="120"
+                Padding="10,6"
+                AutomationProperties.Name="{l:Tr Mobile_ChooseDay}"
+                Command="{Binding ToggleCalendarCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Data="{StaticResource IconCalendar}" Width="18" Height="18" />
+            <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" FontSize="14" Text="{Binding DayText}" />
+          </StackPanel>
+        </Button>
+        <Button Grid.Column="2"
+                Classes="glass"
+                AutomationProperties.Name="{l:Tr Mobile_NextDay}"
+                Command="{Binding NextDayCommand}">
+          <PathIcon Data="{StaticResource IconChevronRight}" Width="24" Height="24" />
+        </Button>
+        <controls:RecordingTimeline Grid.Column="3"
+                                    Margin="10,0,0,0"
+                                    VerticalAlignment="Center"
+                                    Day="{Binding Day}"
+                                    Segments="{Binding Segments}"
+                                    Position="{Binding Position}"
+                                    Command="{Binding PlayAtCommand}"
+                                    TrackBrush="#33FFFFFF"
+                                    SegmentBrush="{DynamicResource NovaAccent}"
+                                    CursorBrush="White"
+                                    Foreground="White"
+                                    AutomationProperties.Name="{l:Tr Mobile_RecordingTimeline}" />
       </Grid>
     </Border>
   </Grid>

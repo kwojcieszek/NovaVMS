@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- View models shared by the desktop and the mobile application. No Avalonia types: the applications use different Avalonia versions. -->
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <ProjectReference Include="../NovaVMS.Core/NovaVMS.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,11 +1,10 @@
 using Android.Content;
-using Avalonia.Android;
-using Avalonia.Controls;
-using Avalonia.Media;
 using Android.Graphics;
 using Android.Media;
 using Android.Views;
 using Android.Widget;
+using Avalonia.Android;
+using Avalonia.Controls;
 using Java.Nio;
 using NovaVMS.Protocols.Rtsp;
 using AndroidRect = Android.Graphics.Rect;
@@ -35,6 +34,7 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
     private bool _fill;
     private int _videoWidth;
     private int _videoHeight;
+    private AndroidRect? _area;
 
     public ClippedVideoView(Context context)
         : base(context)
@@ -148,13 +148,15 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
 
     public void SetVisibleArea(Avalonia.Rect? area, double scale)
     {
-        ClipBounds = area is { } visible
+        _area = area is { } visible
             ? new AndroidRect(
                 (int)Math.Floor(visible.X * scale),
                 (int)Math.Floor(visible.Y * scale),
                 (int)Math.Ceiling(visible.Right * scale),
                 (int)Math.Ceiling(visible.Bottom * scale))
             : null;
+
+        ApplyVisibleArea();
     }
 
     public void SetOverlay(Control? overlay)
@@ -162,6 +164,9 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
         if (_overlay is { } previous)
         {
             _overlay = null;
+
+            OverlayBackground.Detach(previous.Content);
+
             previous.Content = null;
             RemoveView(previous);
             previous.Dispose();
@@ -172,7 +177,10 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
             return;
         }
 
-        // A second Avalonia view with a transparent background, above the video texture.
+        // A second Avalonia view with a transparent background, above the video texture. Its picture is drawn on a
+        // surface of its own, which lies below the window by default: the window then cuts a hole through the video
+        // and the background behind the application shows instead of the picture. On top of the window the surface
+        // is blended over the video. The activity itself stays opaque, so no transparency level is requested.
         var view = new AvaloniaView(Context!)
         {
             Content = overlay,
@@ -181,11 +189,15 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
 
         view.SetBackgroundColor(Color.Transparent);
 
-        if (TopLevel.GetTopLevel(overlay) is { } topLevel)
+        for (var index = 0; index < view.ChildCount; index++)
         {
-            topLevel.TransparencyLevelHint = [WindowTransparencyLevel.Transparent];
-            topLevel.Background = Brushes.Transparent;
+            if (view.GetChildAt(index) is SurfaceView surface)
+            {
+                surface.SetZOrderOnTop(true);
+            }
         }
+
+        OverlayBackground.Attach(overlay);
 
         AddView(view, new LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent));
         _overlay = view;
@@ -245,6 +257,42 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
 
     public void OnSurfaceTextureUpdated(SurfaceTexture surface)
     {
+    }
+
+    // The host places the view with layout margins, which take effect in this layout pass; cutting the view here
+    // keeps the cut and the position of the same frame together, so a scrolled preview never covers the header.
+    protected override void OnLayout(bool changed, int left, int top, int right, int bottom)
+    {
+        base.OnLayout(changed, left, top, right, bottom);
+
+        ApplyVisibleArea();
+    }
+
+    private static ByteBuffer AnnexB(IEnumerable<byte[]> nals)
+    {
+        var bytes = nals.SelectMany(nal => new byte[] { 0, 0, 0, 1 }.Concat(nal)).ToArray();
+
+        return ByteBuffer.Wrap(bytes)!;
+    }
+
+    // The area is in the coordinates of the Avalonia view that hosts this view; the cut is in its own coordinates.
+    private void ApplyVisibleArea()
+    {
+        if (_area is not { } area)
+        {
+            ClipBounds = null;
+
+            return;
+        }
+
+        var visible = new AndroidRect(area.Left - Left, area.Top - Top, area.Right - Left, area.Bottom - Top);
+
+        if (!visible.Intersect(0, 0, Math.Max(Width, 1), Math.Max(Height, 1)))
+        {
+            visible.Set(0, 0, 0, 0);
+        }
+
+        ClipBounds = visible;
     }
 
     private void StartDecoder(VideoAccessUnit picture)
@@ -358,12 +406,5 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
         }
 
         _texture.SetTransform(matrix);
-    }
-
-    private static ByteBuffer AnnexB(IEnumerable<byte[]> nals)
-    {
-        var bytes = nals.SelectMany(nal => new byte[] { 0, 0, 0, 1 }.Concat(nal)).ToArray();
-
-        return ByteBuffer.Wrap(bytes)!;
     }
 }

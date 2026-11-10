@@ -1,7 +1,6 @@
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
 using NovaVMS.Protocols.HcNetSdk;
-using NovaVMS.Protocols.Resources;
 
 namespace NovaVMS.Protocols.Isapi;
 

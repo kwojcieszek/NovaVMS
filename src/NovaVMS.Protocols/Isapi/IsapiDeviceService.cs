@@ -1,8 +1,8 @@
 using System.Xml.Linq;
 using NovaVMS.Core.Exceptions;
+using NovaVMS.Core.Localization;
 using NovaVMS.Core.Models;
 using NovaVMS.Protocols.Common;
-using NovaVMS.Protocols.Resources;
 
 namespace NovaVMS.Protocols.Isapi;
 
@@ -54,7 +54,7 @@ internal sealed class IsapiDeviceService
 
         if (root is null)
         {
-            throw new DeviceCommunicationException(ProtocolText.Get("EmptyDeviceInfo"));
+            throw new DeviceCommunicationException(LibraryText.Get("EmptyDeviceInfo"));
         }
 
         var model = root.ChildValue("model");

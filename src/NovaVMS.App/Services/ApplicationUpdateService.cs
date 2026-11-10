@@ -5,9 +5,9 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using NovaVMS.App.Localization;
 using NovaVMS.App.Models;
 using NovaVMS.Infrastructure.Storage;
+using NovaVMS.Presentation.Localization;
 using NovaVMS.Updater;
 
 namespace NovaVMS.App.Services;

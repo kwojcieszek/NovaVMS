@@ -3,9 +3,10 @@ using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NovaVMS.Core.Models;
-using NovaVMS.Mobile.Localization;
 using NovaVMS.Mobile.Models;
 using NovaVMS.Mobile.Services;
+using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.Models;
 
 namespace NovaVMS.Mobile.ViewModels;
 

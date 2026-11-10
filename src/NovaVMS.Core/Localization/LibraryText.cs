@@ -1,12 +1,12 @@
 using System.Globalization;
-using NovaVMS.Core.Localization;
 
-namespace NovaVMS.Infrastructure.Resources;
+namespace NovaVMS.Core.Localization;
 
 /// <summary>
-/// Localized messages of the import layer (shared catalog in NovaVMS.Core), resolved in the current UI culture.
+/// Localized messages of the libraries (protocols, import, synchronization) from the shared catalog,
+/// resolved in the current UI culture set by the application.
 /// </summary>
-internal static class ImportText
+public static class LibraryText
 {
     private static readonly JsonTextCatalog Catalog = JsonTextCatalog.Shared;
 

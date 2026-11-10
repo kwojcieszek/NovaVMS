@@ -1,5 +1,5 @@
 using Avalonia.Controls;
-using NovaVMS.App.Localization;
+using NovaVMS.Presentation.Localization;
 
 namespace NovaVMS.App.Views;
 

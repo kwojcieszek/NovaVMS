@@ -1,5 +1,5 @@
 using Avalonia.Threading;
-using NovaVMS.App.Localization;
+using NovaVMS.Presentation.Localization;
 
 namespace NovaVMS.App.Services;
 

@@ -4,6 +4,7 @@
              xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:vm="using:NovaVMS.App.ViewModels"
              xmlns:models="using:NovaVMS.App.Models"
+             xmlns:options="using:NovaVMS.Presentation.Models"
              x:Class="NovaVMS.App.Views.GeneralSettingsView"
              x:DataType="vm:GeneralSettingsViewModel">
 
@@ -16,7 +17,7 @@
                 SelectedItem="{Binding SelectedLanguage}"
                 HorizontalAlignment="Stretch">
         <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="models:LanguageOption">
+          <DataTemplate x:DataType="options:LanguageOption">
             <TextBlock Text="{Binding Label}" />
           </DataTemplate>
         </ComboBox.ItemTemplate>
@@ -27,7 +28,7 @@
                 SelectedItem="{Binding SelectedTheme}"
                 HorizontalAlignment="Stretch">
         <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="models:ThemeOption">
+          <DataTemplate x:DataType="options:ThemeOption">
             <TextBlock Text="{Binding Label}" />
           </DataTemplate>
         </ComboBox.ItemTemplate>
@@ -45,7 +46,7 @@
                 SelectedItem="{Binding SelectedStreamMode}"
                 HorizontalAlignment="Stretch">
         <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="models:StreamModeOption">
+          <DataTemplate x:DataType="options:StreamModeOption">
             <TextBlock Text="{Binding Label}" />
           </DataTemplate>
         </ComboBox.ItemTemplate>
@@ -56,7 +57,7 @@
                 SelectedItem="{Binding SelectedAspectMode}"
                 HorizontalAlignment="Stretch">
         <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="models:VideoAspectModeOption">
+          <DataTemplate x:DataType="options:VideoAspectModeOption">
             <TextBlock Text="{Binding Label}" />
           </DataTemplate>
         </ComboBox.ItemTemplate>

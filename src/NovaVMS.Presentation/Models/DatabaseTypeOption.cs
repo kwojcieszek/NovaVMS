@@ -1,17 +1,17 @@
 using NovaVMS.Core.Models;
 
-namespace NovaVMS.Mobile.Models;
+namespace NovaVMS.Presentation.Models;
 
 /// <summary>
 /// Entry of the settings database server list.
 /// </summary>
 public sealed class DatabaseTypeOption
 {
-    public static IReadOnlyList<DatabaseTypeOption> All { get; } = new List<DatabaseTypeOption>
-    {
+    public static IReadOnlyList<DatabaseTypeOption> All { get; } =
+    [
         new(SettingsDatabaseType.PostgreSql, "PostgreSQL", SettingsSyncOptions.DefaultPostgreSqlPort),
         new(SettingsDatabaseType.MySql, "MySQL / MariaDB", SettingsSyncOptions.DefaultMySqlPort)
-    };
+    ];
 
     public SettingsDatabaseType Value { get; }
 

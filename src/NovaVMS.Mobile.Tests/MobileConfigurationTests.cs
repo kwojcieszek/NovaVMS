@@ -2,6 +2,7 @@ using Avalonia.Headless.XUnit;
 using NovaVMS.Core.Models;
 using NovaVMS.Infrastructure.Storage;
 using NovaVMS.Mobile.Services;
+using NovaVMS.Presentation.Services;
 using Xunit;
 
 namespace NovaVMS.Mobile.Tests;

@@ -2,8 +2,9 @@ using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NovaVMS.Core.Models;
-using NovaVMS.Mobile.Localization;
 using NovaVMS.Mobile.Models;
+using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.Models;
 
 namespace NovaVMS.Mobile.ViewModels;
 
@@ -14,13 +15,6 @@ namespace NovaVMS.Mobile.ViewModels;
 /// </summary>
 public sealed partial class GeneralSettingsViewModel : PageViewModel
 {
-    private const int MinNetworkCachingMs = 0;
-    private const int MaxNetworkCachingMs = 5000;
-    private const int MinHiddenTileReleaseSeconds = 0;
-    private const int MaxHiddenTileReleaseSeconds = 3600;
-    private const int MinFrameRate = 0;
-    private const int MaxFrameRate = 60;
-
     private readonly ShellViewModel _shell;
 
     [ObservableProperty]
@@ -94,17 +88,17 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
 
     public IReadOnlyList<PreviewColumnsOption> PreviewColumns => PreviewColumnsOption.All;
 
-    public decimal MinimumNetworkCaching => MinNetworkCachingMs;
+    public decimal MinimumNetworkCaching => GeneralSettingsLimits.MinNetworkCachingMs;
 
-    public decimal MaximumNetworkCaching => MaxNetworkCachingMs;
+    public decimal MaximumNetworkCaching => GeneralSettingsLimits.MaxNetworkCachingMs;
 
-    public decimal MinimumHiddenTileRelease => MinHiddenTileReleaseSeconds;
+    public decimal MinimumHiddenTileRelease => GeneralSettingsLimits.MinHiddenTileReleaseSeconds;
 
-    public decimal MaximumHiddenTileRelease => MaxHiddenTileReleaseSeconds;
+    public decimal MaximumHiddenTileRelease => GeneralSettingsLimits.MaxHiddenTileReleaseSeconds;
 
-    public decimal MinimumFrameRate => MinFrameRate;
+    public decimal MinimumFrameRate => GeneralSettingsLimits.MinFrameRate;
 
-    public decimal MaximumFrameRate => MaxFrameRate;
+    public decimal MaximumFrameRate => GeneralSettingsLimits.MaxFrameRate;
 
     public GeneralSettingsViewModel(ShellViewModel shell)
     {
@@ -220,11 +214,11 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
         settings.VideoAspectMode = SelectedAspectMode.Value;
         settings.DefaultLayoutCount = DefaultLayout.Count;
         settings.DefaultLayoutId = DefaultLayout.Id;
-        settings.NetworkCachingMs = (int)Math.Clamp(NetworkCachingMs ?? settings.NetworkCachingMs, MinNetworkCachingMs, MaxNetworkCachingMs);
-        settings.MainStreamCachingMs = (int)Math.Clamp(MainStreamCachingMs ?? settings.MainStreamCachingMs, MinNetworkCachingMs, MaxNetworkCachingMs);
-        settings.SubStreamMaxFrameRate = (int)Math.Clamp(SubStreamMaxFrameRate ?? settings.SubStreamMaxFrameRate, MinFrameRate, MaxFrameRate);
-        settings.MainStreamMaxFrameRate = (int)Math.Clamp(MainStreamMaxFrameRate ?? settings.MainStreamMaxFrameRate, MinFrameRate, MaxFrameRate);
-        settings.HiddenTileReleaseSeconds = (int)Math.Clamp(HiddenTileReleaseSeconds ?? settings.HiddenTileReleaseSeconds, MinHiddenTileReleaseSeconds, MaxHiddenTileReleaseSeconds);
+        settings.NetworkCachingMs = GeneralSettingsLimits.NetworkCaching(NetworkCachingMs, settings.NetworkCachingMs);
+        settings.MainStreamCachingMs = GeneralSettingsLimits.NetworkCaching(MainStreamCachingMs, settings.MainStreamCachingMs);
+        settings.SubStreamMaxFrameRate = GeneralSettingsLimits.FrameRate(SubStreamMaxFrameRate, settings.SubStreamMaxFrameRate);
+        settings.MainStreamMaxFrameRate = GeneralSettingsLimits.FrameRate(MainStreamMaxFrameRate, settings.MainStreamMaxFrameRate);
+        settings.HiddenTileReleaseSeconds = GeneralSettingsLimits.HiddenTileRelease(HiddenTileReleaseSeconds, settings.HiddenTileReleaseSeconds);
         settings.ShowTileTitles = ShowTileTitles;
         settings.ShowCameraSearch = ShowCameraSearch;
         settings.WarnWhenGroupExceedsLayout = WarnWhenGroupExceedsLayout;

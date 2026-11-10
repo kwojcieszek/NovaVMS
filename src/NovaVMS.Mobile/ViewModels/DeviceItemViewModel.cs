@@ -1,8 +1,9 @@
 using CommunityToolkit.Mvvm.Input;
 using NovaVMS.Core.Configuration;
 using NovaVMS.Core.Models;
-using NovaVMS.Mobile.Localization;
 using NovaVMS.Mobile.Services;
+using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.Models;
 
 namespace NovaVMS.Mobile.ViewModels;
 
@@ -28,7 +29,7 @@ public sealed partial class DeviceItemViewModel : ViewModelBase
 
     private static string ProtocolName(DeviceProtocol protocol)
     {
-        return Models.ProtocolOption.Find(protocol).Label;
+        return ProtocolOption.Find(protocol).Label;
     }
 
     /// <summary>

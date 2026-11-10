@@ -4,7 +4,7 @@
              xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:vm="using:NovaVMS.App.ViewModels"
              xmlns:core="using:NovaVMS.Core.Models"
-             xmlns:models="using:NovaVMS.App.Models"
+             xmlns:options="using:NovaVMS.Presentation.Models"
              x:Class="NovaVMS.App.Views.DevicesSettingsView"
              x:DataType="vm:DevicesSettingsViewModel">
 
@@ -143,7 +143,7 @@
                   ToolTip.Tip="{l:Tr Devices_ProtocolHint}"
                   HorizontalAlignment="Stretch">
           <ComboBox.ItemTemplate>
-            <DataTemplate x:DataType="models:ProtocolOption">
+            <DataTemplate x:DataType="options:ProtocolOption">
               <TextBlock Text="{Binding Label}" />
             </DataTemplate>
           </ComboBox.ItemTemplate>
@@ -156,7 +156,7 @@
                     ToolTip.Tip="{l:Tr Devices_ProtocolHint}"
                     HorizontalAlignment="Stretch">
             <ComboBox.ItemTemplate>
-              <DataTemplate x:DataType="models:ProtocolOption">
+              <DataTemplate x:DataType="options:ProtocolOption">
                 <TextBlock Text="{Binding Label}" />
               </DataTemplate>
             </ComboBox.ItemTemplate>

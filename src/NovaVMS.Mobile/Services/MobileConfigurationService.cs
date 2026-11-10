@@ -1,6 +1,7 @@
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Configuration;
 using NovaVMS.Core.Models;
+using NovaVMS.Presentation.Services;
 
 namespace NovaVMS.Mobile.Services;
 
@@ -9,7 +10,7 @@ namespace NovaVMS.Mobile.Services;
 /// exchanged through the settings database. Saves run one at a time. The phone has no user login:
 /// desktop user accounts are kept unchanged and are never created or edited here.
 /// </summary>
-public sealed class MobileConfigurationService
+public sealed class MobileConfigurationService : ISynchronizedConfiguration
 {
     private readonly IConfigurationStore _store;
     private readonly IConfigurationSerializer _serializer;
@@ -92,18 +93,9 @@ public sealed class MobileConfigurationService
     /// </summary>
     public async Task ReplaceAsync(AppConfiguration configuration)
     {
-        var replacement = AppConfigurationNormalizer.Normalize(configuration);
-
-        replacement.Settings.HcNetSdkDirectory = Current.Settings.HcNetSdkDirectory;
-
         // The phone has no user login; desktop accounts are only carried along, so a version without
-        // users must not remove the ones already known.
-        if (replacement.Users.Count == 0)
-        {
-            replacement.Users = Current.Users.Select(user => user.Copy()).ToList();
-        }
-
-        Current = replacement;
+        // users keeps the ones already known.
+        Current = AppConfigurationTransfer.PrepareReplacement(Current, configuration);
 
         await WriteAsync(Current.CreateSnapshot(), CancellationToken.None);
 
@@ -116,19 +108,12 @@ public sealed class MobileConfigurationService
     /// </summary>
     public async Task ExportAsync(Stream stream, bool includePasswords)
     {
-        var copy = Current.CreateSnapshot();
-
-        if (!includePasswords)
-        {
-            AppConfigurationTransfer.RemoveSecrets(copy);
-        }
-
-        await Task.Run(() => _serializer.SerializeAsync(stream, copy));
+        await AppConfigurationTransfer.ExportAsync(_serializer, stream, Current, includePasswords);
     }
 
-    public async Task<AppConfiguration> ReadImportAsync(Stream stream)
+    public Task<AppConfiguration> ReadImportAsync(Stream stream)
     {
-        return AppConfigurationNormalizer.Normalize(await Task.Run(() => _serializer.DeserializeAsync(stream)));
+        return AppConfigurationTransfer.ReadAsync(_serializer, stream);
     }
 
     /// <summary>

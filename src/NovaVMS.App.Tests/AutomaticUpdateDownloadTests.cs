@@ -69,7 +69,7 @@ public sealed class AutomaticUpdateDownloadTests
         Assert.Equal(1, handler.Downloads);
         Assert.Equal(0, dialogs.Confirmations);
         // The test host cannot be replaced by the NovaVMS installer.
-        Assert.Contains(NovaVMS.App.Localization.Localizer.Text("Updates_RunExecutable"), updates.StatusText);
+        Assert.Contains(NovaVMS.Presentation.Localization.Localizer.Text("Updates_RunExecutable"), updates.StatusText);
     }
 
     [AvaloniaFact]

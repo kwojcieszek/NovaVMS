@@ -4,9 +4,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
+using NovaVMS.Core.Localization;
 using NovaVMS.Core.Models;
 using NovaVMS.Protocols.HcNetSdk;
-using NovaVMS.Protocols.Resources;
 
 namespace NovaVMS.Protocols.Onvif;
 
@@ -192,7 +192,7 @@ internal sealed class OnvifReplayProxy : IDisposable, IVideoStreamStatus
         catch (Exception)
         {
             // Raw replies and URI query strings may contain credentials or device secrets.
-            ErrorMessage = ProtocolText.Get("StreamRtspFailed");
+            ErrorMessage = LibraryText.Get("StreamRtspFailed");
         }
         finally
         {

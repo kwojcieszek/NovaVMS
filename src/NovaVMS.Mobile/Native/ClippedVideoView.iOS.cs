@@ -1,7 +1,6 @@
-using AVFoundation;
 using Avalonia.Controls;
 using Avalonia.iOS;
-using Avalonia.Media;
+using AVFoundation;
 using CoreAnimation;
 using CoreGraphics;
 using CoreMedia;
@@ -34,6 +33,18 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
     private bool _needKeyFrame = true;
     private bool _detached;
     private AvaloniaView? _overlay;
+    private CGRect? _area;
+
+    /// <summary>The host moves the view by its frame; the mask follows in the same transaction.</summary>
+    public override CGRect Frame
+    {
+        get => base.Frame;
+        set
+        {
+            base.Frame = value;
+            ApplyVisibleArea();
+        }
+    }
 
     public ClippedVideoView()
     {
@@ -114,20 +125,11 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
 
     public void SetVisibleArea(Avalonia.Rect? area, double scale)
     {
-        CATransaction.Begin();
-        CATransaction.DisableActions = true;
+        _area = area is { } visible
+            ? new CGRect(visible.X, visible.Y, visible.Width, visible.Height)
+            : null;
 
-        if (area is { } visible)
-        {
-            _mask.Frame = new CGRect(visible.X, visible.Y, visible.Width, visible.Height);
-            Layer.Mask = _mask;
-        }
-        else
-        {
-            Layer.Mask = null;
-        }
-
-        CATransaction.Commit();
+        ApplyVisibleArea();
     }
 
     public void SetOverlay(Control? overlay)
@@ -135,6 +137,9 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
         if (_overlay is { } previous)
         {
             _overlay = null;
+
+            OverlayBackground.Detach(previous.Content);
+
             previous.Content = null;
             previous.RemoveFromSuperview();
             previous.Dispose();
@@ -157,12 +162,7 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
         };
 
         view.Layer.Opaque = false;
-
-        if (TopLevel.GetTopLevel(overlay) is { } topLevel)
-        {
-            topLevel.TransparencyLevelHint = [WindowTransparencyLevel.Transparent];
-            topLevel.Background = Brushes.Transparent;
-        }
+        OverlayBackground.Attach(overlay);
 
         AddSubview(view);
         _overlay = view;
@@ -201,6 +201,27 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
         CATransaction.Begin();
         CATransaction.DisableActions = true;
         _display.Frame = Bounds;
+        CATransaction.Commit();
+    }
+
+    // The area is in the coordinates of the Avalonia view that hosts this view; the mask is in its own coordinates.
+    private void ApplyVisibleArea()
+    {
+        CATransaction.Begin();
+        CATransaction.DisableActions = true;
+
+        if (_area is { } area)
+        {
+            var frame = base.Frame;
+
+            _mask.Frame = new CGRect(area.X - frame.X, area.Y - frame.Y, area.Width, area.Height);
+            Layer.Mask = _mask;
+        }
+        else
+        {
+            Layer.Mask = null;
+        }
+
         CATransaction.Commit();
     }
 

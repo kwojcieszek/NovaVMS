@@ -4,10 +4,10 @@ using Avalonia.Headless.XUnit;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using NovaVMS.Core.Models;
-using NovaVMS.Mobile.Localization;
 using NovaVMS.Mobile.Services;
 using NovaVMS.Mobile.ViewModels;
 using NovaVMS.Mobile.Views;
+using NovaVMS.Presentation.Localization;
 using Xunit;
 
 namespace NovaVMS.Mobile.Tests;

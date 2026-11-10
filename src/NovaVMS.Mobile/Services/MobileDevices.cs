@@ -1,6 +1,6 @@
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
-using NovaVMS.Mobile.Localization;
+using NovaVMS.Presentation.Localization;
 using NovaVMS.Protocols;
 using NovaVMS.Protocols.Isapi;
 using NovaVMS.Protocols.Onvif;

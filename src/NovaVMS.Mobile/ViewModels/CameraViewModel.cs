@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
@@ -5,9 +6,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
-using NovaVMS.Mobile.Localization;
 using NovaVMS.Mobile.Models;
 using NovaVMS.Mobile.Services;
+using NovaVMS.Presentation.Localization;
 
 namespace NovaVMS.Mobile.ViewModels;
 
@@ -15,13 +16,17 @@ namespace NovaVMS.Mobile.ViewModels;
 public sealed partial class CameraViewModel : PageViewModel
 {
     private static readonly TimeSpan OverlayHideDelay = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan PositionInterval = TimeSpan.FromSeconds(1);
 
     private readonly ShellViewModel _shell;
     private readonly DispatcherTimer _overlayTimer;
+    private readonly DispatcherTimer _positionTimer;
+    private readonly Stopwatch _playbackClock = new();
     private readonly IDeviceClient _client;
     private readonly Device _device;
     private readonly Channel _channel;
     private readonly CameraCollection? _returnTo;
+    private DateTime _playbackStart;
     private bool _paused;
 
     [ObservableProperty]
@@ -33,6 +38,14 @@ public sealed partial class CameraViewModel : PageViewModel
     [ObservableProperty]
     private bool _soundEnabled;
 
+    /// <summary>
+    /// The picture fills the landscape screen without controls. A camera opened from the live previews starts so;
+    /// any camera enters and leaves it with a double tap on the picture.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsWindowed))]
+    private bool _isFullScreen;
+
     /// <summary>The transparent playback menu above a full screen camera; a tap on the picture shows it.</summary>
     [ObservableProperty]
     private bool _isOverlayVisible;
@@ -42,14 +55,11 @@ public sealed partial class CameraViewModel : PageViewModel
     [NotifyPropertyChangedFor(nameof(IsLive))]
     private bool _isPlayback;
 
-    /// <summary>What is shown: live picture or recordings from a time; shown in the playback menu.</summary>
+    /// <summary>What is shown: live picture or the recorded time being played; shown in the playback menu.</summary>
     [ObservableProperty]
     private string _modeText = string.Empty;
 
     public override MobileTab Tab => MobileTab.Cameras;
-
-    /// <summary>A camera opened from the live previews fills the landscape screen without controls.</summary>
-    public bool IsFullScreen => _returnTo is not null;
 
     public bool IsWindowed => !IsFullScreen;
 
@@ -76,13 +86,16 @@ public sealed partial class CameraViewModel : PageViewModel
         _device = device;
         _channel = channel;
         _returnTo = returnTo;
+        _isFullScreen = returnTo is not null;
         _video = shell.Player.View;
         _mainStream = shell.MainStream;
         _soundEnabled = !shell.Muted;
 
         _modeText = Localizer.Text("Mobile_Live");
         _overlayTimer = new DispatcherTimer { Interval = OverlayHideDelay };
-        _overlayTimer.Tick += (_, _) => IsOverlayVisible = false;
+        _overlayTimer.Tick += (_, _) => HideOverlayWhenIdle();
+        _positionTimer = new DispatcherTimer { Interval = PositionInterval };
+        _positionTimer.Tick += (_, _) => UpdatePosition();
 
         Ptz = new PtzViewModel(shell, client, channel);
         Recordings = new RecordingsViewModel(shell, this, client, channel);
@@ -105,7 +118,9 @@ public sealed partial class CameraViewModel : PageViewModel
     public void Detach()
     {
         _overlayTimer.Stop();
+        _positionTimer.Stop();
         _shell.Player.SetOverlay(null);
+
         Video = null;
     }
 
@@ -134,6 +149,45 @@ public sealed partial class CameraViewModel : PageViewModel
         }
     }
 
+    /// <summary>
+    /// A double tap on the picture: a windowed camera fills the screen, a full screen camera opened from the previews
+    /// returns to them and any other full screen camera shows its page again.
+    /// </summary>
+    public void ToggleFullScreen()
+    {
+        if (!IsFullScreen)
+        {
+            IsFullScreen = true;
+
+            return;
+        }
+
+        if (_returnTo is not null)
+        {
+            if (BackCommand.CanExecute(null))
+            {
+                BackCommand.Execute(null);
+            }
+
+            return;
+        }
+
+        IsFullScreen = false;
+    }
+
+    /// <summary>Reports a message; the status bar is hidden full screen, so the menu says it too.</summary>
+    internal void ShowMessage(string message)
+    {
+        _shell.Status = message;
+
+        if (IsFullScreen)
+        {
+            ModeText = message;
+
+            KeepOverlay();
+        }
+    }
+
     internal async Task PlayLiveAsync(CancellationToken token)
     {
         if (!_shell.IsCurrentClient(_client))
@@ -141,25 +195,51 @@ public sealed partial class CameraViewModel : PageViewModel
             return;
         }
 
-        // A camera opened full screen from the previews fills the screen, so it always gets the full quality stream.
+        // A full screen camera fills the screen, so it always gets the full quality stream.
         var streamType = IsFullScreen || _shell.MainStream ? StreamType.Main : StreamType.Sub;
         var source = await _client.GetLiveSourceAsync(_channel.Number, streamType, token);
 
         token.ThrowIfCancellationRequested();
 
         await StartAsync(source, streamType, token);
+
+        StopPositionClock();
+
+        IsPlayback = false;
+        ModeText = Localizer.Text("Mobile_Live");
     }
 
-    internal async Task PlayRecordingAsync(RecordingSegment recording, CancellationToken token)
+    /// <summary>Plays the recordings from <paramref name="start"/> until the end of its day, in the recorder's local time.</summary>
+    internal async Task PlayFromAsync(DateTime start, CancellationToken token)
     {
         if (!_shell.IsCurrentClient(_client))
         {
             return;
         }
 
-        var source = await _client.GetPlaybackSourceAsync(_channel.Number, recording.Start, recording.End, token);
+        var now = DateTime.Now;
+        var dayEnd = start.Date.AddDays(1);
+        var end = dayEnd < now ? dayEnd : now;
+
+        if (end <= start)
+        {
+            ShowMessage(Localizer.Text("Mobile_NoRecordingsAfter"));
+
+            return;
+        }
+
+        var source = await _client.GetPlaybackSourceAsync(_channel.Number, start, end, token);
+
+        token.ThrowIfCancellationRequested();
 
         await StartAsync(source, StreamType.Main, token);
+
+        IsPlayback = true;
+        _playbackStart = start;
+
+        _playbackClock.Restart();
+        _positionTimer.Start();
+        UpdatePosition();
     }
 
     private async Task StartAsync(VideoSource source, StreamType streamType, CancellationToken token)
@@ -170,6 +250,37 @@ public sealed partial class CameraViewModel : PageViewModel
 
         _shell.Player.SetMuted(_shell.Muted);
         _paused = false;
+    }
+
+    // The menu stays while the calendar is open: choosing a day takes longer than the hide delay.
+    private void HideOverlayWhenIdle()
+    {
+        if (!Recordings.IsCalendarOpen)
+        {
+            IsOverlayVisible = false;
+        }
+    }
+
+    // The recorder sends the recording at its own speed, so the time played follows the clock of the phone.
+    private void UpdatePosition()
+    {
+        if (!IsPlayback)
+        {
+            return;
+        }
+
+        var position = _playbackStart + _playbackClock.Elapsed;
+
+        Recordings.Position = position;
+        ModeText = Localizer.Format("Mobile_RecordingAt", position.ToString("T", Localizer.Instance.Culture));
+    }
+
+    private void StopPositionClock()
+    {
+        _positionTimer.Stop();
+        _playbackClock.Reset();
+
+        Recordings.Position = null;
     }
 
     [RelayCommand]
@@ -192,16 +303,10 @@ public sealed partial class CameraViewModel : PageViewModel
             return Task.CompletedTask;
         }
 
-        return _shell.RunAsync(async token =>
-        {
-            IsPlayback = false;
-            ModeText = Localizer.Text("Mobile_Live");
-
-            await PlayLiveAsync(token);
-        });
+        return _shell.RunAsync(PlayLiveAsync);
     }
 
-    /// <summary>Plays the recordings of today from the first one, in the recorder's local time.</summary>
+    /// <summary>Plays the recordings of the chosen day from the first one, in the recorder's local time.</summary>
     [RelayCommand]
     private Task ShowRecordingsAsync()
     {
@@ -209,36 +314,16 @@ public sealed partial class CameraViewModel : PageViewModel
 
         return _shell.RunAsync(async token =>
         {
-            if (!_shell.IsCurrentClient(_client))
+            await Recordings.LoadAsync(token);
+
+            if (Recordings.FindRecordedTime(Recordings.Day) is not { } start)
             {
-                return;
-            }
-
-            var day = DateTime.Today;
-            var now = DateTime.Now;
-            var recordings = await _client.SearchRecordingsAsync(_channel.Number, day, day.AddDays(1), token);
-            var first = recordings.Where(recording => recording.End > day && recording.Start < now).MinBy(recording => recording.Start);
-
-            token.ThrowIfCancellationRequested();
-
-            if (first is null)
-            {
-                // The status bar is hidden full screen, so the menu says it too.
-                _shell.Status = ModeText = Localizer.Text("Mobile_NoRecordingsToday");
-                KeepOverlay();
+                ShowMessage(Localizer.Text("Mobile_NoRecordings"));
 
                 return;
             }
 
-            var start = first.Start < day ? day : first.Start;
-            var source = await _client.GetPlaybackSourceAsync(_channel.Number, start, now, token);
-
-            token.ThrowIfCancellationRequested();
-
-            await StartAsync(source, StreamType.Main, token);
-
-            IsPlayback = true;
-            ModeText = Localizer.Format("Mobile_RecordingsFrom", start.ToString("t", Localizer.Instance.Culture));
+            await PlayFromAsync(start, token);
         });
     }
 
@@ -252,7 +337,18 @@ public sealed partial class CameraViewModel : PageViewModel
     private void TogglePause()
     {
         _paused = !_paused;
+
         _shell.Player.SetPaused(_paused);
+
+        // A paused recording continues from a later moment, as the recorder keeps sending it.
+        if (_paused)
+        {
+            _positionTimer.Stop();
+        }
+        else if (IsPlayback)
+        {
+            _positionTimer.Start();
+        }
     }
 
     [RelayCommand]
@@ -261,6 +357,8 @@ public sealed partial class CameraViewModel : PageViewModel
         return _shell.RunAsync(async _ =>
         {
             await _shell.Player.StopAsync();
+
+            StopPositionClock();
 
             _shell.Status = Localizer.Text("Mobile_Stopped");
         });
@@ -295,6 +393,18 @@ public sealed partial class CameraViewModel : PageViewModel
         await _shell.RunAsync(PlayLiveAsync);
     }
 
+    partial void OnIsFullScreenChanged(bool value)
+    {
+        if (!value)
+        {
+            IsOverlayVisible = false;
+
+            _shell.Player.SetOverlay(null);
+        }
+
+        _shell.IsFullScreen = value;
+    }
+
     partial void OnIsOverlayVisibleChanged(bool value)
     {
         if (value)
@@ -305,6 +415,8 @@ public sealed partial class CameraViewModel : PageViewModel
         else
         {
             _overlayTimer.Stop();
+
+            Recordings.IsCalendarOpen = false;
         }
 
         _shell.Player.SetOverlayVisible(value);

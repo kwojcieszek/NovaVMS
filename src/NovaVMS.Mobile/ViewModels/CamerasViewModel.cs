@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using NovaVMS.Mobile.Localization;
 using NovaVMS.Mobile.Models;
+using NovaVMS.Presentation.Localization;
 
 namespace NovaVMS.Mobile.ViewModels;
 

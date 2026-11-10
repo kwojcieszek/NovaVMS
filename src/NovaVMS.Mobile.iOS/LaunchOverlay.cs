@@ -1,8 +1,8 @@
 using Avalonia.Controls;
-using Avalonia.Interactivity;
 using Avalonia.Rendering.Composition;
 using Avalonia.Threading;
 using CoreGraphics;
+using NovaVMS.Mobile.Views;
 using UIKit;
 
 namespace NovaVMS.Mobile.iOS;
@@ -32,24 +32,28 @@ public sealed class LaunchOverlay : UIView
         AddSubview(logo);
     }
 
-    /// <summary>Removes the overlay after the loaded shell's composition batch has rendered.</summary>
-    public void RemoveWhenShown(Control shell)
+    /// <summary>
+    /// Removes the overlay once the shell has read the configuration and rendered its pages, so the start screen is
+    /// shown once and is followed directly by the camera list.
+    /// </summary>
+    public void RemoveWhenShown(MobileShell shell)
     {
-        if (shell.IsLoaded)
+        if (shell.IsStarted)
         {
             RemoveAfterRender(shell);
 
             return;
         }
 
-        shell.Loaded += OnShellLoaded;
+        shell.Started += OnShellStarted;
     }
 
-    private void OnShellLoaded(object? sender, RoutedEventArgs args)
+    private void OnShellStarted(object? sender, EventArgs args)
     {
-        if (sender is Control shell)
+        if (sender is MobileShell shell)
         {
-            shell.Loaded -= OnShellLoaded;
+            shell.Started -= OnShellStarted;
+
             RemoveAfterRender(shell);
         }
     }

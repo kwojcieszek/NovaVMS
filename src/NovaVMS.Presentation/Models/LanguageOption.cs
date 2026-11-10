@@ -1,21 +1,21 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using NovaVMS.App.Localization;
+using NovaVMS.Presentation.Localization;
 
-namespace NovaVMS.App.Models;
+namespace NovaVMS.Presentation.Models;
 
 /// <summary>
-/// Entry of the language list in the settings. Language names are shown in their own language.
+/// Entry of the language list in the settings. Language names are shown in their own language;
+/// the first entry follows the system language.
 /// </summary>
 public sealed class LanguageOption : ObservableObject
 {
     private readonly string? _nativeName;
 
-    public static IReadOnlyList<LanguageOption> All { get; } = new List<LanguageOption>
-    {
+    public static IReadOnlyList<LanguageOption> All { get; } =
+    [
         new(string.Empty, null),
-        new("pl", "Polski"),
-        new("en", "English")
-    };
+        .. InterfaceLanguage.All.Select(language => new LanguageOption(language.Code, language.NativeName))
+    ];
 
     /// <summary>
     /// Language code stored in the settings; empty means the system language.
@@ -28,6 +28,7 @@ public sealed class LanguageOption : ObservableObject
     {
         Code = code;
         _nativeName = nativeName;
+
         Localizer.Instance.LanguageChanged += (_, _) => OnPropertyChanged(nameof(Label));
     }
 

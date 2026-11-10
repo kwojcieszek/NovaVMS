@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
+using NovaVMS.Core.Localization;
 using NovaVMS.Core.Models;
-using NovaVMS.Infrastructure.Resources;
 
 namespace NovaVMS.Infrastructure.Import;
 
@@ -62,14 +62,14 @@ public sealed class DeviceCsvReader
 
         if (rows.Count == 0)
         {
-            throw new FormatException(ImportText.Get("FileEmpty"));
+            throw new FormatException(LibraryText.Get("FileEmpty"));
         }
 
         var columns = MapColumns(rows[0]);
 
         if (!columns.ContainsKey("host"))
         {
-            throw new FormatException(ImportText.Get("NoHostColumn"));
+            throw new FormatException(LibraryText.Get("NoHostColumn"));
         }
 
         var devices = new List<Device>();
@@ -84,7 +84,7 @@ public sealed class DeviceCsvReader
 
             if (string.IsNullOrWhiteSpace(host))
             {
-                warnings.Add(ImportText.Format("RowNoHost", rowNumber));
+                warnings.Add(LibraryText.Format("RowNoHost", rowNumber));
                 continue;
             }
 
@@ -117,7 +117,7 @@ public sealed class DeviceCsvReader
 
             if (string.IsNullOrEmpty(device.Password))
             {
-                warnings.Add(ImportText.Format("RowNoPassword", rowNumber, host));
+                warnings.Add(LibraryText.Format("RowNoPassword", rowNumber, host));
             }
 
             devices.Add(device);
@@ -125,7 +125,7 @@ public sealed class DeviceCsvReader
 
         if (sdkPortReplaced)
         {
-            warnings.Insert(0, ImportText.Format("SdkPortReplaced", SdkPort, DefaultHttpPort));
+            warnings.Insert(0, LibraryText.Format("SdkPortReplaced", SdkPort, DefaultHttpPort));
         }
 
         return new DeviceCsvResult(devices, warnings);

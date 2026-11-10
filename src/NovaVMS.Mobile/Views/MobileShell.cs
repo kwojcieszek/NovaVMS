@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Platform;
@@ -15,6 +16,12 @@ public sealed class MobileShell : ContentPage
     private readonly ShellViewModel _viewModel;
     private readonly IDeviceDisplay? _display;
     private TopLevel? _topLevel;
+
+    /// <summary>The configuration is read and the pages are shown; the system start screen may disappear.</summary>
+    public bool IsStarted => !_viewModel.IsLoading;
+
+    /// <summary>Raised once when <see cref="IsStarted"/> becomes true.</summary>
+    public event EventHandler? Started;
 
     public MobileShell(MobilePlatform platform)
     {
@@ -34,6 +41,7 @@ public sealed class MobileShell : ContentPage
 
         Loaded += OnLoaded;
         KeyDown += OnKeyDown;
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
     public async Task DisposeAsync()
@@ -136,6 +144,18 @@ public sealed class MobileShell : ContentPage
     private void ApplySafeArea(Thickness padding)
     {
         _viewModel.SafeArea = _display?.SafeArea ?? padding;
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(ShellViewModel.IsLoading) || !IsStarted)
+        {
+            return;
+        }
+
+        _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+
+        Started?.Invoke(this, EventArgs.Empty);
     }
 
     private async void OnLoaded(object? sender, RoutedEventArgs e)

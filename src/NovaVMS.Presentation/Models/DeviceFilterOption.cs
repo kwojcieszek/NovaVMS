@@ -1,7 +1,7 @@
-using NovaVMS.App.Localization;
 using NovaVMS.Core.Models;
+using NovaVMS.Presentation.Localization;
 
-namespace NovaVMS.App.Models;
+namespace NovaVMS.Presentation.Models;
 
 /// <summary>
 /// Entry of a device filter list; no device means all devices.
@@ -17,8 +17,9 @@ public sealed class DeviceFilterOption
         Device = device;
     }
 
-    public bool Matches(CameraDescriptor camera)
+    /// <summary>True when the cameras of <paramref name="device"/> pass the filter.</summary>
+    public bool Matches(Device device)
     {
-        return Device is null || camera.Device.Id == Device.Id;
+        return Device is null || device.Id == Device.Id;
     }
 }

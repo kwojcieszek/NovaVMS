@@ -3,11 +3,13 @@
              xmlns:l="using:NovaVMS.App.Localization"
              xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:vm="using:NovaVMS.App.ViewModels"
-             xmlns:models="using:NovaVMS.App.Models"
+             xmlns:shared="using:NovaVMS.Presentation.ViewModels"
+             xmlns:options="using:NovaVMS.Presentation.Models"
              x:Class="NovaVMS.App.Views.SyncSettingsView"
              x:DataType="vm:SyncSettingsViewModel">
 
-  <Grid ColumnDefinitions="560,24,*" Margin="8">
+  <!-- The content binds to the synchronization form shared with the mobile application -->
+  <Grid ColumnDefinitions="560,24,*" Margin="8" DataContext="{Binding Form}" x:DataType="shared:SyncSettingsForm">
 
     <ScrollViewer Grid.Column="0">
       <StackPanel Spacing="6">
@@ -23,7 +25,7 @@
                     SelectedItem="{Binding SelectedDatabaseType}"
                     HorizontalAlignment="Stretch">
             <ComboBox.ItemTemplate>
-              <DataTemplate x:DataType="models:DatabaseTypeOption">
+              <DataTemplate x:DataType="options:DatabaseTypeOption">
                 <TextBlock Text="{Binding Label}" />
               </DataTemplate>
             </ComboBox.ItemTemplate>
@@ -114,13 +116,13 @@
                 GridLinesVisibility="Horizontal"
                 HeadersVisibility="Column">
         <DataGrid.Columns>
-          <DataGridTextColumn x:DataType="vm:SettingsVersionRowViewModel" Header="{l:Tr Sync_ColumnId}" Binding="{Binding Id}" Width="Auto" FontWeight="SemiBold" />
-          <DataGridTextColumn x:DataType="vm:SettingsVersionRowViewModel" Header="{l:Tr Sync_ColumnDate}" Binding="{Binding CreatedAtText}" Width="Auto" />
-          <DataGridTextColumn x:DataType="vm:SettingsVersionRowViewModel" Header="{l:Tr Sync_ColumnMachine}" Binding="{Binding MachineName}" Width="*" />
-          <DataGridTextColumn x:DataType="vm:SettingsVersionRowViewModel" Header="{l:Tr Sync_ColumnIp}" Binding="{Binding IpAddress}" Width="Auto" />
-          <DataGridTextColumn x:DataType="vm:SettingsVersionRowViewModel" Header="{l:Tr Sync_ColumnUser}" Binding="{Binding UserName}" Width="Auto" />
-          <DataGridTextColumn x:DataType="vm:SettingsVersionRowViewModel" Header="{l:Tr Sync_ColumnAppVersion}" Binding="{Binding AppVersion}" Width="Auto" />
-          <DataGridTextColumn x:DataType="vm:SettingsVersionRowViewModel" Header="{l:Tr Sync_ColumnState}" Binding="{Binding StateText}" Width="*" />
+          <DataGridTextColumn x:DataType="shared:SettingsVersionRow" Header="{l:Tr Sync_ColumnId}" Binding="{Binding Id}" Width="Auto" FontWeight="SemiBold" />
+          <DataGridTextColumn x:DataType="shared:SettingsVersionRow" Header="{l:Tr Sync_ColumnDate}" Binding="{Binding CreatedAtText}" Width="Auto" />
+          <DataGridTextColumn x:DataType="shared:SettingsVersionRow" Header="{l:Tr Sync_ColumnMachine}" Binding="{Binding MachineName}" Width="*" />
+          <DataGridTextColumn x:DataType="shared:SettingsVersionRow" Header="{l:Tr Sync_ColumnIp}" Binding="{Binding IpAddress}" Width="Auto" />
+          <DataGridTextColumn x:DataType="shared:SettingsVersionRow" Header="{l:Tr Sync_ColumnUser}" Binding="{Binding UserName}" Width="Auto" />
+          <DataGridTextColumn x:DataType="shared:SettingsVersionRow" Header="{l:Tr Sync_ColumnAppVersion}" Binding="{Binding AppVersion}" Width="Auto" />
+          <DataGridTextColumn x:DataType="shared:SettingsVersionRow" Header="{l:Tr Sync_ColumnState}" Binding="{Binding StateText}" Width="*" />
         </DataGrid.Columns>
       </DataGrid>
     </DockPanel>

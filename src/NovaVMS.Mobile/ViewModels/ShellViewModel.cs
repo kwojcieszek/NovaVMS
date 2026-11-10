@@ -8,9 +8,10 @@ using NovaVMS.Core.Configuration;
 using NovaVMS.Core.Models;
 using NovaVMS.Infrastructure.Storage;
 using NovaVMS.Infrastructure.Sync;
-using NovaVMS.Mobile.Localization;
 using NovaVMS.Mobile.Models;
 using NovaVMS.Mobile.Services;
+using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.Services;
 
 namespace NovaVMS.Mobile.ViewModels;
 
@@ -187,7 +188,7 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         await CloseCameraAsync();
 
         ShowCameras();
-        Status = Localizer.Text("Mobile_StreamSuspended");
+        Status = string.Empty;
 
         await Sync.FlushAsync();
     }

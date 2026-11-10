@@ -1,5 +1,6 @@
 using Avalonia.Data;
 using Avalonia.Markup.Xaml;
+using NovaVMS.Presentation.Localization;
 
 namespace NovaVMS.App.Localization;
 

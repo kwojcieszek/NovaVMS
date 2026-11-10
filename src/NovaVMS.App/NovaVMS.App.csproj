@@ -49,6 +49,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NovaVMS.Core\NovaVMS.Core.csproj" />
+    <ProjectReference Include="..\NovaVMS.Presentation\NovaVMS.Presentation.csproj" />
     <ProjectReference Include="..\NovaVMS.Protocols\NovaVMS.Protocols.csproj" />
     <ProjectReference Include="..\NovaVMS.Infrastructure\NovaVMS.Infrastructure.csproj" />
     <ProjectReference Include="..\NovaVMS.Updater\NovaVMS.Updater.csproj" />

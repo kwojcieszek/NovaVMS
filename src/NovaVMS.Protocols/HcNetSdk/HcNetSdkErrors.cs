@@ -1,6 +1,6 @@
 using System.Net;
 using NovaVMS.Core.Exceptions;
-using NovaVMS.Protocols.Resources;
+using NovaVMS.Core.Localization;
 
 namespace NovaVMS.Protocols.HcNetSdk;
 
@@ -20,33 +20,33 @@ internal static class HcNetSdkErrors
         {
             case HcNetSdkConstants.ErrorPassword:
                 {
-                    return new DeviceCommunicationException(ProtocolText.Get("InvalidCredentials"), HttpStatusCode.Unauthorized);
+                    return new DeviceCommunicationException(LibraryText.Get("InvalidCredentials"), HttpStatusCode.Unauthorized);
                 }
             case HcNetSdkConstants.ErrorUserLocked:
                 {
-                    return new DeviceCommunicationException(ProtocolText.Get("SdkUserLocked"), HttpStatusCode.Forbidden);
+                    return new DeviceCommunicationException(LibraryText.Get("SdkUserLocked"), HttpStatusCode.Forbidden);
                 }
             case HcNetSdkConstants.ErrorNetworkConnect:
             case HcNetSdkConstants.ErrorNetworkSend:
             case HcNetSdkConstants.ErrorNetworkReceive:
                 {
-                    return new DeviceCommunicationException(ProtocolText.Format("SdkConnectFailed", host, port));
+                    return new DeviceCommunicationException(LibraryText.Format("SdkConnectFailed", host, port));
                 }
             case HcNetSdkConstants.ErrorNetworkTimeout:
                 {
-                    return new DeviceCommunicationException(ProtocolText.Get("Timeout"));
+                    return new DeviceCommunicationException(LibraryText.Get("Timeout"));
                 }
             case HcNetSdkConstants.ErrorChannel:
                 {
-                    return new DeviceCommunicationException(ProtocolText.Format("SdkChannelOffline", code));
+                    return new DeviceCommunicationException(LibraryText.Format("SdkChannelOffline", code));
                 }
             case HcNetSdkConstants.ErrorNotSupported:
                 {
-                    return new DeviceCommunicationException(ProtocolText.Format("FunctionNotSupported", code), HttpStatusCode.NotFound);
+                    return new DeviceCommunicationException(LibraryText.Format("FunctionNotSupported", code), HttpStatusCode.NotFound);
                 }
             default:
                 {
-                    return new DeviceCommunicationException(ProtocolText.Format("SdkError", code));
+                    return new DeviceCommunicationException(LibraryText.Format("SdkError", code));
                 }
         }
     }

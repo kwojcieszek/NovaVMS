@@ -1,37 +1,27 @@
-using CommunityToolkit.Mvvm.ComponentModel;
-using NovaVMS.App.Localization;
 using NovaVMS.Core.Models;
 
-namespace NovaVMS.App.Models;
+namespace NovaVMS.Presentation.Models;
 
 /// <summary>
 /// Entry of the protocol list in the device form.
 /// </summary>
-public sealed class ProtocolOption : ObservableObject
+public sealed class ProtocolOption : LocalizedOption<DeviceProtocol>
 {
-    private readonly string _labelKey;
-
-    public static IReadOnlyList<ProtocolOption> All { get; } = new List<ProtocolOption>
-    {
+    public static IReadOnlyList<ProtocolOption> All { get; } =
+    [
         new(DeviceProtocol.Isapi, "Protocol_Hikvision"),
         new(DeviceProtocol.HikvisionSdk, "Protocol_HikvisionSdk"),
         new(DeviceProtocol.Onvif, "Protocol_Onvif")
-    };
-
-    public DeviceProtocol Value { get; }
-
-    public string Label => Localizer.Text(_labelKey);
+    ];
 
     private ProtocolOption(DeviceProtocol value, string labelKey)
+        : base(value, labelKey)
     {
-        Value = value;
-        _labelKey = labelKey;
-        Localizer.Instance.LanguageChanged += (_, _) => OnPropertyChanged(nameof(Label));
     }
 
     public static ProtocolOption Find(DeviceProtocol value)
     {
-        return All.FirstOrDefault(option => option.Value == value) ?? All[0];
+        return Find(All, value);
     }
 
     /// <summary>

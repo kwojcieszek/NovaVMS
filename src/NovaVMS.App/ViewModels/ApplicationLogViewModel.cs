@@ -2,8 +2,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using NovaVMS.App.Localization;
 using NovaVMS.App.Services;
+using NovaVMS.Presentation.Localization;
 
 namespace NovaVMS.App.ViewModels;
 

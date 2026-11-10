@@ -1,7 +1,7 @@
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
-using NovaVMS.App.Localization;
+using NovaVMS.Presentation.Localization;
 using NovaVMS.Updater;
 
 namespace NovaVMS.App.Services;

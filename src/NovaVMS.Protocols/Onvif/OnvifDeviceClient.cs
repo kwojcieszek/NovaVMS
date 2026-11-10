@@ -2,9 +2,9 @@ using System.Globalization;
 using System.Xml.Linq;
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Exceptions;
+using NovaVMS.Core.Localization;
 using NovaVMS.Core.Models;
 using NovaVMS.Protocols.Common;
-using NovaVMS.Protocols.Resources;
 
 namespace NovaVMS.Protocols.Onvif;
 
@@ -98,7 +98,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
 
         if (string.IsNullOrEmpty(snapshotUri))
         {
-            throw new DeviceCommunicationException(ProtocolText.Get("OnvifNoMedia"));
+            throw new DeviceCommunicationException(LibraryText.Get("OnvifNoMedia"));
         }
 
         return await _soap.DownloadAsync(Rebase(new Uri(snapshotUri)), cancellationToken).ConfigureAwait(false);
@@ -113,7 +113,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
 
         if (string.IsNullOrWhiteSpace(address) || !Uri.TryCreate(address, UriKind.Absolute, out var uri))
         {
-            throw new NotSupportedException(ProtocolText.Format("OnvifNoStream", channelNumber));
+            throw new NotSupportedException(LibraryText.Format("OnvifNoStream", channelNumber));
         }
 
         // Cached ONVIF addresses can have been discovered using the other network address.
@@ -239,7 +239,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
         var configured = GetProfileToken(channelNumber);
         var profiles = await GetProfilesAsync(cancellationToken).ConfigureAwait(false);
         var source = profiles.FirstOrDefault(profile => profile.Token == configured)?.SourceToken
-            ?? throw new NotSupportedException(ProtocolText.Format("OnvifNoStream", channelNumber));
+            ?? throw new NotSupportedException(LibraryText.Format("OnvifNoStream", channelNumber));
 
         return (source, profiles.Where(profile => profile.SourceToken == source).Select(profile => profile.Token).ToList());
     }
@@ -250,7 +250,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
 
         if (channel is null || string.IsNullOrEmpty(channel.ProfileToken))
         {
-            throw new NotSupportedException(ProtocolText.Format("OnvifNoStream", channelNumber));
+            throw new NotSupportedException(LibraryText.Format("OnvifNoStream", channelNumber));
         }
 
         return channel;
@@ -267,7 +267,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
 
         if (_ptzServiceUri is null)
         {
-            throw new NotSupportedException(ProtocolText.Get("OnvifNoPtz"));
+            throw new NotSupportedException(LibraryText.Get("OnvifNoPtz"));
         }
 
         return await _soap.CallAsync(_ptzServiceUri, request, cancellationToken).ConfigureAwait(false);
@@ -279,7 +279,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
 
         if (_mediaServiceUri is null)
         {
-            throw new DeviceCommunicationException(ProtocolText.Get("OnvifNoMedia"));
+            throw new DeviceCommunicationException(LibraryText.Get("OnvifNoMedia"));
         }
 
         return _mediaServiceUri;
@@ -355,7 +355,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
 
         if (profiles.Count == 0)
         {
-            throw new DeviceCommunicationException(ProtocolText.Get("OnvifNoMedia"));
+            throw new DeviceCommunicationException(LibraryText.Get("OnvifNoMedia"));
         }
 
         return profiles;
@@ -377,7 +377,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
 
         if (string.IsNullOrEmpty(address) || !Uri.TryCreate(address, UriKind.Absolute, out var streamUri))
         {
-            throw new DeviceCommunicationException(ProtocolText.Get("OnvifNoMedia"));
+            throw new DeviceCommunicationException(LibraryText.Get("OnvifNoMedia"));
         }
 
         // The RTSP port may differ from the HTTP port; only the host is replaced for devices behind NAT.

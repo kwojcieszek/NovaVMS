@@ -22,6 +22,6 @@ public sealed partial class RecordingItemViewModel : ViewModelBase
     [RelayCommand]
     private Task PlayAsync()
     {
-        return _shell.RunAsync(token => _camera.PlayRecordingAsync(_recording, token));
+        return _shell.RunAsync(token => _camera.PlayFromAsync(_recording.Start, token));
     }
 }

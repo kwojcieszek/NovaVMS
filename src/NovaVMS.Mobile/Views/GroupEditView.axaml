@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:l="using:NovaVMS.Mobile.Localization"
-             xmlns:models="using:NovaVMS.Mobile.Models"
+             xmlns:options="using:NovaVMS.Presentation.Models"
              xmlns:vm="using:NovaVMS.Mobile.ViewModels"
              x:Class="NovaVMS.Mobile.Views.GroupEditView"
              x:DataType="vm:GroupEditViewModel">
@@ -47,7 +47,7 @@
       <TextBlock Classes="sectionTitle" Text="{l:Tr Groups_Available}" />
       <ComboBox ItemsSource="{Binding DeviceFilters}" SelectedItem="{Binding DeviceFilter}" AutomationProperties.Name="{l:Tr Groups_FilterByDevice}">
         <ComboBox.ItemTemplate>
-          <DataTemplate DataType="models:DeviceFilterOption">
+          <DataTemplate DataType="options:DeviceFilterOption">
             <TextBlock Text="{Binding Label}" />
           </DataTemplate>
         </ComboBox.ItemTemplate>

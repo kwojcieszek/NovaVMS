@@ -108,13 +108,9 @@
         </Grid>
       </Border>
 
-      <!-- Start screen while the configuration is read -->
-      <Grid Grid.RowSpan="3" Background="{DynamicResource NovaWindowBackground}" IsVisible="{Binding IsLoading}">
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
-          <Image Source="/Assets/logo.png" Width="128" Height="128" />
-          <TextBlock Text="NovaVMS" HorizontalAlignment="Center" FontSize="28" FontWeight="SemiBold" Foreground="{DynamicResource NovaStrongText}" />
-        </StackPanel>
-      </Grid>
+      <!-- While the configuration is read the system start screen (logo and name) stays above the window,
+           so the shell shows only the window colour instead of a second start screen -->
+      <Grid Grid.RowSpan="3" Background="{DynamicResource NovaWindowBackground}" IsVisible="{Binding IsLoading}" />
     </Grid>
   </Border>
 </UserControl>

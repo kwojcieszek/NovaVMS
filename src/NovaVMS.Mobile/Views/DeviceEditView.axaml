@@ -1,13 +1,13 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:l="using:NovaVMS.Mobile.Localization"
-             xmlns:models="using:NovaVMS.Mobile.Models"
+             xmlns:options="using:NovaVMS.Presentation.Models"
              xmlns:vm="using:NovaVMS.Mobile.ViewModels"
              x:Class="NovaVMS.Mobile.Views.DeviceEditView"
              x:DataType="vm:DeviceEditViewModel">
 
   <UserControl.DataTemplates>
-    <DataTemplate DataType="models:ProtocolOption">
+    <DataTemplate DataType="options:ProtocolOption">
       <TextBlock Text="{Binding Label}" />
     </DataTemplate>
   </UserControl.DataTemplates>

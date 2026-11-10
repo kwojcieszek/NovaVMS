@@ -17,7 +17,7 @@ public sealed class RtspVideoSession
     private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(15);
 
     // Interleaved frames carry a 16-bit length, so one buffer holds any packet.
-    private readonly byte[] _packet = new byte[ushort.MaxValue];
+    private readonly byte[] _packet = new byte[RtspMessages.MaxPacketLength];
     private readonly byte[] _oneByte = new byte[1];
     private readonly byte[] _framePrefix = new byte[3];
     private readonly SemaphoreSlim _writeLock = new(1, 1);
@@ -152,24 +152,10 @@ public sealed class RtspVideoSession
 
     private void ReadSession(RtspResponse setup)
     {
-        if (!setup.Headers.TryGetValue("Session", out var session))
-        {
-            throw new IOException("RTSP: session identifier missing.");
-        }
+        var (session, keepAlive) = RtspMessages.ReadSession(setup, maxKeepAliveSeconds: 30);
 
-        _session = session.Split(';')[0].Trim();
-
-        if (_session.Length == 0 || _session.Any(char.IsControl))
-        {
-            throw new IOException("RTSP: invalid session identifier.");
-        }
-
-        var timeout = Regex.Match(session, @"timeout=(\d+)", RegexOptions.IgnoreCase);
-
-        if (timeout.Success && int.TryParse(timeout.Groups[1].Value, out var seconds))
-        {
-            _keepAliveSeconds = Math.Clamp(seconds / 2, 1, 30);
-        }
+        _session = session;
+        _keepAliveSeconds = keepAlive ?? _keepAliveSeconds;
     }
 
     private void ReadTransport(RtspResponse setup)
@@ -253,21 +239,9 @@ public sealed class RtspVideoSession
         try
         {
             var cseq = ++_cseq;
-            var request = new StringBuilder($"{method} {uri.AbsoluteUri} RTSP/1.0\r\nCSeq: {cseq}\r\nUser-Agent: NovaVMS\r\n");
+            var request = RtspMessages.Request(method, uri, cseq, _auth, _session, extra);
 
-            if (_auth is not null)
-            {
-                request.Append("Authorization: ").Append(_auth.Build(method, uri)).Append("\r\n");
-            }
-
-            if (_session is not null)
-            {
-                request.Append("Session: ").Append(_session).Append("\r\n");
-            }
-
-            request.Append(extra).Append("\r\n");
-
-            await _network!.WriteAsync(Encoding.UTF8.GetBytes(request.ToString()), cancellationToken).ConfigureAwait(false);
+            await _network!.WriteAsync(request, cancellationToken).ConfigureAwait(false);
 
             return cseq;
         }
@@ -277,95 +251,21 @@ public sealed class RtspVideoSession
         }
     }
 
-    private async Task<RtspResponse> ReadResponseAsync(CancellationToken cancellationToken)
+    // The assembler copies what it keeps, so the packet buffer is reused.
+    private Task<RtspResponse> ReadResponseAsync(CancellationToken cancellationToken)
     {
-        var one = _oneByte;
-
-        while (true)
-        {
-            await ReadExactlyAsync(one, cancellationToken).ConfigureAwait(false);
-
-            if (one[0] == '$')
+        return RtspMessages.ReadResponseAsync(
+            buffer => ReadExactlyAsync(buffer, cancellationToken),
+            _oneByte,
+            _framePrefix,
+            _packet,
+            (channel, packet) =>
             {
-                var prefix = _framePrefix;
-
-                await ReadExactlyAsync(prefix, cancellationToken).ConfigureAwait(false);
-
-                var length = (prefix[1] << 8) | prefix[2];
-
-                // The assembler copies what it keeps, so the packet buffer is reused.
-                await ReadExactlyAsync(_packet.AsMemory(0, length), cancellationToken).ConfigureAwait(false);
-
-                if (prefix[0] == _videoChannel)
+                if (channel == _videoChannel)
                 {
-                    _assembler?.Accept(_packet.AsSpan(0, length));
+                    _assembler?.Accept(packet);
                 }
-
-                continue;
-            }
-
-            using var header = new MemoryStream();
-
-            header.WriteByte(one[0]);
-
-            var matched = 0;
-
-            while (matched != 4)
-            {
-                if (header.Length > 32768)
-                {
-                    throw new IOException("RTSP headers too large.");
-                }
-
-                await ReadExactlyAsync(one, cancellationToken).ConfigureAwait(false);
-                header.WriteByte(one[0]);
-
-                matched = one[0] == "\r\n\r\n"[matched] ? matched + 1 : (one[0] == '\r' ? 1 : 0);
-            }
-
-            var lines = Encoding.UTF8.GetString(header.ToArray()).Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
-            var status = lines[0].Split(' ');
-
-            if (status.Length < 2 || !status[0].StartsWith("RTSP/", StringComparison.Ordinal) || !int.TryParse(status[1], out var code))
-            {
-                throw new IOException("Invalid RTSP response.");
-            }
-
-            var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var line in lines.Skip(1))
-            {
-                var colon = line.IndexOf(':');
-
-                if (colon <= 0)
-                {
-                    continue;
-                }
-
-                var name = line[..colon].Trim();
-                var value = line[(colon + 1)..].Trim();
-
-                // Digest is preferred over Basic when a camera offers both.
-                if (!headers.ContainsKey(name) || (name.Equals("WWW-Authenticate", StringComparison.OrdinalIgnoreCase) && value.StartsWith("Digest ", StringComparison.OrdinalIgnoreCase)))
-                {
-                    headers[name] = value;
-                }
-            }
-
-            var bodyLength = 0;
-
-            if (headers.TryGetValue("Content-Length", out var contentLength)
-                && (!int.TryParse(contentLength, out bodyLength) || bodyLength is < 0 or > 65536))
-            {
-                throw new IOException("Invalid RTSP response length.");
-            }
-
-            var body = new byte[bodyLength];
-
-            await ReadExactlyAsync(body, cancellationToken).ConfigureAwait(false);
-
-            return new(code, headers, body);
-        }
+            });
     }
 
     private async Task ReadExactlyAsync(Memory<byte> buffer, CancellationToken cancellationToken)
@@ -385,6 +285,4 @@ public sealed class RtspVideoSession
             throw new IOException("RTSP: the camera stopped sending video.");
         }
     }
-
-    private sealed record RtspResponse(int Status, Dictionary<string, string> Headers, byte[] Body);
 }

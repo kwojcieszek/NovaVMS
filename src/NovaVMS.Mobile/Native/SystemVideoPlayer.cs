@@ -3,8 +3,8 @@ using Avalonia.Controls;
 using Avalonia.Platform;
 using Avalonia.VisualTree;
 using NovaVMS.Core.Models;
-using NovaVMS.Mobile.Localization;
 using NovaVMS.Mobile.Services;
+using NovaVMS.Presentation.Localization;
 using NovaVMS.Protocols.Rtsp;
 #if ANDROID
 using Avalonia.Android;
@@ -183,7 +183,7 @@ public sealed class SystemVideoPlayer : IMobilePlayer
     }
 
     /// <summary>
-    /// Hosts the native video view. Inside a scroll viewer the view is cut to the visible part of the viewer,
+    /// Hosts the native video view. Inside a scroll viewer the view is cut to the area of the viewer,
     /// because native views are drawn above Avalonia content and are not clipped by it.
     /// </summary>
     private sealed class VideoHost(SystemVideoPlayer player) : NativeControlHost
@@ -242,7 +242,7 @@ public sealed class SystemVideoPlayer : IMobilePlayer
             _native = null;
         }
 
-        // Scrolling arranges the list again, so every layout pass may move the view in or out of the viewer.
+        // The viewer may move or change its size with any layout pass.
         private void OnLayoutUpdated(object? sender, EventArgs e)
         {
             UpdateVisibleArea();
@@ -266,25 +266,19 @@ public sealed class SystemVideoPlayer : IMobilePlayer
             _native.SetVisibleArea(area, TopLevel.GetTopLevel(this)?.RenderScaling ?? 1);
         }
 
-        // Part of this control inside the nearest scroll viewer, in its own coordinates; null outside a viewer.
+        // Area of the nearest scroll viewer in top level coordinates; null outside a viewer. The native view cuts
+        // itself to it at the position it is actually placed at, so the cut follows the view while the list scrolls.
         private Rect? VisibleArea()
         {
             var viewer = this.FindAncestorOfType<ScrollViewer>();
+            var topLevel = TopLevel.GetTopLevel(this);
 
-            if (viewer is null || this.TranslatePoint(default, viewer) is not { } origin)
+            if (viewer is null || topLevel is null || viewer.TranslatePoint(default, topLevel) is not { } origin)
             {
                 return null;
             }
 
-            var own = new Rect(origin, Bounds.Size);
-            var visible = own.Intersect(new Rect(viewer.Bounds.Size));
-
-            if (visible.Width <= 0 || visible.Height <= 0)
-            {
-                return default(Rect);
-            }
-
-            return visible.Translate(-(Vector)origin);
+            return new Rect(origin, viewer.Bounds.Size);
         }
     }
 }

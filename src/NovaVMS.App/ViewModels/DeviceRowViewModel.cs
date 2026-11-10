@@ -1,8 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using NovaVMS.App.Localization;
 using NovaVMS.App.Models;
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
+using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.Models;
 
 namespace NovaVMS.App.ViewModels;
 

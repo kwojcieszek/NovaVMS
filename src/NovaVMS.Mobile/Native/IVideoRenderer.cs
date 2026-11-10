@@ -21,7 +21,10 @@ internal interface IVideoRenderer
     /// <summary>Stretches the picture to the view (true) or keeps the camera proportions (false).</summary>
     void SetFill(bool fill);
 
-    /// <summary>Visible part of the view in Avalonia units, converted with <paramref name="scale"/> to pixels; null shows all of it.</summary>
+    /// <summary>
+    /// Area the view may draw in, in Avalonia units of the top level, converted with <paramref name="scale"/> to pixels;
+    /// null shows all of it. The view applies it at the position it is placed at, together with every move.
+    /// </summary>
     void SetVisibleArea(Rect? area, double scale);
 
     /// <summary>Places Avalonia content in a transparent native layer above the picture; null removes it.</summary>

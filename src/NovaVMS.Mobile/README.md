@@ -6,7 +6,7 @@ live directly in `src` and are part of the single `src/NovaVMS.sln` solution.
 ```text
 src/
   NovaVMS.Mobile/          # Shared mobile application (MVVM)
-    Localization/          #   Localizer and {l:Tr Key} markup extension
+    Localization/          #   {l:Tr Key} markup extension (the localizer is in NovaVMS.Presentation)
     Models/                #   Settings and option lists
     Native/                #   Hardware decoder video player compiled by the platform heads
     Services/              #   Encrypted device store, settings store, device connections
@@ -23,8 +23,10 @@ src/
   Views and camera Groups. Opening one plays live previews of all its cameras (sub stream,
   without sound); tapping a preview opens the camera full screen in landscape.
   The back button above the page (and the Android system back button) returns
-  camera → group → main page; a full screen camera is left by tapping the picture twice. Searching lists matching
-  cameras directly.
+  camera → group → main page. Tapping the picture twice switches full screen: a camera opened from the previews
+  returns to them, any other camera shows its page again. A single tap on a full screen picture shows the
+  translucent playback menu: live/recordings, the recording day and a 24 hour bar of its recordings, where a
+  tap plays from that time. Searching lists matching cameras directly.
 - **Devices** – device list and form with the desktop fields (primary and optional protocol,
   ports, secondary address, credentials, stream key) and channel download.
 - **Settings** – the pages of the desktop settings window except software updates:
@@ -56,6 +58,11 @@ ISAPI/ONVIF connection when it has one.
   (keys `Mobile_*` plus shared `Common_*`, `Theme_*`, `Language_*` keys). Views use
   `{l:Tr Key}`, code uses `Localizer.Text` / `Localizer.Format`, exactly as in the
   desktop application. Language and theme are synchronized settings, as on the desktop.
+- `NovaVMS.Presentation` holds what both applications share: the localizer and the list of interface
+  languages, the option lists of the settings, the settings database synchronization and its form.
+  It has no Avalonia types, because the desktop and the phone use different Avalonia versions.
+- Interface languages: English, Polish, Chinese (simplified), Hindi, Spanish, Arabic and French. A new text
+  is added to every `Resources/Strings/*.json`; a test checks that all catalogs have the same keys and placeholders.
 
 ## Video
 

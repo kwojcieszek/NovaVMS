@@ -3,9 +3,9 @@ using System.Globalization;
 using System.Xml;
 using System.Xml.Linq;
 using NovaVMS.Core.Exceptions;
+using NovaVMS.Core.Localization;
 using NovaVMS.Core.Models;
 using NovaVMS.Protocols.Common;
-using NovaVMS.Protocols.Resources;
 
 namespace NovaVMS.Protocols.Onvif;
 
@@ -111,7 +111,7 @@ internal sealed class OnvifRecordingService(Device device,
 
         if (recording is null)
         {
-            throw new DeviceCommunicationException(ProtocolText.Get("OnvifNoRecordingAtTime"));
+            throw new DeviceCommunicationException(LibraryText.Get("OnvifNoRecordingAtTime"));
         }
 
         var response = await call(_replay!, new XElement(Replay + "GetReplayUri",
@@ -121,7 +121,7 @@ internal sealed class OnvifRecordingService(Device device,
 
         if (!Uri.TryCreate(response.ChildValue("Uri"), UriKind.Absolute, out var reported) || reported.Scheme != "rtsp")
         {
-            throw new DeviceCommunicationException(ProtocolText.Get("OnvifNoMedia"));
+            throw new DeviceCommunicationException(LibraryText.Get("OnvifNoMedia"));
         }
 
         var remote = new UriBuilder(reported)
@@ -175,7 +175,7 @@ internal sealed class OnvifRecordingService(Device device,
 
         if (matched.Count == 0)
         {
-            throw new NotSupportedException(ProtocolText.Get("OnvifRecordingChannelUnknown"));
+            throw new NotSupportedException(LibraryText.Get("OnvifRecordingChannelUnknown"));
         }
 
         return matched;
@@ -217,7 +217,7 @@ internal sealed class OnvifRecordingService(Device device,
 
         if (_search is null || _replay is null)
         {
-            throw new NotSupportedException(ProtocolText.Get("OnvifNoPlayback"));
+            throw new NotSupportedException(LibraryText.Get("OnvifNoPlayback"));
         }
 
         _recordings = await RunSearchAsync(new XElement(Search + "FindRecordings", new XElement(Search + "Scope"),
@@ -231,7 +231,7 @@ internal sealed class OnvifRecordingService(Device device,
 
         if (string.IsNullOrEmpty(searchToken))
         {
-            throw new DeviceCommunicationException(ProtocolText.Get("OnvifNoMedia"));
+            throw new DeviceCommunicationException(LibraryText.Get("OnvifNoMedia"));
         }
 
         try
@@ -258,13 +258,13 @@ internal sealed class OnvifRecordingService(Device device,
 
                 if (state is not ("Searching" or "Queued"))
                 {
-                    throw new DeviceCommunicationException(ProtocolText.Get("OnvifNoMedia"));
+                    throw new DeviceCommunicationException(LibraryText.Get("OnvifNoMedia"));
                 }
 
                 await Task.Delay(25, token).ConfigureAwait(false);
             }
 
-            throw new DeviceCommunicationException(ProtocolText.Get("Timeout"));
+            throw new DeviceCommunicationException(LibraryText.Get("Timeout"));
         }
         finally
         {

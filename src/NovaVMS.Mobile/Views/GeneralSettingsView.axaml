@@ -2,21 +2,22 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:l="using:NovaVMS.Mobile.Localization"
              xmlns:models="using:NovaVMS.Mobile.Models"
+             xmlns:options="using:NovaVMS.Presentation.Models"
              xmlns:vm="using:NovaVMS.Mobile.ViewModels"
              x:Class="NovaVMS.Mobile.Views.GeneralSettingsView"
              x:DataType="vm:GeneralSettingsViewModel">
 
   <UserControl.DataTemplates>
-    <DataTemplate DataType="models:LanguageOption">
+    <DataTemplate DataType="options:LanguageOption">
       <TextBlock Text="{Binding Label}" />
     </DataTemplate>
-    <DataTemplate DataType="models:ThemeOption">
+    <DataTemplate DataType="options:ThemeOption">
       <TextBlock Text="{Binding Label}" />
     </DataTemplate>
-    <DataTemplate DataType="models:StreamModeOption">
+    <DataTemplate DataType="options:StreamModeOption">
       <TextBlock Text="{Binding Label}" />
     </DataTemplate>
-    <DataTemplate DataType="models:VideoAspectModeOption">
+    <DataTemplate DataType="options:VideoAspectModeOption">
       <TextBlock Text="{Binding Label}" />
     </DataTemplate>
     <DataTemplate DataType="models:GridLayoutOption">

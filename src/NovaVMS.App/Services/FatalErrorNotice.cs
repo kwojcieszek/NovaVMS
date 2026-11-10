@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-using NovaVMS.App.Localization;
+using NovaVMS.Presentation.Localization;
 
 namespace NovaVMS.App.Services;
 

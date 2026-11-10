@@ -12,7 +12,7 @@
       <TextBlock Classes="muted" Text="{Binding Subtitle}" TextTrimming="CharacterEllipsis" />
     </StackPanel>
 
-    <!-- Video height follows the available size (see code-behind); full screen it takes the whole page and a double tap leaves it -->
+    <!-- Video height follows the available size (see code-behind); a double tap switches full screen, where it takes the whole page -->
     <Border x:Name="VideoArea" Grid.Row="1" Classes="tile" Height="220" PointerReleased="OnVideoPointerReleased">
       <ContentControl Content="{Binding Video}" />
     </Border>

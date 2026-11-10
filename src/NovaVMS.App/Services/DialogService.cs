@@ -2,8 +2,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
-using NovaVMS.App.Localization;
 using NovaVMS.App.Views;
+using NovaVMS.Presentation.Localization;
 
 namespace NovaVMS.App.Services;
 

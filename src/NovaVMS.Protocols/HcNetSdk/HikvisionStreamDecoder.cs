@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Channels;
-using NovaVMS.Protocols.Resources;
+using NovaVMS.Core.Localization;
 
 namespace NovaVMS.Protocols.HcNetSdk;
 
@@ -62,7 +62,7 @@ internal sealed class HikvisionStreamDecoder : IDisposable
     {
         if (string.IsNullOrEmpty(key) || key.Contains('\0') || Encoding.UTF8.GetByteCount(key) > 128)
         {
-            throw new NotSupportedException(ProtocolText.Get("StreamKeyInvalid"));
+            throw new NotSupportedException(LibraryText.Get("StreamKeyInvalid"));
         }
 
         // Do not trim, pad, hash, or log a user-supplied key. PlayCtrl interprets it.
@@ -131,7 +131,7 @@ internal sealed class HikvisionStreamDecoder : IDisposable
 
         if (!_playback)
         {
-            Fail(ProtocolText.Get("StreamDecoderBufferFull"));
+            Fail(LibraryText.Get("StreamDecoderBufferFull"));
         }
     }
 
@@ -186,7 +186,7 @@ internal sealed class HikvisionStreamDecoder : IDisposable
 
             if (decoder._width != 0 && (info.Width != decoder._width || info.Height != decoder._height))
             {
-                throw new IOException(ProtocolText.Get("StreamDecoderChanged"));
+                throw new IOException(LibraryText.Get("StreamDecoderChanged"));
             }
 
             var frame = ToYuv4Mpeg(buffer, size, info, !decoder.HasFrames);
@@ -199,7 +199,7 @@ internal sealed class HikvisionStreamDecoder : IDisposable
         catch (Exception)
         {
             // Exceptions must never cross a native callback boundary.
-            decoder.Fail(ProtocolText.Get("StreamDecryptionFailed"));
+            decoder.Fail(LibraryText.Get("StreamDecryptionFailed"));
         }
     }
 
@@ -209,7 +209,7 @@ internal sealed class HikvisionStreamDecoder : IDisposable
         {
             if (!_api.GetPort(out var port))
             {
-                throw new IOException(ProtocolText.Get("StreamDecoderPortFailed"));
+                throw new IOException(LibraryText.Get("StreamDecoderPortFailed"));
             }
 
             _port = port;
@@ -230,7 +230,7 @@ internal sealed class HikvisionStreamDecoder : IDisposable
                             continue;
                         }
 
-                        throw new IOException(ProtocolText.Get("StreamDecoderChanged"));
+                        throw new IOException(LibraryText.Get("StreamDecoderChanged"));
                     }
 
                     Require(_api.SetMode(_port, _playback ? 1u : 0u), "PlayM4_SetStreamOpenMode");
@@ -254,7 +254,7 @@ internal sealed class HikvisionStreamDecoder : IDisposable
                 {
                     if (!_opened)
                     {
-                        throw new IOException(ProtocolText.Get("StreamDecoderHeaderMissing"));
+                        throw new IOException(LibraryText.Get("StreamDecoderHeaderMissing"));
                     }
 
                     var wait = Stopwatch.StartNew();
@@ -278,7 +278,7 @@ internal sealed class HikvisionStreamDecoder : IDisposable
         catch (Exception exception)
         {
             // No key or packet contents are included in error messages.
-            Fail(exception is IOException ? exception.Message : ProtocolText.Get("StreamDecryptionFailed"));
+            Fail(exception is IOException ? exception.Message : LibraryText.Get("StreamDecryptionFailed"));
         }
         finally
         {
@@ -306,7 +306,7 @@ internal sealed class HikvisionStreamDecoder : IDisposable
     {
         if (!success)
         {
-            throw new IOException($"{operation}: {ProtocolText.Format("StreamDecoderError", _api.Error(_port))}");
+            throw new IOException($"{operation}: {LibraryText.Format("StreamDecoderError", _api.Error(_port))}");
         }
     }
 

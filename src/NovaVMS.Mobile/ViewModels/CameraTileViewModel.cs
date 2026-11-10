@@ -3,9 +3,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
-using NovaVMS.Mobile.Localization;
 using NovaVMS.Mobile.Models;
 using NovaVMS.Mobile.Services;
+using NovaVMS.Presentation.Localization;
 
 namespace NovaVMS.Mobile.ViewModels;
 

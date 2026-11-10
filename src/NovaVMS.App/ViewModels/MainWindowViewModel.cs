@@ -1,12 +1,14 @@
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using NovaVMS.App.Localization;
 using NovaVMS.App.Models;
 using NovaVMS.App.Services;
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Exceptions;
 using NovaVMS.Core.Models;
+using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.Models;
+using NovaVMS.Presentation.Services;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -165,7 +167,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             }
 
             // A newer version from the settings database is applied before devices connect.
-            await _settingsSync.StartAsync();
+            await _settingsSync.StartAsync(announceCheck: true);
 
             if (_lifetime.IsCancellationRequested)
             {

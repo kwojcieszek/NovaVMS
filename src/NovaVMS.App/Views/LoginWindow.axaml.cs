@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using NovaVMS.App.Localization;
 using NovaVMS.App.Services;
+using NovaVMS.Presentation.Localization;
 
 namespace NovaVMS.App.Views;
 

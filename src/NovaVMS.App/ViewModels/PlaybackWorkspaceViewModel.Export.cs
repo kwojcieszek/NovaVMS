@@ -1,9 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using NovaVMS.App.Localization;
 using NovaVMS.App.Models;
 using NovaVMS.App.Services;
 using NovaVMS.Core.Models;
+using NovaVMS.Presentation.Localization;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -80,15 +80,15 @@ public sealed partial class PlaybackWorkspaceViewModel
         return targets;
     }
 
-    partial void OnExportFromTextChanged(string value) => ExportFromTime = PlaybackViewModel.ParseExportTime(value);
+    partial void OnExportFromTextChanged(string value) => ExportFromTime = ExportTimeRange.Parse(value);
 
-    partial void OnExportToTextChanged(string value) => ExportToTime = PlaybackViewModel.ParseExportTime(value);
+    partial void OnExportToTextChanged(string value) => ExportToTime = ExportTimeRange.Parse(value);
 
     partial void OnExportFromTimeChanged(TimeSpan? value)
     {
         if (value.HasValue)
         {
-            ExportFromText = value.Value.ToString(@"hh\:mm\:ss");
+            ExportFromText = ExportTimeRange.Format(value.Value);
         }
     }
 
@@ -96,13 +96,12 @@ public sealed partial class PlaybackWorkspaceViewModel
     {
         if (value.HasValue)
         {
-            ExportToText = value.Value.ToString(@"hh\:mm\:ss");
+            ExportToText = ExportTimeRange.Format(value.Value);
         }
     }
 
     private bool CanExport() => !_shutdown && !IsExporting && Tiles.Any(tile => tile.IsExportSelected && tile.Playback.HasCamera)
-        && ExportFromDate.HasValue && ExportToDate.HasValue && ExportFromTime.HasValue && ExportToTime.HasValue
-        && ExportFromDate.Value.Date + ExportFromTime.Value < ExportToDate.Value.Date + ExportToTime.Value;
+        && ExportTimeRange.IsValid(ExportFromDate, ExportFromTime, ExportToDate, ExportToTime);
 
     [RelayCommand(CanExecute = nameof(HasCamera))]
     private void MarkExportStart()
