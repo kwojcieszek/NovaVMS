@@ -44,15 +44,20 @@ public sealed partial class CameraViewModel : PageViewModel
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsWindowed))]
+    [NotifyPropertyChangedFor(nameof(IsFullScreenMenuVisible))]
+    [NotifyPropertyChangedFor(nameof(IsFullScreenTimelineVisible))]
+    [NotifyPropertyChangedFor(nameof(LayoutInsets))]
     private bool _isFullScreen;
 
-    /// <summary>The transparent playback menu above a full screen camera; a tap on the picture shows it.</summary>
+    /// <summary>The bars of a full screen camera above and below the picture; a tap on the picture shows or hides them.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFullScreenMenuVisible))]
     private bool _isOverlayVisible;
 
     /// <summary>Recordings are played instead of the live picture.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsLive))]
+    [NotifyPropertyChangedFor(nameof(IsFullScreenTimelineVisible))]
     private bool _isPlayback;
 
     /// <summary>What is shown: live picture or the recorded time being played; shown in the playback menu.</summary>
@@ -72,8 +77,14 @@ public sealed partial class CameraViewModel : PageViewModel
 
     public bool IsLive => !IsPlayback;
 
-    /// <summary>The playback menu keeps clear of the notch and the rounded corners of the landscape screen.</summary>
-    public Thickness OverlayInsets => _shell.SafeArea;
+    /// <summary>The top bar of a full screen camera: back, title and the choice of live picture or recordings.</summary>
+    public bool IsFullScreenMenuVisible => IsFullScreen && IsOverlayVisible;
+
+    /// <summary>The bar of the recordings is shown the whole time recordings are played and never with the live picture.</summary>
+    public bool IsFullScreenTimelineVisible => IsFullScreen && IsPlayback;
+
+    /// <summary>A full screen camera keeps clear of the notch and the rounded corners of the landscape screen.</summary>
+    public Thickness LayoutInsets => IsFullScreen ? _shell.SafeArea : default;
 
     public PtzViewModel Ptz { get; }
 
@@ -97,6 +108,8 @@ public sealed partial class CameraViewModel : PageViewModel
         _positionTimer = new DispatcherTimer { Interval = PositionInterval };
         _positionTimer.Tick += (_, _) => UpdatePosition();
 
+        _shell.PropertyChanged += OnShellPropertyChanged;
+
         Ptz = new PtzViewModel(shell, client, channel);
         Recordings = new RecordingsViewModel(shell, this, client, channel);
     }
@@ -119,21 +132,12 @@ public sealed partial class CameraViewModel : PageViewModel
     {
         _overlayTimer.Stop();
         _positionTimer.Stop();
-        _shell.Player.SetOverlay(null);
+        _shell.PropertyChanged -= OnShellPropertyChanged;
 
         Video = null;
     }
 
-    /// <summary>Places the playback menu above the picture of a full screen camera.</summary>
-    public void AttachOverlay(Control overlay)
-    {
-        if (IsFullScreen)
-        {
-            _shell.Player.SetOverlay(overlay);
-        }
-    }
-
-    /// <summary>A single tap on the picture shows the menu; a tap on the menu background hides it again.</summary>
+    /// <summary>A single tap on the picture shows the menu and the next one hides it again.</summary>
     public void ToggleOverlay()
     {
         IsOverlayVisible = !IsOverlayVisible;
@@ -398,18 +402,24 @@ public sealed partial class CameraViewModel : PageViewModel
         if (!value)
         {
             IsOverlayVisible = false;
-
-            _shell.Player.SetOverlay(null);
         }
 
         _shell.IsFullScreen = value;
+    }
+
+    // The calendar belongs to the bar of the recordings, which the live picture does not show.
+    partial void OnIsPlaybackChanged(bool value)
+    {
+        if (!value)
+        {
+            Recordings.IsCalendarOpen = false;
+        }
     }
 
     partial void OnIsOverlayVisibleChanged(bool value)
     {
         if (value)
         {
-            OnPropertyChanged(nameof(OverlayInsets));
             _overlayTimer.Start();
         }
         else
@@ -418,8 +428,14 @@ public sealed partial class CameraViewModel : PageViewModel
 
             Recordings.IsCalendarOpen = false;
         }
+    }
 
-        _shell.Player.SetOverlayVisible(value);
+    private void OnShellPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ShellViewModel.SafeArea))
+        {
+            OnPropertyChanged(nameof(LayoutInsets));
+        }
     }
 
     partial void OnSoundEnabledChanged(bool value)

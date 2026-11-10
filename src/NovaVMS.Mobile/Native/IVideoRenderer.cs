@@ -15,6 +15,9 @@ internal interface IVideoRenderer
     /// <summary>Decodes again from the next key frame, e.g. after pictures were skipped while paused.</summary>
     void RequireKeyFrame();
 
+    /// <summary>Prepares for another stream; the shown picture stays where the platform can keep it until the first new one.</summary>
+    void Restart();
+
     /// <summary>Removes the shown picture; called when the stream stops.</summary>
     void Clear();
 

@@ -130,6 +130,12 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
         }
     }
 
+    // The decoder is set up again for the new stream.
+    public void Restart()
+    {
+        Clear();
+    }
+
     public void Clear()
     {
         lock (_gate)

@@ -105,6 +105,15 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
         }
     }
 
+    // The layer keeps showing the last picture; the first key frame of the new stream replaces it.
+    public void Restart()
+    {
+        lock (_gate)
+        {
+            _needKeyFrame = true;
+        }
+    }
+
     public void Clear()
     {
         lock (_gate)
@@ -294,6 +303,12 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
             _needKeyFrame = true;
 
             return false;
+        }
+
+        // Pictures of the previous stream are dropped from the queue; the one on screen stays until a new one is decoded.
+        if (_format is not null)
+        {
+            Flush(removeImage: false);
         }
 
         _format?.Dispose();

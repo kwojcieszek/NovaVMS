@@ -76,7 +76,7 @@
 
     <TextBlock Grid.Row="1" Classes="muted" Margin="16" Text="{l:Tr Mobile_GroupEmpty}" IsVisible="{Binding IsEmpty}" TextWrapping="Wrap" />
 
-    <!-- Tapping a tile opens the camera; the video views are clipped to this list while it scrolls -->
+    <!-- A double tap on a tile opens the camera full screen; the video views are clipped to this list while it scrolls -->
     <Border Grid.Row="1" Background="{DynamicResource NovaTileBackground}">
       <ScrollViewer Classes="previews" Classes.scrollable="{Binding IsScrollable}">
         <ItemsControl ItemsSource="{Binding Tiles}">
@@ -89,7 +89,7 @@
             <DataTemplate DataType="vm:CameraTileViewModel">
               <Button Classes="tile"
                       AutomationProperties.Name="{Binding AutomationName}"
-                      Command="{Binding OpenCommand}">
+                      Click="OnTileClick">
                 <!-- Native video is drawn above Avalonia content, so the name is a strip below the picture, not an overlay -->
                 <Grid RowDefinitions="*,Auto">
                   <Border Classes="preview">

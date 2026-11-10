@@ -48,7 +48,9 @@ public sealed class SystemVideoPlayer : IMobilePlayer
 
     public async Task PlayAsync(VideoSource source, Device device, PlaybackOptions options, CancellationToken cancellationToken = default)
     {
-        await StopAsync();
+        // The last picture stays until the new stream shows its first one, so switching between the live picture and
+        // recordings or choosing another time never leaves an empty screen.
+        await StopAsync(clear: false);
         cancellationToken.ThrowIfCancellationRequested();
 
         if (source.IsStream)
@@ -72,14 +74,19 @@ public sealed class SystemVideoPlayer : IMobilePlayer
         _run = run;
         _paused = false;
         _playingReported = 0;
-        _renderer?.RequireKeyFrame();
+        _renderer?.Restart();
 
         StatusChanged?.Invoke(this, Localizer.Text("Mobile_Connecting"));
 
         _receiving = Task.Run(() => ReceiveAsync(session, run.Token), CancellationToken.None);
     }
 
-    public async Task StopAsync()
+    public Task StopAsync()
+    {
+        return StopAsync(clear: true);
+    }
+
+    private async Task StopAsync(bool clear)
     {
         var run = _run;
         var receiving = _receiving;
@@ -106,7 +113,10 @@ public sealed class SystemVideoPlayer : IMobilePlayer
 
         await Task.Run(() => lifetime?.Dispose());
 
-        _renderer?.Clear();
+        if (clear)
+        {
+            _renderer?.Clear();
+        }
     }
 
     public void SetPaused(bool paused)

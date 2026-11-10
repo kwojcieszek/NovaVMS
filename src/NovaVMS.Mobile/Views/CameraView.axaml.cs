@@ -2,6 +2,8 @@ using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Threading;
 using NovaVMS.Mobile.ViewModels;
 
@@ -24,6 +26,9 @@ public partial class CameraView : UserControl
     public CameraView()
     {
         InitializeComponent();
+
+        // Using the bars keeps them open; buttons and the hour bar handle their touches, so this runs before they see them.
+        AddHandler(PointerPressedEvent, OnAnyPointerPressed, RoutingStrategies.Tunnel);
     }
 
     protected override void OnSizeChanged(SizeChangedEventArgs e)
@@ -67,19 +72,17 @@ public partial class CameraView : UserControl
         }
     }
 
-    // The playback menu of a full screen camera lives in the player's layer above the picture.
     private void ApplyFullScreen()
     {
         ResizeVideo();
-
-        if (_camera is { IsFullScreen: true } camera)
-        {
-            camera.AttachOverlay(new PlaybackOverlay { DataContext = camera });
-        }
     }
 
-    // Native video is drawn above Avalonia content, so a full screen camera has no visible buttons; iOS also has
-    // no system back button. A double tap on the picture switches full screen; a single tap on a full screen
+    private void OnAnyPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        _camera?.KeepOverlay();
+    }
+
+    // A full screen camera shows only the picture until it is tapped; iOS also has no system back button. A double tap on the picture switches full screen; a single tap on a full screen
     // picture opens the playback menu, so touching the picture by accident does not close the camera.
     // The double tap is recognized when the finger is lifted, and acted on only after that touch has ended:
     // removing the native video view under a finger that is still down makes UIKit cancel the touch, and the
@@ -130,13 +133,18 @@ public partial class CameraView : UserControl
         }
     }
 
-    // Full screen the video spans every row of the page; otherwise 16:9 video that never takes more than 40% of the screen height.
+    // Full screen the video fills the space between the bars, beside the calendar when it is open, on a black page;
+    // otherwise 16:9 video that never takes more than 40% of the screen height.
     private void ResizeVideo()
     {
         var fullScreen = DataContext is CameraViewModel { IsFullScreen: true };
 
-        Grid.SetRow(VideoArea, fullScreen ? 0 : 1);
-        Grid.SetRowSpan(VideoArea, fullScreen ? 3 : 1);
+        Grid.SetRowSpan(VideoArea, fullScreen ? 2 : 1);
+        Grid.SetColumn(VideoArea, fullScreen ? 1 : 0);
+        Grid.SetColumnSpan(VideoArea, fullScreen ? 1 : 2);
+
+        VideoArea.BorderThickness = fullScreen ? default : new Thickness(1);
+        Background = fullScreen ? Brushes.Black : null;
 
         if (fullScreen)
         {

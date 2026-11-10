@@ -1,6 +1,7 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using NovaVMS.Core.Models;
@@ -55,8 +56,14 @@ public sealed class MobileLayoutTests
             await WaitForAsync(() => FindExecutable(shell, name => name == "Recorder") is not null);
             Click(FindExecutable(shell, name => name == "Recorder")!);
             await WaitForAsync(() => Shell(shell).CurrentPage is CameraGroupViewModel);
-            await WaitForAsync(() => FindExecutable(shell, IsTestCamera) is not null);
-            Click(FindExecutable(shell, IsTestCamera)!);
+            await WaitForAsync(() => FindTile(shell) is not null);
+
+            // A single tap on a preview does nothing; a double tap opens the camera.
+            FindTile(shell)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+            Assert.IsType<CameraGroupViewModel>(Shell(shell).CurrentPage);
+
+            FindTile(shell)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await WaitForAsync(() => main.Starts == 1);
 
             // The preview stopped while its video surface was still shown, then it was released.
@@ -76,8 +83,9 @@ public sealed class MobileLayoutTests
             await WaitForAsync(() => Shell(shell).CurrentPage is CameraGroupViewModel);
 
             Assert.False(display.IsFullScreen);
-            await WaitForAsync(() => FindExecutable(shell, IsTestCamera) is not null);
-            Click(FindExecutable(shell, IsTestCamera)!);
+            await WaitForAsync(() => FindTile(shell) is not null);
+            FindTile(shell)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            FindTile(shell)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await WaitForAsync(() => main.Starts == 2);
             await shell.SuspendAsync();
 
@@ -223,6 +231,11 @@ public sealed class MobileLayoutTests
         return shell.GetLogicalDescendants()
             .OfType<Button>()
             .FirstOrDefault(button => name(AutomationProperties.GetName(button)) && button.Command?.CanExecute(button.CommandParameter) == true);
+    }
+
+    private static Button? FindTile(MobileShell shell)
+    {
+        return shell.GetLogicalDescendants().OfType<Button>().FirstOrDefault(button => IsTestCamera(AutomationProperties.GetName(button)) && button.Classes.Contains("tile"));
     }
 
     // Buttons run bound commands; raising the routed Click event alone does not execute them.
