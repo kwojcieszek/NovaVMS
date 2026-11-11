@@ -6,8 +6,9 @@ namespace NovaVMS.Protocols.Rtsp;
 /// RFC 6184 (H.264) and RFC 7798 (H.265) depacketization into whole pictures. Live video over a mobile
 /// network loses data now and then: a damaged picture is dropped and pictures are skipped until the next key
 /// frame, instead of ending the stream, so the decoder never receives a picture it cannot decode.
+/// With a stream key, Hikvision encrypted NAL units are decrypted before they are assembled.
 /// </summary>
-public sealed class RtpVideoAssembler
+public sealed class RtpVideoAssembler : IDisposable
 {
     private const int MaxPictureSize = 8 * 1024 * 1024;
 
@@ -16,6 +17,7 @@ public sealed class RtpVideoAssembler
     private readonly Action<VideoAccessUnit> _output;
     private readonly List<byte[]> _nals = [];
     private readonly MemoryStream _fragment = new();
+    private readonly HikvisionNalDecryptor? _decryptor;
     private byte[]?[] _parameters;
     private IReadOnlyList<byte[]> _parameterList;
     private ushort _expectedSequence;
@@ -23,6 +25,8 @@ public sealed class RtpVideoAssembler
     private bool _pictureDamaged;
     private bool _waitForKeyFrame = true;
     private bool _keyFrame;
+    private bool _packetFlagged;
+    private bool _fragmentFlagged;
     private int _pictureSize;
     private uint _pictureTimestamp;
     private bool _hasPicture;
@@ -30,13 +34,22 @@ public sealed class RtpVideoAssembler
     private uint _previousTimestamp;
     private long _ticks;
 
-    public RtpVideoAssembler(VideoCodec codec, int payloadType, IEnumerable<byte[]> parameterSets, Action<VideoAccessUnit> output)
+    /// <summary>Pictures dropped because data was lost; for diagnostics.</summary>
+    public int DroppedPictures { get; private set; }
+
+    /// <summary>Encrypted video did not decrypt with the stream key.</summary>
+    public bool StreamKeyRejected => _decryptor?.KeyRejected ?? false;
+
+    /// <param name="streamKey">Hikvision stream encryption key (verification code), or null or empty for clear video.</param>
+    public RtpVideoAssembler(VideoCodec codec, int payloadType, IEnumerable<byte[]> parameterSets, Action<VideoAccessUnit> output,
+        string? streamKey = null)
     {
         _codec = codec;
         _payloadType = payloadType;
         _output = output;
         _parameters = new byte[3][];
         _parameterList = [];
+        _decryptor = string.IsNullOrEmpty(streamKey) ? null : new HikvisionNalDecryptor(streamKey, codec);
 
         foreach (var parameter in parameterSets)
         {
@@ -49,9 +62,6 @@ public sealed class RtpVideoAssembler
         _parameterList = CurrentParameters();
     }
 
-    /// <summary>Pictures dropped because data was lost; for diagnostics.</summary>
-    public int DroppedPictures { get; private set; }
-
     /// <summary>Processes one RTP packet; the span is only read during the call.</summary>
     public void Accept(ReadOnlySpan<byte> packet)
     {
@@ -62,6 +72,8 @@ public sealed class RtpVideoAssembler
 
         var offset = 12 + (packet[0] & 15) * 4;
 
+        _packetFlagged = false;
+
         if ((packet[0] & 0x10) != 0)
         {
             if (offset + 4 > packet.Length)
@@ -69,6 +81,7 @@ public sealed class RtpVideoAssembler
                 return;
             }
 
+            _packetFlagged = BinaryPrimitives.ReadUInt16BigEndian(packet[offset..]) == HikvisionNalDecryptor.ExtensionProfile;
             offset += 4 + BinaryPrimitives.ReadUInt16BigEndian(packet[(offset + 2)..]) * 4;
         }
 
@@ -118,6 +131,12 @@ public sealed class RtpVideoAssembler
         }
     }
 
+    public void Dispose()
+    {
+        _decryptor?.Dispose();
+        _fragment.Dispose();
+    }
+
     private void Depacketize(ReadOnlySpan<byte> payload)
     {
         var hevc = _codec == VideoCodec.H265;
@@ -150,7 +169,7 @@ public sealed class RtpVideoAssembler
                     return;
                 }
 
-                AddNal(payload.Slice(index, size));
+                AddNal(payload.Slice(index, size), _packetFlagged);
                 index += size;
             }
 
@@ -176,6 +195,7 @@ public sealed class RtpVideoAssembler
             if (start)
             {
                 _fragment.SetLength(0);
+                _fragmentFlagged = false;
 
                 if (hevc)
                 {
@@ -203,11 +223,12 @@ public sealed class RtpVideoAssembler
                 return;
             }
 
+            _fragmentFlagged |= _packetFlagged;
             _fragment.Write(payload[fuSize..]);
 
             if (finish)
             {
-                AddNal(_fragment.GetBuffer().AsSpan(0, (int)_fragment.Length));
+                AddNal(_fragment.GetBuffer().AsSpan(0, (int)_fragment.Length), _fragmentFlagged);
                 _fragment.SetLength(0);
             }
 
@@ -216,12 +237,17 @@ public sealed class RtpVideoAssembler
 
         if ((!hevc && type is > 0 and < 24) || (hevc && type < 48))
         {
-            AddNal(payload);
+            AddNal(payload, _packetFlagged);
         }
     }
 
-    private void AddNal(ReadOnlySpan<byte> nal)
+    private void AddNal(ReadOnlySpan<byte> nal, bool flagged)
     {
+        if (_decryptor?.Decrypt(nal, flagged) is { } plain)
+        {
+            nal = plain;
+        }
+
         var type = NalType(nal);
 
         if (ParameterSlot(type) is { } slot)

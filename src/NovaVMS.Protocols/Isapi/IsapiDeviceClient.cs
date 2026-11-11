@@ -1,6 +1,6 @@
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
-using NovaVMS.Protocols.HcNetSdk;
+using NovaVMS.Protocols.Rtsp;
 
 namespace NovaVMS.Protocols.Isapi;
 
@@ -50,7 +50,7 @@ public sealed class IsapiDeviceClient : IDeviceClient
         var uri = new UriBuilder("rtsp", _device.Host, _device.RtspPort, $"/Streaming/Channels/{streamId}").Uri;
 
         return string.IsNullOrEmpty(_device.StreamEncryptionKey) ? VideoSource.FromUri(uri)
-            : HikvisionRtspVideoStream.CreateSource(uri, _device, playback: false);
+            : DecryptedRtspVideoStream.CreateSource(uri, _device, playback: false);
     }
 
     public Task<IReadOnlyList<RecordingSegment>> SearchRecordingsAsync(int channelNumber, DateTime from, DateTime to, CancellationToken cancellationToken = default)
@@ -67,7 +67,7 @@ public sealed class IsapiDeviceClient : IDeviceClient
         };
 
         return string.IsNullOrEmpty(_device.StreamEncryptionKey) ? VideoSource.FromUri(builder.Uri)
-            : HikvisionRtspVideoStream.CreateSource(builder.Uri, _device, playback: true);
+            : DecryptedRtspVideoStream.CreateSource(builder.Uri, _device, playback: true);
     }
 
     public Task PtzMoveAsync(int channelNumber, int pan, int tilt, int zoom, CancellationToken cancellationToken = default)

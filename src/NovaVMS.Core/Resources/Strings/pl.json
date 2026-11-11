@@ -371,6 +371,7 @@
   "StreamDecryptionNoFrames": "Nie otrzymano odszyfrowanego obrazu. Sprawdź klucz strumienia, połączenie i bibliotekę PlayCtrl.",
   "StreamRtspUnsupported": "Ta ścieżka szyfrowanego obrazu wymaga RTSP Hikvision przez TCP. Dekoder nie obsługuje RTSPS ani SRTP.",
   "StreamRtspFailed": "Nie udało się odtworzyć szyfrowanego RTSP. Sprawdź adres, dane logowania, klucz oraz obsługę nagłówka MEDIAINFO i kodeka Hikvision.",
+  "StreamKeyWrong": "Nie udało się odszyfrować obrazu kluczem strumienia. Sprawdź klucz (kod weryfikacyjny) w ustawieniach rejestratora.",
   "FileEmpty": "Plik jest pusty.",
   "NoHostColumn": "Nie znaleziono kolumny z adresem IP. Oczekiwano nagłówka np. „Adres IP” lub „IP Address”.",
   "RowNoHost": "Wiersz {0}: brak adresu IP - pominięto.",

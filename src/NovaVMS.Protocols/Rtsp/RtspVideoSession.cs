@@ -24,6 +24,7 @@ public sealed class RtspVideoSession
     private readonly Uri _uri;
     private readonly string _username;
     private readonly string _password;
+    private readonly string? _streamKey;
     private readonly Action<VideoAccessUnit> _output;
 
     private Stream? _reader;
@@ -36,9 +37,16 @@ public sealed class RtspVideoSession
     private int _videoChannel = -1;
     private int _keepAliveSeconds = 20;
 
+    /// <summary>Pictures dropped because data was lost; for diagnostics.</summary>
+    public int DroppedPictures => _assembler?.DroppedPictures ?? 0;
+
+    /// <summary>Encrypted video did not decrypt with the stream key.</summary>
+    public bool StreamKeyRejected => _assembler?.StreamKeyRejected ?? false;
+
     /// <param name="uri">RTSP address; credentials in it are used when <paramref name="username"/> is empty and are never sent in the address.</param>
     /// <param name="output">Receives every complete picture on the receiving thread; it must not block for long.</param>
-    public RtspVideoSession(Uri uri, string? username, string? password, Action<VideoAccessUnit> output)
+    /// <param name="streamKey">Hikvision stream encryption key from the device settings, or null or empty for clear video.</param>
+    public RtspVideoSession(Uri uri, string? username, string? password, Action<VideoAccessUnit> output, string? streamKey = null)
     {
         if (uri.Scheme != "rtsp")
         {
@@ -50,11 +58,9 @@ public sealed class RtspVideoSession
         _username = string.IsNullOrEmpty(username) && info[0].Length > 0 ? Uri.UnescapeDataString(info[0]) : username ?? "";
         _password = string.IsNullOrEmpty(username) && info.Length > 1 ? Uri.UnescapeDataString(info[1]) : password ?? "";
         _uri = new UriBuilder(uri) { UserName = "", Password = "" }.Uri;
+        _streamKey = streamKey;
         _output = output;
     }
-
-    /// <summary>Pictures dropped because data was lost; for diagnostics.</summary>
-    public int DroppedPictures => _assembler?.DroppedPictures ?? 0;
 
     /// <summary>
     /// Connects, starts the stream and receives it until <paramref name="cancellationToken"/> is cancelled
@@ -89,7 +95,7 @@ public sealed class RtspVideoSession
 
             var description = RtspVideoDescription.Parse(Encoding.UTF8.GetString(describe.Body), baseUri);
 
-            _assembler = new RtpVideoAssembler(description.Codec, description.PayloadType, description.ParameterSets, _output);
+            _assembler = new RtpVideoAssembler(description.Codec, description.PayloadType, description.ParameterSets, _output, _streamKey);
 
             var setup = await RequestAsync("SETUP", description.Track, "Transport: RTP/AVP/TCP;unicast;interleaved=0-1\r\n", stop.Token).ConfigureAwait(false);
 
@@ -147,6 +153,7 @@ public sealed class RtspVideoSession
             }
 
             _idle?.Dispose();
+            _assembler?.Dispose();
         }
     }
 

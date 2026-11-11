@@ -371,6 +371,7 @@
   "StreamDecryptionNoFrames": "No decrypted video was received. Check the stream key, connection and PlayCtrl library.",
   "StreamRtspUnsupported": "This encrypted video path requires Hikvision RTSP over TCP. RTSPS and SRTP are not supported by this decoder.",
   "StreamRtspFailed": "Encrypted RTSP playback failed. Check the address, credentials, stream key and Hikvision MEDIAINFO/codec support.",
+  "StreamKeyWrong": "The video could not be decrypted with the stream key. Check the stream key (verification code) in the recorder settings.",
   "FileEmpty": "The file is empty.",
   "NoHostColumn": "No IP address column was found. Expected a header such as \"IP Address\" or \"Address\".",
   "RowNoHost": "Row {0}: no IP address - skipped.",

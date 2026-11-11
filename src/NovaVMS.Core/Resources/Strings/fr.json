@@ -371,6 +371,7 @@
   "StreamDecryptionNoFrames": "Aucune vidéo déchiffrée n’a été reçue. Vérifiez la clé de flux, la connexion et la bibliothèque PlayCtrl.",
   "StreamRtspUnsupported": "Ce chemin vidéo chiffré nécessite le RTSP Hikvision sur TCP. RTSPS et SRTP ne sont pas pris en charge par ce décodeur.",
   "StreamRtspFailed": "Échec de la lecture RTSP chiffrée. Vérifiez l’adresse, les identifiants, la clé de flux et la prise en charge MEDIAINFO/codec de Hikvision.",
+  "StreamKeyWrong": "Impossible de déchiffrer la vidéo avec la clé de flux. Vérifiez la clé de flux (code de vérification) dans les paramètres de l’enregistreur.",
   "FileEmpty": "Le fichier est vide.",
   "NoHostColumn": "Aucune colonne d’adresse IP trouvée. Un en-tête tel que « IP Address » ou « Address » est attendu.",
   "RowNoHost": "Ligne {0} : aucune adresse IP - ignorée.",

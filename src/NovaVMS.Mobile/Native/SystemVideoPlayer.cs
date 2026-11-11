@@ -51,22 +51,36 @@ public sealed class SystemVideoPlayer : IMobilePlayer
         await StopAsync();
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (source.IsStream)
+        var encryptedUri = source.EncryptedUri;
+
+        if (source.IsStream && encryptedUri is null)
         {
-            // Streams of device libraries (the Hikvision SDK, encrypted video) need the desktop decoders.
+            // Streams of the Hikvision SDK need the desktop decoders.
             throw new NotSupportedException("Data stream sources are not supported on phones.");
         }
 
-        // Opening a recording can start a local session that connects to the device.
-        var (uri, lifetime) = await Task.Run(() =>
+        Uri uri;
+        IDisposable? lifetime = null;
+
+        if (encryptedUri is not null)
         {
-            var address = source.OpenUri(out var owned);
+            // Encrypted RTSP video is decrypted here with the stream key of the device.
+            uri = encryptedUri;
+        }
+        else
+        {
+            // Opening a recording can start a local session that connects to the device.
+            (uri, lifetime) = await Task.Run(() =>
+            {
+                var address = source.OpenUri(out var owned);
 
-            return (address, owned);
-        }, cancellationToken);
+                return (address, owned);
+            }, cancellationToken);
+        }
 
+        var streamKey = encryptedUri is null ? null : device.StreamEncryptionKey;
         var run = new CancellationTokenSource();
-        var session = new RtspVideoSession(uri, device.Username, device.Password, Show);
+        var session = new RtspVideoSession(uri, device.Username, device.Password, Show, streamKey);
 
         _lifetime = lifetime;
         _run = run;

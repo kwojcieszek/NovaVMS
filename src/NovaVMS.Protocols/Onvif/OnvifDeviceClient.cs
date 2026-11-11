@@ -120,7 +120,7 @@ public sealed class OnvifDeviceClient : IDeviceClient
         uri = new UriBuilder(uri) { Host = _device.Host, Port = _device.RtspPortOverride ?? uri.Port }.Uri;
 
         return string.IsNullOrEmpty(_device.StreamEncryptionKey) ? VideoSource.FromUri(uri)
-            : NovaVMS.Protocols.HcNetSdk.HikvisionRtspVideoStream.CreateSource(uri, _device, playback: false);
+            : NovaVMS.Protocols.Rtsp.DecryptedRtspVideoStream.CreateSource(uri, _device, playback: false);
     }
 
     public async Task<IReadOnlyList<RecordingSegment>> SearchRecordingsAsync(int channelNumber, DateTime from, DateTime to, CancellationToken cancellationToken = default)
