@@ -256,8 +256,6 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
 
     partial void OnSelectedStreamModeChanged(StreamModeOption value)
     {
-        _shell.MainStream = value.Value == GridStreamMode.Main;
-
         ApplyChanges();
     }
 

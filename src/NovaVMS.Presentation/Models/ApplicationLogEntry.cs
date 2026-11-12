@@ -1,4 +1,4 @@
-namespace NovaVMS.App.ViewModels;
+namespace NovaVMS.Presentation.Models;
 
 public sealed record ApplicationLogEntry(string Timestamp, string ProcessId, string ThreadId, string Source, string Details)
 {

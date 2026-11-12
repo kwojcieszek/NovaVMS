@@ -71,7 +71,7 @@ public sealed partial class CameraTileViewModel : ViewModelBase
 
             var source = await _client.GetLiveSourceAsync(_camera.Channel.Number, StreamType.Sub, token);
 
-            await _player.PlayAsync(source, _camera.Device, options, token);
+            await _player.PlayAsync(source, _camera.Device, options with { DisplayAspectRatio = _camera.Channel.MainAspectRatio }, token);
 
             _player.SetMuted(true);
             State = string.Empty;
@@ -80,9 +80,10 @@ public sealed partial class CameraTileViewModel : ViewModelBase
         {
             State = string.Empty;
         }
-        catch
+        catch (Exception exception)
         {
             State = Localizer.Text("Mobile_PreviewFailed");
+            MobileLog.Post($"{State} ({_camera.Channel.DisplayName})", exception);
         }
         finally
         {

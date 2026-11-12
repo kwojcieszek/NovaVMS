@@ -184,6 +184,8 @@
   "Log_Clear": "Clear log file",
   "Log_ClearError": "Could not clear the log file: {0}",
   "Log_Error": "Could not read the log: {0}",
+  "Log_Copy": "Copy entry",
+  "Log_Copied": "The entry was copied to the clipboard.",
   "Settings_General": "General",
   "Devices_New": "New device",
   "Devices_ImportCsvHeader": "Import from CSV",

@@ -21,6 +21,8 @@ public sealed partial class App : Application
     {
         var platform = Platform ?? throw new InvalidOperationException("Mobile platform is not configured.");
 
+        MobileLog.Install(platform.DataDirectory);
+
         if (ApplicationLifetime is IActivityApplicationLifetime activity)
         {
             activity.MainViewFactory = () => Shell = new MobileShell(platform);

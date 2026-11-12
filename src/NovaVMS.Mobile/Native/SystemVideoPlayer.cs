@@ -32,6 +32,7 @@ public sealed class SystemVideoPlayer : IMobilePlayer
     private volatile bool _paused;
     private int _playingReported;
     private bool _fill;
+    private double? _aspectRatio;
     private Control? _overlay;
     private bool _overlayVisible;
 
@@ -52,6 +53,9 @@ public sealed class SystemVideoPlayer : IMobilePlayer
         // recordings or choosing another time never leaves an empty screen.
         await StopAsync(clear: false);
         cancellationToken.ThrowIfCancellationRequested();
+
+        _aspectRatio = ParseAspectRatio(options.DisplayAspectRatio);
+        _renderer?.SetAspectRatio(_aspectRatio);
 
         var encryptedUri = source.EncryptedUri;
 
@@ -83,6 +87,10 @@ public sealed class SystemVideoPlayer : IMobilePlayer
         var streamKey = encryptedUri is null ? null : device.StreamEncryptionKey;
         var run = new CancellationTokenSource();
         var session = new RtspVideoSession(uri, device.Username, device.Password, Show, streamKey);
+        var description = $"{device.DisplayName}: RTSP over TCP {MobileLog.Describe(uri)}{(streamKey is null ? "" : ", encrypted video")}, "
+            + $"shown {options.DisplayAspectRatio ?? "in the picture size"}";
+
+        MobileLog.Post($"Player: {description}");
 
         _lifetime = lifetime;
         _run = run;
@@ -92,7 +100,7 @@ public sealed class SystemVideoPlayer : IMobilePlayer
 
         StatusChanged?.Invoke(this, Localizer.Text("Mobile_Connecting"));
 
-        _receiving = Task.Run(() => ReceiveAsync(session, run.Token), CancellationToken.None);
+        _receiving = Task.Run(() => ReceiveAsync(session, description, run.Token), CancellationToken.None);
     }
 
     public Task StopAsync()
@@ -147,6 +155,16 @@ public sealed class SystemVideoPlayer : IMobilePlayer
     {
     }
 
+    private static double? ParseAspectRatio(string? ratio)
+    {
+        var parts = ratio?.Split(':');
+
+        return parts is [var width, var height]
+            && double.TryParse(width, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var w)
+            && double.TryParse(height, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var h)
+            && w > 0 && h > 0 ? w / h : null;
+    }
+
     public void SetFillArea(bool fill)
     {
         _fill = fill;
@@ -171,7 +189,7 @@ public sealed class SystemVideoPlayer : IMobilePlayer
         await StopAsync();
     }
 
-    private async Task ReceiveAsync(RtspVideoSession session, CancellationToken token)
+    private async Task ReceiveAsync(RtspVideoSession session, string description, CancellationToken token)
     {
         try
         {
@@ -179,11 +197,13 @@ public sealed class SystemVideoPlayer : IMobilePlayer
 
             if (!token.IsCancellationRequested)
             {
+                MobileLog.Post($"Player ended: {description}");
                 StatusChanged?.Invoke(this, Localizer.Text("Mobile_StreamEnded"));
             }
         }
-        catch (Exception) when (!token.IsCancellationRequested)
+        catch (Exception exception) when (!token.IsCancellationRequested)
         {
+            MobileLog.Post($"Player failed: {description}", exception);
             StatusChanged?.Invoke(this, Localizer.Text("Mobile_PlaybackError"));
         }
         catch (Exception)
@@ -237,6 +257,7 @@ public sealed class SystemVideoPlayer : IMobilePlayer
             _native = new ClippedVideoView();
 #endif
             _native.SetFill(player._fill);
+            _native.SetAspectRatio(player._aspectRatio);
             _native.SetOverlay(player._overlay);
             _native.SetOverlayVisible(player._overlayVisible);
             _visibleArea = null;

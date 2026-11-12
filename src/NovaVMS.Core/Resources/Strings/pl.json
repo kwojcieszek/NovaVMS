@@ -184,6 +184,8 @@
   "Log_Clear": "Wyczyść plik logu",
   "Log_ClearError": "Nie udało się wyczyścić pliku logu: {0}",
   "Log_Error": "Nie udało się odczytać dziennika: {0}",
+  "Log_Copy": "Kopiuj wpis",
+  "Log_Copied": "Skopiowano wpis do schowka.",
   "Settings_General": "Ogólne",
   "Devices_New": "Nowe urządzenie",
   "Devices_ImportCsvHeader": "Import z CSV",

@@ -5,6 +5,7 @@ using CoreAnimation;
 using CoreGraphics;
 using CoreMedia;
 using Foundation;
+using NovaVMS.Mobile.Services;
 using NovaVMS.Protocols.Rtsp;
 using UIKit;
 
@@ -34,6 +35,8 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
     private bool _detached;
     private AvaloniaView? _overlay;
     private CGRect? _area;
+    private bool _fill;
+    private double? _aspectRatio;
 
     /// <summary>The host moves the view by its frame; the mask follows in the same transaction.</summary>
     public override CGRect Frame
@@ -129,7 +132,28 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
 
     public void SetFill(bool fill)
     {
-        _display.VideoGravity = fill ? Stretch : KeepProportions;
+        _fill = fill;
+
+        RequestLayout();
+    }
+
+    public void SetAspectRatio(double? ratio)
+    {
+        _aspectRatio = ratio;
+
+        RequestLayout();
+    }
+
+    private void RequestLayout()
+    {
+        if (NSThread.IsMain)
+        {
+            SetNeedsLayout();
+        }
+        else
+        {
+            BeginInvokeOnMainThread(SetNeedsLayout);
+        }
     }
 
     public void SetVisibleArea(Avalonia.Rect? area, double scale)
@@ -207,9 +231,26 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
     {
         base.LayoutSubviews();
 
+        var bounds = Bounds;
+
         CATransaction.Begin();
         CATransaction.DisableActions = true;
-        _display.Frame = Bounds;
+
+        if (!_fill && _aspectRatio is { } ratio and > 0 && bounds.Width > 0 && bounds.Height > 0)
+        {
+            // Known camera proportions: the layer gets their size and the picture is stretched into it.
+            var width = Math.Min(bounds.Width, bounds.Height * ratio);
+            var height = Math.Min(bounds.Height, bounds.Width / ratio);
+
+            _display.VideoGravity = Stretch;
+            _display.Frame = new CGRect((bounds.Width - width) / 2, (bounds.Height - height) / 2, width, height);
+        }
+        else
+        {
+            _display.VideoGravity = _fill ? Stretch : KeepProportions;
+            _display.Frame = bounds;
+        }
+
         CATransaction.Commit();
     }
 
@@ -309,6 +350,17 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
         if (_format is not null)
         {
             Flush(removeImage: false);
+        }
+
+        var size = format.Dimensions;
+        var previous = _format?.Dimensions;
+
+        if (previous is not { } old || old.Width != size.Width || old.Height != size.Height)
+        {
+            // The shown size includes the pixel aspect ratio of the stream, which decides the proportions on screen.
+            var shown = format.GetPresentationDimensions(true, false);
+
+            MobileLog.Post($"Video: {picture.Codec} {size.Width}x{size.Height}, shown as {shown.Width:0}x{shown.Height:0}");
         }
 
         _format?.Dispose();

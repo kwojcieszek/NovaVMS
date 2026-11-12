@@ -59,6 +59,9 @@
             <DataTemplate DataType="vm:SyncSettingsViewModel">
               <views:SyncSettingsView />
             </DataTemplate>
+            <DataTemplate DataType="vm:LogViewModel">
+              <views:LogView />
+            </DataTemplate>
           </ContentControl.DataTemplates>
         </ContentControl>
       </DockPanel>

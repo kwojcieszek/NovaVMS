@@ -38,6 +38,13 @@
           <PathIcon Grid.Column="2" Classes="muted" Data="{StaticResource IconChevronRight}" Width="18" Height="18" />
         </Grid>
       </Button>
+      <Button Classes="row" AutomationProperties.Name="{l:Tr Settings_Log}" Command="{Binding OpenLogCommand}">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <PathIcon Classes="muted" Data="{StaticResource IconFileDocument}" Width="22" Height="22" />
+          <TextBlock Grid.Column="1" Margin="12,0" VerticalAlignment="Center" FontWeight="SemiBold" Text="{l:Tr Settings_Log}" />
+          <PathIcon Grid.Column="2" Classes="muted" Data="{StaticResource IconChevronRight}" Width="18" Height="18" />
+        </Grid>
+      </Button>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

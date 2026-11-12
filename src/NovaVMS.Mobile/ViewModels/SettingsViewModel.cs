@@ -41,4 +41,10 @@ public sealed partial class SettingsViewModel : PageViewModel
     {
         _shell.ShowSync();
     }
+
+    [RelayCommand]
+    private void OpenLog()
+    {
+        _shell.ShowLog();
+    }
 }

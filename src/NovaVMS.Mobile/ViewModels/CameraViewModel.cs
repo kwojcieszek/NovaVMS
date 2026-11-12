@@ -29,11 +29,11 @@ public sealed partial class CameraViewModel : PageViewModel
     private DateTime _playbackStart;
     private bool _paused;
 
-    [ObservableProperty]
-    private Control? _video;
+    /// <summary>The stream the live picture plays now; null before it starts.</summary>
+    private StreamType? _liveStreamType;
 
     [ObservableProperty]
-    private bool _mainStream;
+    private Control? _video;
 
     [ObservableProperty]
     private bool _soundEnabled;
@@ -68,6 +68,8 @@ public sealed partial class CameraViewModel : PageViewModel
 
     public bool IsWindowed => !IsFullScreen;
 
+    private StreamType LiveStreamType => IsFullScreen ? StreamType.Main : StreamType.Sub;
+
     /// <summary>The sound switch is shown only when the player of this phone plays sound.</summary>
     public bool CanPlaySound => _shell.Player.SupportsAudio;
 
@@ -99,7 +101,6 @@ public sealed partial class CameraViewModel : PageViewModel
         _returnTo = returnTo;
         _isFullScreen = returnTo is not null;
         _video = shell.Player.View;
-        _mainStream = shell.MainStream;
         _soundEnabled = !shell.Muted;
 
         _modeText = Localizer.Text("Mobile_Live");
@@ -199,18 +200,41 @@ public sealed partial class CameraViewModel : PageViewModel
             return;
         }
 
-        // A full screen camera fills the screen, so it always gets the full quality stream.
-        var streamType = IsFullScreen || _shell.MainStream ? StreamType.Main : StreamType.Sub;
+        // The windowed preview always uses the sub stream to save data; only full screen gets the main stream.
+        var streamType = LiveStreamType;
         var source = await _client.GetLiveSourceAsync(_channel.Number, streamType, token);
 
         token.ThrowIfCancellationRequested();
 
         await StartAsync(source, streamType, token);
 
+        _liveStreamType = streamType;
         StopPositionClock();
 
         IsPlayback = false;
         ModeText = Localizer.Text("Mobile_Live");
+
+        // Full screen was entered or left while connecting; the switch runs once this operation has finished.
+        if (streamType != LiveStreamType)
+        {
+            Dispatcher.UIThread.Post(() => _ = SwitchLiveStreamAsync());
+        }
+    }
+
+    private bool NeedsStreamSwitch => !IsPlayback && _liveStreamType is { } current && current != LiveStreamType;
+
+    // A running operation (e.g. the first connection) is not cancelled: the switch waits for it and checks again.
+    private Task SwitchLiveStreamAsync()
+    {
+        return NeedsStreamSwitch
+            ? _shell.RunAfterCurrentAsync(async token =>
+            {
+                if (NeedsStreamSwitch)
+                {
+                    await PlayLiveAsync(token);
+                }
+            })
+            : Task.CompletedTask;
     }
 
     /// <summary>Plays the recordings from <paramref name="start"/> until the end of its day, in the recorder's local time.</summary>
@@ -238,6 +262,7 @@ public sealed partial class CameraViewModel : PageViewModel
 
         await StartAsync(source, StreamType.Main, token);
 
+        _liveStreamType = null;
         IsPlayback = true;
         _playbackStart = start;
 
@@ -248,12 +273,19 @@ public sealed partial class CameraViewModel : PageViewModel
 
     private async Task StartAsync(VideoSource source, StreamType streamType, CancellationToken token)
     {
-        var options = PlaybackPolicy.ForCamera(_shell.Current.Settings, streamType);
+        var options = PlaybackPolicy.ForCamera(_shell.Current.Settings, streamType) with { DisplayAspectRatio = _channel.MainAspectRatio };
 
+        ApplyFill();
         await _shell.Player.PlayAsync(source, _device, options, token);
 
         _shell.Player.SetMuted(_shell.Muted);
         _paused = false;
+    }
+
+    // Full screen always fills the whole screen; the windowed picture follows the proportions setting.
+    private void ApplyFill()
+    {
+        _shell.Player.SetFillArea(IsFullScreen || _shell.Current.Settings.VideoAspectMode == VideoAspectMode.Fit);
     }
 
     // The menu stays while the calendar is open: choosing a day takes longer than the hide delay.
@@ -362,6 +394,7 @@ public sealed partial class CameraViewModel : PageViewModel
         {
             await _shell.Player.StopAsync();
 
+            _liveStreamType = null;
             StopPositionClock();
 
             _shell.Status = Localizer.Text("Mobile_Stopped");
@@ -390,14 +423,7 @@ public sealed partial class CameraViewModel : PageViewModel
         });
     }
 
-    async partial void OnMainStreamChanged(bool value)
-    {
-        _shell.MainStream = value;
-
-        await _shell.RunAsync(PlayLiveAsync);
-    }
-
-    partial void OnIsFullScreenChanged(bool value)
+    async partial void OnIsFullScreenChanged(bool value)
     {
         if (!value)
         {
@@ -405,6 +431,10 @@ public sealed partial class CameraViewModel : PageViewModel
         }
 
         _shell.IsFullScreen = value;
+        ApplyFill();
+
+        // The live picture switches between the sub and the main stream; recordings keep playing.
+        await SwitchLiveStreamAsync();
     }
 
     // The calendar belongs to the bar of the recordings, which the live picture does not show.

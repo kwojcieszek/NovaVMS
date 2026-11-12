@@ -24,6 +24,9 @@ internal interface IVideoRenderer
     /// <summary>Stretches the picture to the view (true) or keeps the camera proportions (false).</summary>
     void SetFill(bool fill);
 
+    /// <summary>Width divided by height to show the picture in when not stretched; null uses the picture size.</summary>
+    void SetAspectRatio(double? ratio);
+
     /// <summary>
     /// Area the view may draw in, in Avalonia units of the top level, converted with <paramref name="scale"/> to pixels;
     /// null shows all of it. The view applies it at the position it is placed at, together with every move.

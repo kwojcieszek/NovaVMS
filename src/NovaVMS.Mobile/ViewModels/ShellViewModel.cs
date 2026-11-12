@@ -87,9 +87,6 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
 
     public bool StorageReady { get; private set; }
 
-    /// <summary>Session preference kept between cameras; starts from the synchronized stream mode.</summary>
-    public bool MainStream { get; set; }
-
     /// <summary>Session preference kept between cameras; sound starts muted.</summary>
     public bool Muted { get; set; } = true;
 
@@ -164,7 +161,6 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
             await Configuration.LoadAsync(token);
 
             StorageReady = true;
-            MainStream = Current.Settings.GridStreamMode == GridStreamMode.Main;
             ShowCameras();
         });
 
@@ -290,6 +286,14 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         CurrentPage = new SyncSettingsViewModel(this);
     }
 
+    internal void ShowLog()
+    {
+        var log = new LogViewModel();
+
+        CurrentPage = log;
+        log.RefreshCommand.Execute(null);
+    }
+
     internal void EditDevice(Device? existing)
     {
         CurrentPage = new DeviceEditViewModel(this, existing);
@@ -333,10 +337,37 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
     }
 
     /// <summary>Runs one device operation with a timeout; a second operation is ignored while one is running.</summary>
-    internal async Task RunAsync(Func<CancellationToken, Task> operation)
+    internal Task RunAsync(Func<CancellationToken, Task> operation)
     {
-        if (_suspended || !await _operations.WaitAsync(0))
+        return RunAsync(operation, waitForRunning: false);
+    }
+
+    /// <summary>Runs one device operation with a timeout after the running one has finished, without cancelling it.</summary>
+    internal Task RunAfterCurrentAsync(Func<CancellationToken, Task> operation)
+    {
+        return RunAsync(operation, waitForRunning: true);
+    }
+
+    private async Task RunAsync(Func<CancellationToken, Task> operation, bool waitForRunning)
+    {
+        if (_suspended)
         {
+            return;
+        }
+
+        if (waitForRunning)
+        {
+            await _operations.WaitAsync();
+        }
+        else if (!await _operations.WaitAsync(0))
+        {
+            return;
+        }
+
+        if (_suspended)
+        {
+            _operations.Release();
+
             return;
         }
 
@@ -349,13 +380,15 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         {
             await operation(cancellation.Token);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException exception)
         {
             Status = Localizer.Text("Mobile_OperationCancelled");
+            MobileLog.Post(Status, exception);
         }
-        catch
+        catch (Exception exception)
         {
             Status = Localizer.Text("Mobile_OperationFailed");
+            MobileLog.Post(Status, exception);
         }
         finally
         {
@@ -389,9 +422,10 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         {
             await action();
         }
-        catch
+        catch (Exception exception)
         {
             Status = Localizer.Text("Mobile_ActionFailed");
+            MobileLog.Post(Status, exception);
         }
     }
 
@@ -405,6 +439,7 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             Status = Localizer.Format("General_SaveFailed", exception.Message);
+            MobileLog.Post(Status, exception);
         }
     }
 
@@ -426,6 +461,7 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             Status = Localizer.Format("General_SaveFailed", exception.Message);
+            MobileLog.Post(Status, exception);
         }
     }
 
@@ -560,6 +596,8 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
 
     private void PlayerStatusChanged(object? sender, string message)
     {
+        MobileLog.Post($"Player: {message}");
+
         Dispatcher.UIThread.Post(() =>
         {
             if (!_disposed && !_suspended && _client is not null)

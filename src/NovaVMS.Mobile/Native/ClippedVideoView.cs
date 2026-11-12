@@ -32,6 +32,7 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
     private bool _detached;
     private AvaloniaView? _overlay;
     private bool _fill;
+    private double? _aspectRatio;
     private int _videoWidth;
     private int _videoHeight;
     private AndroidRect? _area;
@@ -148,6 +149,13 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
     public void SetFill(bool fill)
     {
         _fill = fill;
+
+        Post(ApplyTransform);
+    }
+
+    public void SetAspectRatio(double? ratio)
+    {
+        _aspectRatio = ratio;
 
         Post(ApplyTransform);
     }
@@ -401,10 +409,10 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
         var height = _texture.Height;
         var matrix = new Matrix();
 
-        if (!_fill && width > 0 && height > 0 && _videoWidth > 0 && _videoHeight > 0)
+        if (!_fill && width > 0 && height > 0 && (_aspectRatio is > 0 || (_videoWidth > 0 && _videoHeight > 0)))
         {
             var view = (float)width / height;
-            var video = (float)_videoWidth / _videoHeight;
+            var video = (float)(_aspectRatio ?? (double)_videoWidth / _videoHeight);
             var scaleX = video < view ? video / view : 1f;
             var scaleY = video > view ? view / video : 1f;
 

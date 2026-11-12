@@ -87,21 +87,34 @@ public static class MobileDevices
         }
 
         var selected = resolved.ForHost(resolved.Host.Trim());
+        var name = device.DisplayName;
+
+        MobileLog.Post($"Connect: {name}: protocol {resolved.Protocol}{(resolved.Protocol != device.Protocol ? $" (configured {device.Protocol}, optional connection used)" : "")}, "
+            + $"primary {Endpoint(selected)}"
+            + (string.IsNullOrWhiteSpace(resolved.SecondaryHost) ? ", no secondary address" : $", secondary {Endpoint(resolved.ForSecondaryAddress())}"));
 
         if (!string.IsNullOrWhiteSpace(resolved.SecondaryHost))
         {
             var reachability = new DeviceReachability();
+            var primaryReachable = await reachability.IsReachableAsync(selected, cancellationToken);
 
-            if (!await reachability.IsReachableAsync(selected, cancellationToken))
+            MobileLog.Post($"Connect: {name}: primary {selected.Host}:{selected.ConnectionPort} {(primaryReachable ? "reachable" : "not reachable within 3 s")}");
+
+            if (!primaryReachable)
             {
                 var secondary = resolved.ForSecondaryAddress();
+                var secondaryReachable = await reachability.IsReachableAsync(secondary, cancellationToken);
 
-                if (await reachability.IsReachableAsync(secondary, cancellationToken))
+                MobileLog.Post($"Connect: {name}: secondary {secondary.Host}:{secondary.ConnectionPort} {(secondaryReachable ? "reachable" : "not reachable within 3 s")}");
+
+                if (secondaryReachable)
                 {
                     selected = secondary;
                 }
             }
         }
+
+        MobileLog.Post($"Connect: {name}: using {Endpoint(selected)}");
 
         return selected.Protocol switch
         {
@@ -126,6 +139,14 @@ public static class MobileDevices
 
             await client.PtzStopAsync(channel, timeout.Token);
         }
+    }
+
+    // The port the protocol talks to (HTTP for ISAPI and ONVIF) and the video port.
+    private static string Endpoint(Device device)
+    {
+        var scheme = device.UseHttps ? "https" : "http";
+
+        return $"{device.Protocol} {scheme}://{device.Host}:{device.ConnectionPort}, RTSP port {device.RtspPort}";
     }
 
     private static bool IsSupported(DeviceProtocol protocol)

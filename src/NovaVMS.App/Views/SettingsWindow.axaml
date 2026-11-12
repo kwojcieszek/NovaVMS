@@ -3,6 +3,7 @@
         xmlns:l="using:NovaVMS.App.Localization"
         xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         xmlns:vm="using:NovaVMS.App.ViewModels"
+        xmlns:pm="using:NovaVMS.Presentation.Models"
         xmlns:views="using:NovaVMS.App.Views"
         x:Class="NovaVMS.App.Views.SettingsWindow"
         x:DataType="vm:SettingsWindowViewModel"
@@ -62,11 +63,11 @@
                     AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" HeadersVisibility="Column"
                     CanUserResizeColumns="True" ScrollViewer.AllowAutoHide="False">
             <DataGrid.Columns>
-              <DataGridTextColumn x:DataType="vm:ApplicationLogEntry" Header="{l:Tr Log_Timestamp}" Binding="{Binding Timestamp}" Width="Auto" />
-              <DataGridTextColumn x:DataType="vm:ApplicationLogEntry" Header="{l:Tr Log_ProcessId}" Binding="{Binding ProcessId}" Width="Auto" />
-              <DataGridTextColumn x:DataType="vm:ApplicationLogEntry" Header="{l:Tr Log_ThreadId}" Binding="{Binding ThreadId}" Width="Auto" />
-              <DataGridTextColumn x:DataType="vm:ApplicationLogEntry" Header="{l:Tr Log_Source}" Binding="{Binding Source}" Width="2*" />
-              <DataGridTextColumn x:DataType="vm:ApplicationLogEntry" Header="{l:Tr Log_Summary}" Binding="{Binding Summary}" Width="3*" />
+              <DataGridTextColumn x:DataType="pm:ApplicationLogEntry" Header="{l:Tr Log_Timestamp}" Binding="{Binding Timestamp}" Width="Auto" />
+              <DataGridTextColumn x:DataType="pm:ApplicationLogEntry" Header="{l:Tr Log_ProcessId}" Binding="{Binding ProcessId}" Width="Auto" />
+              <DataGridTextColumn x:DataType="pm:ApplicationLogEntry" Header="{l:Tr Log_ThreadId}" Binding="{Binding ThreadId}" Width="Auto" />
+              <DataGridTextColumn x:DataType="pm:ApplicationLogEntry" Header="{l:Tr Log_Source}" Binding="{Binding Source}" Width="2*" />
+              <DataGridTextColumn x:DataType="pm:ApplicationLogEntry" Header="{l:Tr Log_Summary}" Binding="{Binding Summary}" Width="3*" />
             </DataGrid.Columns>
           </DataGrid>
           <TextBox Grid.Row="3" Text="{Binding SelectedEntry.FullText, Mode=OneWay}" IsVisible="{Binding !!SelectedEntry}"

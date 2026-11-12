@@ -89,7 +89,6 @@
                 Content="{l:Tr Mobile_Reconnect}"
                 AutomationProperties.Name="{l:Tr Mobile_Reconnect}"
                 Command="{Binding ReconnectCommand}" />
-        <CheckBox Content="{l:Tr Mobile_MainStream}" IsChecked="{Binding MainStream}" />
         <CheckBox Content="{l:Tr Mobile_Sound}" IsChecked="{Binding SoundEnabled}" IsVisible="{Binding CanPlaySound}" />
         <Button Classes="action"
                 Content="{l:Tr Mobile_PauseResume}"

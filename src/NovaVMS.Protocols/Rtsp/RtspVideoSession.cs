@@ -76,8 +76,23 @@ public sealed class RtspVideoSession
         {
             using (var connect = CancellationTokenSource.CreateLinkedTokenSource(stop.Token))
             {
+                var port = _uri.Port > 0 ? _uri.Port : 554;
+
                 connect.CancelAfter(ConnectTimeout);
-                await socket.ConnectAsync(_uri.Host, _uri.Port > 0 ? _uri.Port : 554, connect.Token).ConfigureAwait(false);
+
+                try
+                {
+                    await socket.ConnectAsync(_uri.Host, port, connect.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException exception) when (!stop.IsCancellationRequested)
+                {
+                    throw new TimeoutException(
+                        $"RTSP: no TCP connection to {_uri.Host}:{port} within {ConnectTimeout.TotalSeconds:0} s.", exception);
+                }
+                catch (SocketException exception)
+                {
+                    throw new IOException($"RTSP: cannot connect to {_uri.Host}:{port}: {exception.SocketErrorCode} ({exception.Message}).", exception);
+                }
             }
 
             _network = socket.GetStream();

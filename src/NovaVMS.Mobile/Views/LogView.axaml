@@ -1,0 +1,59 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NovaVMS.Mobile.Localization"
+             xmlns:vm="using:NovaVMS.Mobile.ViewModels"
+             x:Class="NovaVMS.Mobile.Views.LogView"
+             x:DataType="vm:LogViewModel">
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Classes="page">
+      <TextBlock Classes="pageTitle" Text="{l:Tr Settings_Log}" />
+
+      <Grid ColumnDefinitions="*,8,*">
+        <Button Classes="action primary"
+                Content="{l:Tr Sync_Refresh}"
+                AutomationProperties.Name="{l:Tr Sync_Refresh}"
+                Command="{Binding RefreshCommand}" />
+        <Button Grid.Column="2" Classes="action danger"
+                Content="{l:Tr Log_Clear}"
+                AutomationProperties.Name="{l:Tr Log_Clear}"
+                Command="{Binding ClearCommand}" />
+      </Grid>
+
+      <TextBlock Classes="muted" Text="{Binding Status}" IsVisible="{Binding !!Status}" TextWrapping="Wrap" />
+
+      <ItemsControl ItemsSource="{Binding Entries}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="8" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="vm:LogEntryItemViewModel">
+            <Border Classes="card">
+              <StackPanel Spacing="6">
+                <Button Classes="row" Padding="0" MinHeight="0" Background="Transparent"
+                        AutomationProperties.Name="{Binding Source}"
+                        Command="{Binding ToggleCommand}">
+                  <StackPanel Spacing="4">
+                    <TextBlock Classes="muted" FontSize="12" Text="{Binding Time}" IsVisible="{Binding !!Time}" />
+                    <TextBlock FontWeight="SemiBold" Text="{Binding Source}" TextWrapping="Wrap" />
+                    <TextBlock Classes="muted" Text="{Binding Summary}" IsVisible="{Binding HasSummary}" TextWrapping="Wrap" MaxLines="3" />
+                  </StackPanel>
+                </Button>
+                <StackPanel Spacing="6" IsVisible="{Binding IsExpanded}">
+                  <SelectableTextBlock Text="{Binding Details}" IsVisible="{Binding HasDetails}"
+                                       FontFamily="Menlo,monospace" FontSize="11" TextWrapping="Wrap" />
+                  <Button Classes="action"
+                          Content="{l:Tr Log_Copy}"
+                          AutomationProperties.Name="{l:Tr Log_Copy}"
+                          Click="OnCopyClick" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
