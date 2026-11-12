@@ -36,14 +36,20 @@ public sealed class MobileLogTests : IDisposable
 
         File.WriteAllText(path, string.Concat(Enumerable.Range(1, 30).Select(Entry)));
 
-        MobileLog.Trim(_directory, MobileLog.MaxBytes);
+        MobileLog.Trim(_directory, 5 * 1024);
 
         var text = File.ReadAllText(path);
 
-        Assert.True(new FileInfo(path).Length <= MobileLog.MaxBytes);
+        Assert.True(new FileInfo(path).Length <= 5 * 1024);
         Assert.StartsWith("[2026-11-12", text);
         Assert.EndsWith(Entry(30), text);
         Assert.DoesNotContain("Entry 1\n", text);
+    }
+
+    [Fact]
+    public void LogFilesKeepUpToFiveMegabytes()
+    {
+        Assert.Equal(5 * 1024 * 1024, MobileLog.MaxBytes);
     }
 
     [Fact]

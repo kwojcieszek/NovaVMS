@@ -42,6 +42,8 @@ public sealed class SystemVideoPlayer : IMobilePlayer
 
     public event EventHandler<string>? StatusChanged;
 
+    public event EventHandler<bool>? ConnectingChanged;
+
     public SystemVideoPlayer()
     {
         _host = new VideoHost(this);
@@ -101,6 +103,7 @@ public sealed class SystemVideoPlayer : IMobilePlayer
         _renderer?.Restart();
 
         StatusChanged?.Invoke(this, Localizer.Text("Mobile_Connecting"));
+        ConnectingChanged?.Invoke(this, true);
 
         _receiving = Task.Run(() => ReceiveAsync(session, description, run.Token), CancellationToken.None);
     }
@@ -178,6 +181,8 @@ public sealed class SystemVideoPlayer : IMobilePlayer
 
         await run.CancelAsync();
 
+        ConnectingChanged?.Invoke(this, false);
+
         if (receiving is not null)
         {
             // The session ends on its own; a camera that does not answer the TEARDOWN is not waited for.
@@ -204,12 +209,14 @@ public sealed class SystemVideoPlayer : IMobilePlayer
             {
                 MobileLog.Post($"Player ended: {description}");
                 StatusChanged?.Invoke(this, Localizer.Text("Mobile_StreamEnded"));
+                ConnectingChanged?.Invoke(this, false);
             }
         }
         catch (Exception exception) when (!token.IsCancellationRequested)
         {
             MobileLog.Post($"Player failed: {description}", exception);
             StatusChanged?.Invoke(this, Localizer.Text("Mobile_PlaybackError"));
+            ConnectingChanged?.Invoke(this, false);
         }
         catch (Exception)
         {
@@ -228,6 +235,7 @@ public sealed class SystemVideoPlayer : IMobilePlayer
         if (renderer.Render(picture) && Interlocked.Exchange(ref _playingReported, 1) == 0)
         {
             StatusChanged?.Invoke(this, Localizer.Text("Mobile_Playing"));
+            ConnectingChanged?.Invoke(this, false);
         }
     }
 

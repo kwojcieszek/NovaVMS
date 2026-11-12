@@ -13,6 +13,12 @@ public interface IMobilePlayer : IAsyncDisposable
 
     event EventHandler<string>? StatusChanged;
 
+    /// <summary>
+    /// True while a started stream connects and waits for its first picture; false once the picture is shown or the
+    /// stream stops or fails. Raised on any thread.
+    /// </summary>
+    event EventHandler<bool>? ConnectingChanged;
+
     Task PlayAsync(VideoSource source, Device device, PlaybackOptions options, CancellationToken cancellationToken = default);
 
     Task StopAsync();

@@ -64,6 +64,11 @@ public sealed partial class CameraViewModel : PageViewModel
     [ObservableProperty]
     private string _modeText = string.Empty;
 
+    /// <summary>The stream connects and waits for its first picture; the menu bar shows it full screen.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFullScreenMenuVisible))]
+    private bool _isConnecting;
+
     private StreamType LiveStreamType => IsFullScreen ? StreamType.Main : StreamType.Sub;
 
     private bool NeedsStreamSwitch => !IsPlayback && _liveStreamType is { } current && current != LiveStreamType;
@@ -81,8 +86,11 @@ public sealed partial class CameraViewModel : PageViewModel
 
     public bool IsLive => !IsPlayback;
 
-    /// <summary>The top bar of a full screen camera: back, title and the choice of live picture or recordings.</summary>
-    public bool IsFullScreenMenuVisible => IsFullScreen && IsOverlayVisible;
+    /// <summary>
+    /// The top bar of a full screen camera: back, title and the choice of live picture or recordings.
+    /// It also stays while the stream connects, because nothing can be drawn over the native picture.
+    /// </summary>
+    public bool IsFullScreenMenuVisible => IsFullScreen && (IsOverlayVisible || IsConnecting);
 
     /// <summary>The bar of the recordings is shown the whole time recordings are played and never with the live picture.</summary>
     public bool IsFullScreenTimelineVisible => IsFullScreen && IsPlayback;
@@ -115,6 +123,7 @@ public sealed partial class CameraViewModel : PageViewModel
         _positionTimer.Tick += (_, _) => UpdatePosition();
 
         _shell.PropertyChanged += OnShellPropertyChanged;
+        _shell.Player.ConnectingChanged += OnPlayerConnectingChanged;
 
         Ptz = new PtzViewModel(shell, client, channel);
         Recordings = new RecordingsViewModel(shell, this, client, channel);
@@ -139,8 +148,10 @@ public sealed partial class CameraViewModel : PageViewModel
         _overlayTimer.Stop();
         _positionTimer.Stop();
         _shell.PropertyChanged -= OnShellPropertyChanged;
+        _shell.Player.ConnectingChanged -= OnPlayerConnectingChanged;
 
         Video = null;
+        IsConnecting = false;
     }
 
     /// <summary>A single tap on the picture shows the menu and the next one hides it again.</summary>
@@ -280,7 +291,19 @@ public sealed partial class CameraViewModel : PageViewModel
         var options = PlaybackPolicy.ForCamera(_shell.Current.Settings, streamType) with { DisplayAspectRatio = _channel.MainAspectRatio };
 
         ApplyFill();
-        await _shell.Player.PlayAsync(source, _device, options, token);
+
+        IsConnecting = true;
+
+        try
+        {
+            await _shell.Player.PlayAsync(source, _device, options, token);
+        }
+        catch
+        {
+            IsConnecting = false;
+
+            throw;
+        }
 
         _shell.Player.SetMuted(_shell.Muted);
 
@@ -473,6 +496,17 @@ public sealed partial class CameraViewModel : PageViewModel
         {
             OnPropertyChanged(nameof(LayoutInsets));
         }
+    }
+
+    private void OnPlayerConnectingChanged(object? sender, bool connecting)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (Video is not null)
+            {
+                IsConnecting = connecting;
+            }
+        });
     }
 
     partial void OnSoundEnabledChanged(bool value)

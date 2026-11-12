@@ -10,7 +10,7 @@ namespace NovaVMS.Mobile.Services;
 /// </summary>
 public static class MobileLog
 {
-    public const int MaxBytes = 5 * 1024;
+    public const int MaxBytes = 5 * 1024 * 1024;
 
     private static readonly object Gate = new();
     private static ExceptionLogWriter? _writer;

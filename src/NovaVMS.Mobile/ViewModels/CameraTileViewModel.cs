@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NovaVMS.Core.Abstractions;
@@ -26,6 +27,10 @@ public sealed partial class CameraTileViewModel : ViewModelBase
     [ObservableProperty]
     private string _state;
 
+    /// <summary>The preview connects to the camera and waits for its first picture.</summary>
+    [ObservableProperty]
+    private bool _isConnecting;
+
     public string Title => _camera.Title;
 
     public string Subtitle => _camera.Subtitle;
@@ -40,6 +45,7 @@ public sealed partial class CameraTileViewModel : ViewModelBase
         _camera = camera;
         _collection = collection;
         _state = Localizer.Text("Mobile_Connecting");
+        _isConnecting = true;
     }
 
     /// <summary>
@@ -63,9 +69,11 @@ public sealed partial class CameraTileViewModel : ViewModelBase
 
             startSlot = true;
             State = Localizer.Text("Mobile_Connecting");
+            IsConnecting = true;
 
             _player = _shell.CreatePreviewPlayer();
 
+            _player.ConnectingChanged += OnPlayerConnectingChanged;
             _player.SetFillArea(_shell.Current.Settings.VideoAspectMode == VideoAspectMode.Fit);
 
             Video = _player.View;
@@ -82,10 +90,12 @@ public sealed partial class CameraTileViewModel : ViewModelBase
         catch (OperationCanceledException)
         {
             State = string.Empty;
+            IsConnecting = false;
         }
         catch (Exception exception)
         {
             State = Localizer.Text("Mobile_PreviewFailed");
+            IsConnecting = false;
 
             MobileLog.Post($"{State} ({_camera.Channel.DisplayName})", exception);
         }
@@ -150,6 +160,8 @@ public sealed partial class CameraTileViewModel : ViewModelBase
             {
                 _player = null;
 
+                player.ConnectingChanged -= OnPlayerConnectingChanged;
+
                 await player.StopAsync();
 
                 Video = null;
@@ -162,10 +174,22 @@ public sealed partial class CameraTileViewModel : ViewModelBase
             _client?.Dispose();
 
             _client = null;
+            IsConnecting = false;
         }
         catch
         {
             // The platform may already have destroyed the native surface.
         }
+    }
+
+    private void OnPlayerConnectingChanged(object? sender, bool connecting)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (ReferenceEquals(sender, _player))
+            {
+                IsConnecting = connecting;
+            }
+        });
     }
 }

@@ -95,13 +95,22 @@
                   <Border Classes="preview">
                     <Panel>
                       <ContentControl Content="{Binding Video}" />
-                      <TextBlock Classes="overlay" Text="{Binding State}" />
+                      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+                        <PathIcon Classes="connecting" Data="{StaticResource IconConnecting}" Width="24" Height="24" IsVisible="{Binding IsConnecting}" />
+                        <TextBlock Classes="overlay" Text="{Binding State}" />
+                      </StackPanel>
                     </Panel>
                   </Border>
                   <Border Grid.Row="1"
                           Classes="tileTitle"
                           IsVisible="{Binding $parent[ItemsControl].((vm:CameraGroupViewModel)DataContext).ShowTitles}">
                     <StackPanel Orientation="Horizontal" Spacing="4">
+                      <PathIcon Classes="connecting"
+                                Data="{StaticResource IconConnecting}"
+                                Width="12"
+                                Height="12"
+                                IsVisible="{Binding IsConnecting}"
+                                AutomationProperties.Name="{l:Tr Mobile_Connecting}" />
                       <PathIcon Classes="favorite" Data="{StaticResource IconStar}" Width="12" Height="12" IsVisible="{Binding IsFavorite}" />
                       <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" Foreground="#FFE6E6E6" TextTrimming="CharacterEllipsis" />
                     </StackPanel>

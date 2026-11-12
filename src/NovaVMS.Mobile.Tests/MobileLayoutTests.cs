@@ -306,6 +306,16 @@ public sealed class MobileLayoutTests
             }
         }
 
+        public event EventHandler<bool>? ConnectingChanged
+        {
+            add
+            {
+            }
+            remove
+            {
+            }
+        }
+
         public Task PlayAsync(VideoSource source, Device device, PlaybackOptions options, CancellationToken cancellationToken = default)
         {
             Options = options;
