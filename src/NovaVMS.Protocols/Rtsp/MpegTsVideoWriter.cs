@@ -5,6 +5,8 @@ namespace NovaVMS.Protocols.Rtsp;
 /// <summary>
 /// Packs H.264/H.265 pictures into an MPEG transport stream with presentation times from RTP, so LibVLC
 /// recognizes the format and plays the pictures at their own pace. Tables are repeated before every key frame.
+/// Every PES packet has an explicit length: the demuxer hands a picture on as soon as its last packet arrives
+/// instead of waiting for the start of the next picture, which made pictures late at low frame rates.
 /// </summary>
 internal sealed class MpegTsVideoWriter
 {
@@ -12,6 +14,12 @@ internal sealed class MpegTsVideoWriter
     private const int PmtPid = 0x1000;
     private const int VideoPid = 0x100;
     private const int ProgramNumber = 1;
+    private const int PesHeaderSize = 9;
+    private const int PresentationFieldSize = 5;
+
+    // The 16-bit PES length counts the bytes after it: 3 header bytes, the optional fields and the payload.
+    private const int MaxPesLength = 0xffff;
+    private const int MaxPesPayload = MaxPesLength - 3 - PresentationFieldSize;
 
     // Presentation times start after the clock reference, leaving room for pictures sent out of order.
     private const long PresentationDelay = 9000;
@@ -38,7 +46,10 @@ internal sealed class MpegTsVideoWriter
         _delimiter = codec == VideoCodec.H265 ? H265Delimiter : H264Delimiter;
     }
 
-    /// <summary>Returns the transport stream packets of one picture; parameter sets precede every key frame.</summary>
+    /// <summary>
+    /// Returns the transport stream packets of one picture; parameter sets precede every key frame.
+    /// Large pictures span several PES packets; only the first carries the presentation time and clock reference.
+    /// </summary>
     public byte[] Write(VideoAccessUnit unit)
     {
         var clock = unit.Timestamp & TimestampMask;
@@ -48,11 +59,6 @@ internal sealed class MpegTsVideoWriter
         _delimiter.CopyTo(elementary, 0);
         unit.CopyAnnexB(elementary.AsSpan(_delimiter.Length), unit.IsKeyFrame);
 
-        var pes = new byte[14 + elementary.Length];
-
-        BuildPesHeader(pes, presentation);
-        elementary.CopyTo(pes, 14);
-
         using var output = new MemoryStream();
 
         if (unit.IsKeyFrame)
@@ -61,7 +67,19 @@ internal sealed class MpegTsVideoWriter
             WriteSection(output, PmtPid, _pmt, ref _pmtCounter);
         }
 
-        WritePes(output, pes, clock, unit.IsKeyFrame);
+        var offset = 0;
+        var first = true;
+
+        while (offset < elementary.Length)
+        {
+            var size = Math.Min(elementary.Length - offset, MaxPesPayload);
+            var pes = BuildPes(elementary.AsSpan(offset, size), first ? presentation : null);
+
+            WritePes(output, pes, first ? clock : null, first && unit.IsKeyFrame);
+
+            offset += size;
+            first = false;
+        }
 
         return output.ToArray();
     }
@@ -106,23 +124,34 @@ internal sealed class MpegTsVideoWriter
         return section;
     }
 
-    private static void BuildPesHeader(byte[] pes, long presentation)
+    private static byte[] BuildPes(ReadOnlySpan<byte> payload, long? presentation)
     {
+        var fieldsSize = presentation is null ? 0 : PresentationFieldSize;
+        var pes = new byte[PesHeaderSize + fieldsSize + payload.Length];
+        var length = pes.Length - 6;
+
         pes[0] = 0;
         pes[1] = 0;
         pes[2] = 1;
         pes[3] = 0xe0;
-        // Length 0: unbounded video packet.
-        pes[4] = 0;
-        pes[5] = 0;
+        pes[4] = (byte)(length >> 8);
+        pes[5] = (byte)length;
         pes[6] = 0x80;
-        pes[7] = 0x80;
-        pes[8] = 5;
-        pes[9] = (byte)(0x21 | ((presentation >> 29) & 0x0e));
-        pes[10] = (byte)(presentation >> 22);
-        pes[11] = (byte)(((presentation >> 14) & 0xfe) | 1);
-        pes[12] = (byte)(presentation >> 7);
-        pes[13] = (byte)(((presentation << 1) & 0xfe) | 1);
+        pes[7] = presentation is null ? (byte)0 : (byte)0x80;
+        pes[8] = (byte)fieldsSize;
+
+        if (presentation is { } value)
+        {
+            pes[9] = (byte)(0x21 | ((value >> 29) & 0x0e));
+            pes[10] = (byte)(value >> 22);
+            pes[11] = (byte)(((value >> 14) & 0xfe) | 1);
+            pes[12] = (byte)(value >> 7);
+            pes[13] = (byte)(((value << 1) & 0xfe) | 1);
+        }
+
+        payload.CopyTo(pes.AsSpan(PesHeaderSize + fieldsSize));
+
+        return pes;
     }
 
     private static void WriteSection(Stream output, int pid, byte[] section, ref int counter)
@@ -145,40 +174,6 @@ internal sealed class MpegTsVideoWriter
         counter = (counter + 1) & 15;
     }
 
-    private void WritePes(Stream output, byte[] pes, long clock, bool keyFrame)
-    {
-        var offset = 0;
-        var first = true;
-
-        while (offset < pes.Length)
-        {
-            var packet = new byte[PacketSize];
-            var remaining = pes.Length - offset;
-            // The first packet carries the clock reference (and the random access flag of a key frame).
-            var adaptationLength = first ? 8 : 0;
-            var payload = Math.Min(remaining, PacketSize - 4 - adaptationLength);
-
-            if (payload < PacketSize - 4 - adaptationLength)
-            {
-                // The last packet is filled up with stuffing bytes of the adaptation field.
-                adaptationLength = PacketSize - 4 - payload;
-            }
-
-            WriteHeader(packet, VideoPid, first, ref _videoCounter, adaptationLength > 0);
-
-            if (adaptationLength > 0)
-            {
-                WriteAdaptation(packet.AsSpan(4, adaptationLength), first ? clock : null, first && keyFrame);
-            }
-
-            pes.AsSpan(offset, payload).CopyTo(packet.AsSpan(4 + adaptationLength));
-            output.Write(packet);
-
-            offset += payload;
-            first = false;
-        }
-    }
-
     private static void WriteAdaptation(Span<byte> field, long? clock, bool randomAccess)
     {
         field[0] = (byte)(field.Length - 1);
@@ -199,6 +194,40 @@ internal sealed class MpegTsVideoWriter
             field[5] = (byte)(value >> 1);
             field[6] = (byte)(((value & 1) << 7) | 0x7e);
             field[7] = 0;
+        }
+    }
+
+    private void WritePes(Stream output, byte[] pes, long? clock, bool randomAccess)
+    {
+        var offset = 0;
+        var first = true;
+
+        while (offset < pes.Length)
+        {
+            var packet = new byte[PacketSize];
+            var remaining = pes.Length - offset;
+            // The first packet of a picture carries the clock reference (and the random access flag of a key frame).
+            var adaptationLength = first && clock is not null ? 8 : 0;
+            var payload = Math.Min(remaining, PacketSize - 4 - adaptationLength);
+
+            if (payload < PacketSize - 4 - adaptationLength)
+            {
+                // The last packet is filled up with stuffing bytes of the adaptation field.
+                adaptationLength = PacketSize - 4 - payload;
+            }
+
+            WriteHeader(packet, VideoPid, first, ref _videoCounter, adaptationLength > 0);
+
+            if (adaptationLength > 0)
+            {
+                WriteAdaptation(packet.AsSpan(4, adaptationLength), first ? clock : null, first && randomAccess);
+            }
+
+            pes.AsSpan(offset, payload).CopyTo(packet.AsSpan(4 + adaptationLength));
+            output.Write(packet);
+
+            offset += payload;
+            first = false;
         }
     }
 }

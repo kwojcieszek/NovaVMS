@@ -49,6 +49,7 @@ public sealed class VideoMedia : IDisposable
                 streamMedia = new Media(libVlc, input);
 
                 streamMedia.AddOption($":network-caching={networkCachingMs}");
+                AddLowDelayOption(streamMedia, source);
                 AddAudioOption(streamMedia, withAudio);
                 AddFrameRateOption(streamMedia, maxFrameRate);
 
@@ -130,6 +131,20 @@ public sealed class VideoMedia : IDisposable
         StopTransfer();
         Media.Dispose();
         _input?.Dispose();
+    }
+
+    /// <summary>
+    /// Decrypted Hikvision video arrives as a live transport stream whose buffering ignores the network caching
+    /// setting. The H.264 decoder misreads the picture order of these recorders as reordered pictures and holds
+    /// three of them back; at about 12 pictures per second that delay exceeds the buffer and almost every picture
+    /// is dropped as late, so the picture freezes or stutters. The streams have no B-frames: decode with no delay.
+    /// </summary>
+    private static void AddLowDelayOption(Media media, VideoSource source)
+    {
+        if (source.EncryptedUri is not null)
+        {
+            media.AddOption(":avcodec-options={flags=+low_delay}");
+        }
     }
 
     /// <summary>

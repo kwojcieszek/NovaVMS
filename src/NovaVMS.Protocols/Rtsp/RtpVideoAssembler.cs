@@ -22,6 +22,7 @@ public sealed class RtpVideoAssembler : IDisposable
     private IReadOnlyList<byte[]> _parameterList;
     private ushort _expectedSequence;
     private bool _hasSequence;
+    private uint _ssrc;
     private bool _pictureDamaged;
     private bool _waitForKeyFrame = true;
     private bool _keyFrame;
@@ -65,8 +66,15 @@ public sealed class RtpVideoAssembler : IDisposable
     /// <summary>Processes one RTP packet; the span is only read during the call.</summary>
     public void Accept(ReadOnlySpan<byte> packet)
     {
-        if (packet.Length < 12 || (packet[0] >> 6) != 2 || (packet[1] & 0x7f) != _payloadType)
+        if (packet.Length < 12 || (packet[0] >> 6) != 2)
         {
+            return;
+        }
+
+        if ((packet[1] & 0x7f) != _payloadType)
+        {
+            SkipForeignPacket(packet);
+
             return;
         }
 
@@ -95,6 +103,8 @@ public sealed class RtpVideoAssembler : IDisposable
         var sequence = BinaryPrimitives.ReadUInt16BigEndian(packet[2..]);
         var timestamp = BinaryPrimitives.ReadUInt32BigEndian(packet[4..]);
         var marker = (packet[1] & 0x80) != 0;
+
+        _ssrc = BinaryPrimitives.ReadUInt32BigEndian(packet[8..]);
 
         if (_hasSequence && sequence != _expectedSequence)
         {
@@ -135,6 +145,21 @@ public sealed class RtpVideoAssembler : IDisposable
     {
         _decryptor?.Dispose();
         _fragment.Dispose();
+    }
+
+    /// <summary>
+    /// Packets of another payload type sharing the video source and its sequence numbers (e.g. Hikvision private
+    /// data) are not video, but they must not look like lost video packets.
+    /// </summary>
+    private void SkipForeignPacket(ReadOnlySpan<byte> packet)
+    {
+        var sequence = BinaryPrimitives.ReadUInt16BigEndian(packet[2..]);
+        var ssrc = BinaryPrimitives.ReadUInt32BigEndian(packet[8..]);
+
+        if (_hasSequence && ssrc == _ssrc && sequence == _expectedSequence)
+        {
+            _expectedSequence = unchecked((ushort)(sequence + 1));
+        }
     }
 
     private void Depacketize(ReadOnlySpan<byte> payload)

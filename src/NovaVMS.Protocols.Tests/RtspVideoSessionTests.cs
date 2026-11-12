@@ -114,6 +114,21 @@ public sealed class RtpVideoAssemblerTests
         Assert.Throws<NotSupportedException>(() => RtspVideoDescription.Parse(sdp, new Uri("rtsp://camera/")));
     }
 
+    [Fact]
+    public void ForeignPayloadSharingSequenceNumbersIsNotLoss()
+    {
+        var pictures = new List<VideoAccessUnit>();
+        var assembler = new RtpVideoAssembler(VideoCodec.H264, 96, [Sps, Pps], pictures.Add);
+
+        assembler.Accept(Rtp(1, 3000, true, Idr));
+        assembler.Accept(Rtp(2, 3000, true, [0x01, 0x02], payloadType: 112));
+        assembler.Accept(Rtp(3, 6000, true, Slice));
+        assembler.Accept(Rtp(4, 9000, true, Slice));
+
+        Assert.Equal(3, pictures.Count);
+        Assert.Equal(0, assembler.DroppedPictures);
+    }
+
     internal static byte[] Rtp(ushort sequence, uint timestamp, bool marker, byte[] payload, int payloadType = 96)
     {
         var packet = new byte[12 + payload.Length];
