@@ -71,8 +71,9 @@ thread pool and hands every H.264/H.265 picture to the hardware decoder of the p
 (iOS `AVSampleBufferDisplayLayer`, Android `MediaCodec` rendering into a `TextureView`). The interface
 thread only places the native view, so connecting cameras never blocks it. LibVLC was replaced
 because its RTSP library (live555) waited about 10 seconds per stream for a multicast test that
-iOS does not allow. Sound is not played, and streams of the Hikvision SDK or with a stream
-encryption key, which need the desktop decoders, are not shown.
+iOS does not allow. Sound is not played, and streams of the Hikvision SDK, which need the desktop decoders, are not
+shown. ISAPI/ONVIF video encrypted by a Hikvision recorder is decrypted on the phone (AES-128) with the
+stream key from the device settings, before it reaches the hardware decoder.
 `NovaVMS.Mobile/Native` is excluded from the shared project and compiled by the Android and iOS heads.
 
 Mobile views are independent of `NovaVMS.App/Views`. Reuse the domain and

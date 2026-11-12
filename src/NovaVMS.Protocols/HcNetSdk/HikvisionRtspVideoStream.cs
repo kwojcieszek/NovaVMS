@@ -12,7 +12,8 @@ using NovaVMS.Protocols.Rtsp;
 namespace NovaVMS.Protocols.HcNetSdk;
 
 /// <summary>
-/// Direct RTSP-over-TCP transport for encrypted Hikvision video. Credentials remain in
+/// Direct RTSP-over-TCP transport for encrypted Hikvision video in an MPEG program stream, used by
+/// <see cref="Rtsp.DecryptedRtspVideoStream"/> for streams it cannot decrypt itself. Credentials remain in
 /// authentication headers; only the stream decryption key is passed to PlayCtrl.
 /// Each playback attempt owns its socket, RTSP session, RTP assembler and decoder port.
 /// </summary>
@@ -60,13 +61,6 @@ internal sealed class HikvisionRtspVideoStream : BlockingPipeStream, IVideoStrea
         _api = api;
         Active[this] = 0;
         _worker = Task.Run(RunAsync);
-    }
-
-    public static VideoSource CreateSource(Uri uri, Device device, bool playback)
-    {
-        var clean = new UriBuilder(uri) { UserName = "", Password = "" }.Uri;
-
-        return VideoSource.FromStream(() => Open(clean, device.Username, device.Password, device.StreamEncryptionKey, playback));
     }
 
     internal static HikvisionRtspVideoStream Open(Uri uri, string username, string password, string key, bool playback, IPlayCtrlApi? api = null)

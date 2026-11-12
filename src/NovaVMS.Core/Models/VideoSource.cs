@@ -16,6 +16,12 @@ public sealed class VideoSource
 
     public bool IsStream => _openStream is not null;
 
+    /// <summary>
+    /// RTSP address of the Hikvision encrypted video behind a data stream source, for players that decrypt
+    /// it themselves with the stream key of the device; null for other sources.
+    /// </summary>
+    public Uri? EncryptedUri { get; private init; }
+
     private VideoSource(Uri? uri, Func<bool, Stream>? openStream)
     {
         Uri = uri;
@@ -46,6 +52,18 @@ public sealed class VideoSource
         ArgumentNullException.ThrowIfNull(openStream);
 
         return new VideoSource(null, _ => openStream());
+    }
+
+    /// <summary>
+    /// Creates a data stream source that decrypts <paramref name="encryptedUri"/> and keeps the address
+    /// for players with their own decryption.
+    /// </summary>
+    public static VideoSource FromEncryptedStream(Uri encryptedUri, Func<Stream> openStream)
+    {
+        ArgumentNullException.ThrowIfNull(encryptedUri);
+        ArgumentNullException.ThrowIfNull(openStream);
+
+        return new VideoSource(null, _ => openStream()) { EncryptedUri = encryptedUri };
     }
 
     /// <summary>Creates a stream with audio configured before the device starts sending data.</summary>

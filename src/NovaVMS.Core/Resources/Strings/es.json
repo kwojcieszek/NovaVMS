@@ -371,6 +371,7 @@
   "StreamDecryptionNoFrames": "No se recibió vídeo descifrado. Compruebe la clave de flujo, la conexión y la biblioteca PlayCtrl.",
   "StreamRtspUnsupported": "Esta vía de vídeo cifrado requiere RTSP de Hikvision sobre TCP. Este decodificador no admite RTSPS ni SRTP.",
   "StreamRtspFailed": "Error en la reproducción RTSP cifrada. Compruebe la dirección, las credenciales, la clave de flujo y la compatibilidad de MEDIAINFO/códec de Hikvision.",
+  "StreamKeyWrong": "No se pudo descifrar el vídeo con la clave de flujo. Compruebe la clave de flujo (código de verificación) en la configuración del grabador.",
   "FileEmpty": "El archivo está vacío.",
   "NoHostColumn": "No se encontró ninguna columna de dirección IP. Se esperaba una cabecera como «IP Address» o «Address».",
   "RowNoHost": "Fila {0}: sin dirección IP - omitida.",

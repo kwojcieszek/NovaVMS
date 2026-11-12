@@ -371,6 +371,7 @@
   "StreamDecryptionNoFrames": "未收到解密后的视频。请检查码流密钥、连接和 PlayCtrl 库。",
   "StreamRtspUnsupported": "此加密视频路径需要基于 TCP 的 Hikvision RTSP。此解码器不支持 RTSPS 和 SRTP。",
   "StreamRtspFailed": "加密 RTSP 播放失败。请检查地址、凭据、码流密钥以及 Hikvision MEDIAINFO/编解码器支持。",
+  "StreamKeyWrong": "无法使用码流密钥解密视频。请检查录像机设置中的码流密钥（验证码）。",
   "FileEmpty": "文件为空。",
   "NoHostColumn": "未找到 IP 地址列。应有“IP Address”或“Address”之类的表头。",
   "RowNoHost": "第 {0} 行：没有 IP 地址 - 已跳过。",

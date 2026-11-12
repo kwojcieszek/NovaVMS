@@ -371,6 +371,7 @@
   "StreamDecryptionNoFrames": "لم يتم استلام فيديو مفكوك التشفير. تحقق من مفتاح البث والاتصال ومكتبة PlayCtrl.",
   "StreamRtspUnsupported": "يتطلب مسار الفيديو المشفّر هذا بروتوكول RTSP من Hikvision عبر TCP. لا تدعم وحدة فك الترميز هذه RTSPS وSRTP.",
   "StreamRtspFailed": "فشل تشغيل RTSP المشفّر. تحقق من العنوان وبيانات الاعتماد ومفتاح البث ودعم MEDIAINFO/الترميز من Hikvision.",
+  "StreamKeyWrong": "تعذّر فك تشفير الفيديو باستخدام مفتاح البث. تحقق من مفتاح البث (رمز التحقق) في إعدادات المسجّل.",
   "FileEmpty": "الملف فارغ.",
   "NoHostColumn": "لم يتم العثور على عمود عنوان IP. يُتوقع عنوان عمود مثل «IP Address» أو «Address».",
   "RowNoHost": "الصف {0}: لا يوجد عنوان IP - تم تخطيه.",
