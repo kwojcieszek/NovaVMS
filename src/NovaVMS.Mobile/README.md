@@ -61,7 +61,7 @@ ISAPI/ONVIF connection when it has one.
 - `NovaVMS.Presentation` holds what both applications share: the localizer and the list of interface
   languages, the option lists of the settings, the settings database synchronization and its form.
   It has no Avalonia types, because the desktop and the phone use different Avalonia versions.
-- Interface languages: English, Polish, Chinese (simplified), Hindi, Spanish, Arabic and French. A new text
+- Interface languages: English and Polish. A new text
   is added to every `Resources/Strings/*.json`; a test checks that all catalogs have the same keys and placeholders.
 
 ## Video

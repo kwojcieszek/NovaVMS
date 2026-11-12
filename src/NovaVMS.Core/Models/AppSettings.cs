@@ -66,7 +66,7 @@ public sealed class AppSettings
     public bool ShowCameraSearch { get; set; } = true;
 
     /// <summary>
-    /// Interface language code ("en", "pl", "zh", "hi", "es", "ar", "fr"); empty means the system language.
+    /// Interface language code ("en", "pl"); empty means the system language.
     /// </summary>
     public string Language { get; set; } = string.Empty;
 

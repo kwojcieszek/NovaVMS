@@ -37,7 +37,7 @@ and control of IP cameras and network video recorders (NVR/DVR). The user interf
 - **Settings in a database** – share devices, groups and settings between computers through PostgreSQL
   or MySQL/MariaDB, with automatic checking, automatic or manual sending and a version history
   (see [Settings database](#settings-database)).
-- **Localization** – English, Polish, Chinese (simplified), Hindi, Spanish, Arabic and French.
+- **Localization** – English and Polish.
 - **Themes** – light, dark or follow the system.
 - **Application updates (Windows)** – automatic checks at startup and every six hours, or manual checks
   in Settings → General. Downloaded ZIP updates are applied by a separate helper after every NovaVMS

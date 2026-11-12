@@ -12,12 +12,7 @@ public sealed record InterfaceLanguage(string Code, string CultureName, string N
     public static IReadOnlyList<InterfaceLanguage> All { get; } =
     [
         new("en", "en", "English"),
-        new("pl", "pl", "Polski"),
-        new("zh", "zh-Hans", "中文（简体）"),
-        new("hi", "hi", "हिन्दी"),
-        new("es", "es", "Español"),
-        new("ar", "ar", "العربية"),
-        new("fr", "fr", "Français")
+        new("pl", "pl", "Polski")
     ];
 
     /// <summary>The language for <paramref name="code"/>, or the fallback language when it has no translation.</summary>
