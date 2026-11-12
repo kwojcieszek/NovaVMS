@@ -64,11 +64,13 @@ public sealed partial class CameraViewModel : PageViewModel
     [ObservableProperty]
     private string _modeText = string.Empty;
 
+    private StreamType LiveStreamType => IsFullScreen ? StreamType.Main : StreamType.Sub;
+
+    private bool NeedsStreamSwitch => !IsPlayback && _liveStreamType is { } current && current != LiveStreamType;
+
     public override MobileTab Tab => MobileTab.Cameras;
 
     public bool IsWindowed => !IsFullScreen;
-
-    private StreamType LiveStreamType => IsFullScreen ? StreamType.Main : StreamType.Sub;
 
     /// <summary>The sound switch is shown only when the player of this phone plays sound.</summary>
     public bool CanPlaySound => _shell.Player.SupportsAudio;
@@ -105,8 +107,11 @@ public sealed partial class CameraViewModel : PageViewModel
 
         _modeText = Localizer.Text("Mobile_Live");
         _overlayTimer = new DispatcherTimer { Interval = OverlayHideDelay };
+
         _overlayTimer.Tick += (_, _) => HideOverlayWhenIdle();
+
         _positionTimer = new DispatcherTimer { Interval = PositionInterval };
+
         _positionTimer.Tick += (_, _) => UpdatePosition();
 
         _shell.PropertyChanged += OnShellPropertyChanged;
@@ -209,6 +214,7 @@ public sealed partial class CameraViewModel : PageViewModel
         await StartAsync(source, streamType, token);
 
         _liveStreamType = streamType;
+
         StopPositionClock();
 
         IsPlayback = false;
@@ -219,22 +225,6 @@ public sealed partial class CameraViewModel : PageViewModel
         {
             Dispatcher.UIThread.Post(() => _ = SwitchLiveStreamAsync());
         }
-    }
-
-    private bool NeedsStreamSwitch => !IsPlayback && _liveStreamType is { } current && current != LiveStreamType;
-
-    // A running operation (e.g. the first connection) is not cancelled: the switch waits for it and checks again.
-    private Task SwitchLiveStreamAsync()
-    {
-        return NeedsStreamSwitch
-            ? _shell.RunAfterCurrentAsync(async token =>
-            {
-                if (NeedsStreamSwitch)
-                {
-                    await PlayLiveAsync(token);
-                }
-            })
-            : Task.CompletedTask;
     }
 
     /// <summary>Plays the recordings from <paramref name="start"/> until the end of its day, in the recorder's local time.</summary>
@@ -271,6 +261,20 @@ public sealed partial class CameraViewModel : PageViewModel
         UpdatePosition();
     }
 
+    // A running operation (e.g. the first connection) is not cancelled: the switch waits for it and checks again.
+    private Task SwitchLiveStreamAsync()
+    {
+        return NeedsStreamSwitch
+            ? _shell.RunAfterCurrentAsync(async token =>
+            {
+                if (NeedsStreamSwitch)
+                {
+                    await PlayLiveAsync(token);
+                }
+            })
+            : Task.CompletedTask;
+    }
+
     private async Task StartAsync(VideoSource source, StreamType streamType, CancellationToken token)
     {
         var options = PlaybackPolicy.ForCamera(_shell.Current.Settings, streamType) with { DisplayAspectRatio = _channel.MainAspectRatio };
@@ -279,6 +283,7 @@ public sealed partial class CameraViewModel : PageViewModel
         await _shell.Player.PlayAsync(source, _device, options, token);
 
         _shell.Player.SetMuted(_shell.Muted);
+
         _paused = false;
     }
 
@@ -395,6 +400,7 @@ public sealed partial class CameraViewModel : PageViewModel
             await _shell.Player.StopAsync();
 
             _liveStreamType = null;
+
             StopPositionClock();
 
             _shell.Status = Localizer.Text("Mobile_Stopped");
@@ -431,6 +437,7 @@ public sealed partial class CameraViewModel : PageViewModel
         }
 
         _shell.IsFullScreen = value;
+
         ApplyFill();
 
         // The live picture switches between the sub and the main stream; recordings keep playing.
@@ -471,6 +478,7 @@ public sealed partial class CameraViewModel : PageViewModel
     partial void OnSoundEnabledChanged(bool value)
     {
         _shell.Muted = !value;
+
         _shell.Player.SetMuted(_shell.Muted);
     }
 }

@@ -28,6 +28,7 @@ public sealed class SharedConfigurationTests : IDisposable
 
         configuration.Current.Devices.Add(device);
         configuration.Current.Views.Add(new SavedCameraView { Name = "Entrance" });
+
         configuration.Current.Settings.Theme = ThemeMode.Light;
 
         using var stream = new MemoryStream();

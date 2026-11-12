@@ -99,6 +99,7 @@ public sealed partial class DeviceItemViewModel : ViewModelBase
         await _shell.ReplaceDeviceAsync(_device, updated, token);
 
         _shell.Status = Localizer.Format("Mobile_ChannelsDownloaded", downloaded.Count);
+
         _shell.ShowDevices();
     }
 }

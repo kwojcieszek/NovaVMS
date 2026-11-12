@@ -105,6 +105,7 @@ public sealed class RtspVideoSession
             if (describe.Headers.TryGetValue("Content-Base", out var contentBase) && Uri.TryCreate(_uri, contentBase, out var reported))
             {
                 RtspVideoDescription.EnsureSameServer(_uri, reported);
+
                 baseUri = reported;
             }
 

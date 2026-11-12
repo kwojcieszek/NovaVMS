@@ -110,6 +110,7 @@ public sealed partial class GroupCameraPreviewViewModel : ViewModelBase, ITileHo
         Tile.ShowLoading();
 
         _opening = new CancellationTokenSource();
+
         _ = OpenAsync(_camera, version, _opening.Token);
     }
 

@@ -33,6 +33,7 @@ internal sealed class RtspAuthentication(string challenge, string username, stri
         var algorithm = values.GetValueOrDefault("algorithm", "MD5");
         var session = algorithm.EndsWith("-sess", StringComparison.OrdinalIgnoreCase);
         var hashName = session ? algorithm[..^5] : algorithm;
+
         string Hash(string text)
         {
             var bytes = Encoding.UTF8.GetBytes(text);

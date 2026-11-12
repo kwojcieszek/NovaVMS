@@ -68,6 +68,7 @@ public sealed class LaunchOverlay : UIView
         // Animation callbacks run on the UI thread and can outrun the renderer.
         // Wait for layout and composition, then for the render thread to finish the batch.
         var rendered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
         visual.Compositor.RequestCompositionUpdate(() =>
             rendered.SetResult());
         await rendered.Task;

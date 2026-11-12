@@ -13,6 +13,7 @@ public sealed class LanguageService
     public LanguageService(ConfigurationService configuration)
     {
         _configuration = configuration;
+
         _configuration.Changed += OnConfigurationChanged;
     }
 

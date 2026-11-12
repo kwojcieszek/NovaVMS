@@ -193,12 +193,19 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         {
             Interval = ReconnectDelay
         };
+
         _reconnectTimer.Tick += OnReconnectTick;
+
         _progressTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+
         _progressTimer.Tick += OnProgressTick;
+
         _switchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(25) };
+
         _switchTimer.Tick += OnSwitchTick;
+
         _hiddenTimer = new DispatcherTimer();
+
         _hiddenTimer.Tick += OnHiddenTick;
         Localizer.Instance.LanguageChanged += OnLanguageChanged;
 
@@ -255,6 +262,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         }
 
         var player = _player;
+
         _ = _operations.RunAsync(() => player.AspectRatio = ratio);
     }
 
@@ -561,6 +569,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
     {
         PlayRequestVersion++;
         _isDisposed = true;
+
         _reconnectTimer.Tick -= OnReconnectTick;
         _progressTimer.Tick -= OnProgressTick;
         _switchTimer.Tick -= OnSwitchTick;
@@ -752,6 +761,7 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
     private MediaPlayer CreatePlayer(LibVLC libVlc)
     {
         var player = VideoPlayerFactory.Create(libVlc);
+
         // LibVLCSharp does not pass the player as the event sender, so each player gets its own handlers.
         player.Playing += (_, _) => OnPlayerPlaying(player);
         player.EncounteredError += (_, _) => OnPlayerError(player);

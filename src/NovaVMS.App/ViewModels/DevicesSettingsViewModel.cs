@@ -156,6 +156,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         {
             Interval = DeviceAvailability.CheckInterval
         };
+
         _stateTimer.Tick += OnStateTimerTick;
 
         _stateTimer.Start();
@@ -475,6 +476,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         if (replaceExisting)
         {
             await _configuration.ReplaceDevicesAndGroupsAsync(newDevices, result.Groups);
+
             // Replacement creates a new object graph; synchronize those persisted instances.
             newDevices = _configuration.Current.Devices.ToList();
 

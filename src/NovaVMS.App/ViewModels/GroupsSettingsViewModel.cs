@@ -65,6 +65,7 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
     {
         _configuration = configuration;
         Preview = preview;
+
         _configuration.Changed += OnConfigurationChanged;
 
         Refresh();
@@ -318,6 +319,7 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
         }
 
         group.Name = name;
+
         _ = SaveAsync();
     }
 

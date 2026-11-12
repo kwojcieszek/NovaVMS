@@ -33,7 +33,9 @@ public sealed class MobileShell : ContentPage
 
         // The shell applies the safe area itself, so the header and navigation colors reach the screen edges.
         AutomaticallyApplySafeAreaPadding = false;
+
         TopLevel.SetAutoSafeAreaPadding(this, false);
+
         Content = new ShellView
         {
             DataContext = _viewModel
@@ -73,6 +75,7 @@ public sealed class MobileShell : ContentPage
         if (_topLevel is not null)
         {
             _topLevel.BackRequested += OnBackRequested;
+
             _viewModel.Files = new StorageFileService(_topLevel);
 
             if (_topLevel.InsetsManager is { } insets)
@@ -104,6 +107,7 @@ public sealed class MobileShell : ContentPage
 
             _topLevel.ScalingChanged -= OnScalingChanged;
             _topLevel.BackRequested -= OnBackRequested;
+
             _topLevel = null;
             _viewModel.Files = null;
         }

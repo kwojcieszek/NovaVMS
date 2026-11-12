@@ -36,6 +36,29 @@ public sealed class AppDelegate : AvaloniaAppDelegate<App>
         return base.CustomizeAppBuilder(builder).WithInterFont();
     }
 
+    private static async void OnWillResignActive(NSNotification notification)
+    {
+        var task = UIApplication.SharedApplication.BeginBackgroundTask("Stop camera", () =>
+        {
+        });
+
+        try
+        {
+            if (App.Shell is { } shell)
+            {
+                await shell.SuspendAsync();
+            }
+        }
+        catch
+        {
+            // Stop can race native surface teardown.
+        }
+        finally
+        {
+            UIApplication.SharedApplication.EndBackgroundTask(task);
+        }
+    }
+
     // Until Avalonia draws its first frame the window shows the launch screen picture drawn by UIKit.
     private void OnWindowDidBecomeVisible(NSNotification notification)
     {
@@ -66,28 +89,5 @@ public sealed class AppDelegate : AvaloniaAppDelegate<App>
         // Add the overlay after visibility changes so it stays above that view.
         window.AddSubview(overlay);
         overlay.RemoveWhenShown(shell);
-    }
-
-    private static async void OnWillResignActive(NSNotification notification)
-    {
-        var task = UIApplication.SharedApplication.BeginBackgroundTask("Stop camera", () =>
-        {
-        });
-
-        try
-        {
-            if (App.Shell is { } shell)
-            {
-                await shell.SuspendAsync();
-            }
-        }
-        catch
-        {
-            // Stop can race native surface teardown.
-        }
-        finally
-        {
-            UIApplication.SharedApplication.EndBackgroundTask(task);
-        }
     }
 }

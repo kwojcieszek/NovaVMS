@@ -19,6 +19,7 @@ public sealed class DeviceSyncShutdownTests
             ConfigureClient = client => client.ReadInfo = token =>
             {
                 entered.SetResult(token);
+
                 // SDK calls may ignore cancellation until the native call returns.
                 return release.Task;
             }

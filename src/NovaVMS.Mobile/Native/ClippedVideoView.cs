@@ -85,6 +85,7 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
                 {
                     // The decoder is behind; a skipped picture would damage the following ones.
                     _needKeyFrame = true;
+
                     Drain(decoder);
 
                     return false;
@@ -96,6 +97,7 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
                 if (size > input.Capacity())
                 {
                     decoder.QueueInputBuffer(index, 0, 0, 0, 0);
+
                     _needKeyFrame = true;
 
                     return false;
@@ -107,6 +109,7 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
                 input.Clear();
                 input.Put(data);
                 decoder.QueueInputBuffer(index, 0, size, picture.Timestamp * 100 / 9, picture.IsKeyFrame ? MediaCodecBufferFlags.KeyFrame : 0);
+
                 _needKeyFrame = false;
 
                 Drain(decoder);
@@ -116,6 +119,7 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
             catch (Exception exception) when (exception is Java.Lang.IllegalStateException or MediaCodec.CodecException or Java.IO.IOException)
             {
                 StopDecoder();
+
                 _needKeyFrame = true;
 
                 return false;
@@ -142,6 +146,7 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
         lock (_gate)
         {
             StopDecoder();
+
             _needKeyFrame = true;
         }
     }
@@ -182,6 +187,7 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
             OverlayBackground.Detach(previous.Content);
 
             previous.Content = null;
+
             RemoveView(previous);
             previous.Dispose();
         }
@@ -214,6 +220,7 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
         OverlayBackground.Attach(overlay);
 
         AddView(view, new LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent));
+
         _overlay = view;
     }
 
@@ -232,8 +239,10 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
         lock (_gate)
         {
             _detached = true;
+
             StopDecoder();
             _surface?.Release();
+
             _surface = null;
         }
     }
@@ -258,6 +267,7 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
         {
             StopDecoder();
             _surface?.Release();
+
             _surface = null;
         }
 
@@ -393,6 +403,7 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
 
                 _videoWidth = width;
                 _videoHeight = height;
+
                 Post(ApplyTransform);
 
                 continue;

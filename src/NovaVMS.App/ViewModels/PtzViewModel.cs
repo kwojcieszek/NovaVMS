@@ -62,6 +62,7 @@ public sealed partial class PtzViewModel : ViewModelBase, IDisposable
         _configuration = configuration;
         _clientFactory = clientFactory;
         _statusBar = statusBar;
+
         Localizer.Instance.LanguageChanged += OnLanguageChanged;
     }
 
@@ -136,6 +137,7 @@ public sealed partial class PtzViewModel : ViewModelBase, IDisposable
         }
 
         _isDisposed = true;
+
         Localizer.Instance.LanguageChanged -= OnLanguageChanged;
         // A command can still be inside an SDK call. Keep its client and the SDK alive until it returns.
         await _commandGate.WaitAsync();

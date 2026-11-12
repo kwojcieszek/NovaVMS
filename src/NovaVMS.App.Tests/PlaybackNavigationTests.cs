@@ -19,6 +19,7 @@ public sealed class PlaybackNavigationTests
         var opened = new List<DateTime>();
         var playback = await CreateAsync(vlc, opened);
         var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
         playback.RecordingOpening += (_, args) => args.WaitFor(ready.Task);
 
         try
@@ -79,6 +80,7 @@ public sealed class PlaybackNavigationTests
         var opened = new List<DateTime>();
         var playback = await CreateAsync(vlc, opened);
         var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
         playback.RecordingOpening += (_, args) => args.WaitFor(ready.Task);
 
         try

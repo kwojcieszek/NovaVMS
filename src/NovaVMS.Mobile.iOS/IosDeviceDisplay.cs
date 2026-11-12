@@ -67,6 +67,21 @@ public sealed class IosDeviceDisplay : IDeviceDisplay
         }
     }
 
+    private static UIWindowScene? Scene()
+    {
+        return UIApplication.SharedApplication.ConnectedScenes
+            .ToArray()
+            .OfType<UIWindowScene>()
+            .FirstOrDefault();
+    }
+
+    private static TopLevel? MainTopLevel()
+    {
+        var view = (Application.Current?.ApplicationLifetime as ISingleViewApplicationLifetime)?.MainView;
+
+        return view is null ? null : TopLevel.GetTopLevel(view);
+    }
+
     private UIInterfaceOrientationMask WindowedOrientations()
     {
         return _rotationLocked ? UIInterfaceOrientationMask.Portrait : UIInterfaceOrientationMask.AllButUpsideDown;
@@ -102,20 +117,5 @@ public sealed class IosDeviceDisplay : IDeviceDisplay
         {
             // The system refuses a rotation the application does not declare; the screen then stays as it is.
         });
-    }
-
-    private static UIWindowScene? Scene()
-    {
-        return UIApplication.SharedApplication.ConnectedScenes
-            .ToArray()
-            .OfType<UIWindowScene>()
-            .FirstOrDefault();
-    }
-
-    private static TopLevel? MainTopLevel()
-    {
-        var view = (Application.Current?.ApplicationLifetime as ISingleViewApplicationLifetime)?.MainView;
-
-        return view is null ? null : TopLevel.GetTopLevel(view);
     }
 }

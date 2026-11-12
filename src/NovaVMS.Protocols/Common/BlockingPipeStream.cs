@@ -124,6 +124,7 @@ internal class BlockingPipeStream : Stream
                 {
                     _current = _chunks.Dequeue();
                     _currentOffset = 0;
+
                     _bufferedBytes -= _current.Length;
 
                     Monitor.PulseAll(_syncRoot);

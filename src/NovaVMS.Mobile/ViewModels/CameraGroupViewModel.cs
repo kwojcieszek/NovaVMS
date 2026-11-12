@@ -101,6 +101,7 @@ public sealed partial class CameraGroupViewModel : PageViewModel
         }
 
         _released = true;
+
         _lifetime.Cancel();
 
         await _playback.WaitAsync();
@@ -121,6 +122,7 @@ public sealed partial class CameraGroupViewModel : PageViewModel
     partial void OnColumnsChanged(PreviewColumnsOption value)
     {
         _shell.LocalSettings.PreviewColumns = value.Value;
+
         _ = _shell.SaveLocalSettingsAsync();
     }
 
@@ -153,6 +155,7 @@ public sealed partial class CameraGroupViewModel : PageViewModel
         }
 
         _runLifetime = null;
+
         runLifetime.Cancel();
 
         await Task.WhenAll(Tiles.Select(tile => tile.StopAsync()));

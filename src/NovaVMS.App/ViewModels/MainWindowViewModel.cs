@@ -86,7 +86,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _settingsFactory = settingsFactory;
         _dialogs = dialogs;
         Session = session;
+
         Session.Changed += OnSessionChanged;
+
         Tree = tree;
         Live = live;
         Playback = playback;

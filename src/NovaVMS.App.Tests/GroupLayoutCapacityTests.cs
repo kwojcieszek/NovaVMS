@@ -136,6 +136,7 @@ public sealed class GroupLayoutCapacityTests
                 LayoutCount = 6
             };
             var checkedBeforeLayout = false;
+
             live.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName != nameof(LiveViewViewModel.SelectedLayout))

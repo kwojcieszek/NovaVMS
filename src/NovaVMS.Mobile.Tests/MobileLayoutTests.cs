@@ -294,6 +294,8 @@ public sealed class MobileLayoutTests
 
         public Control View { get; } = new Border();
 
+        public PlaybackOptions? Options { get; private set; }
+
         public event EventHandler<string>? StatusChanged
         {
             add
@@ -303,8 +305,6 @@ public sealed class MobileLayoutTests
             {
             }
         }
-
-        public PlaybackOptions? Options { get; private set; }
 
         public Task PlayAsync(VideoSource source, Device device, PlaybackOptions options, CancellationToken cancellationToken = default)
         {

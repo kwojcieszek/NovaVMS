@@ -143,10 +143,13 @@ public sealed class OnvifRecordingServiceTests
                     return Task.FromResult(Services());
                 case "FindRecordings":
                     stop.Cancel();
+
                     return Task.FromResult(Token("recordings"));
                 case "EndSearch":
                     ended = true;
+
                     Assert.False(token.IsCancellationRequested);
+
                     return Task.FromResult(new XElement("EndSearchResponse"));
                 default:
                     throw new InvalidOperationException();

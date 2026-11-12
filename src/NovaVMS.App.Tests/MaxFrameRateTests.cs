@@ -40,7 +40,9 @@ public sealed class MaxFrameRateTests
     private static async Task SetAndWaitAsync(ConfigurationService configuration, Action change)
     {
         var changed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
         void OnChanged(object? sender, EventArgs e) => changed.TrySetResult();
+
         configuration.Changed += OnChanged;
 
         try

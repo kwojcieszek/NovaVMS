@@ -46,6 +46,7 @@ public sealed class PlaybackBandwidthLimitTests
             })
         };
         var playback = new PlaybackViewModel(vlc, configuration, factory, null!, new RecordingExporter(vlc));
+
         playback.RecordingOpening += (_, _) => openings++;
 
         try

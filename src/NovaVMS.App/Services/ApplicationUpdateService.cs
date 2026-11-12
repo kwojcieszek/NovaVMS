@@ -69,6 +69,7 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
         _dialogs = dialogs;
         _http = http;
         _downloads = new UpdateDownloadCache(http, cacheDirectory);
+
         _configuration.Changed += OnConfigurationChanged;
         _timer.Tick += OnTimer;
     }

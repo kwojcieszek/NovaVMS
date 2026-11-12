@@ -61,6 +61,7 @@ public partial class App : Application
         var factory = services.GetService<IDeviceClientFactory>();
         var libVlc = services.GetService<LibVLCSharp.Shared.LibVLC>();
         var recordingVlc = services.GetKeyedService<LibVLCSharp.Shared.LibVLC>(VideoPlayerFactory.Recordings);
+
         // Native resources are idempotently released in the background. Dispose the
         // provider on the UI thread afterwards: transient settings pages own UI timers.
         await Task.Run(() =>
@@ -88,6 +89,7 @@ public partial class App : Application
             _services.GetRequiredService<DeviceConnectionCleanupService>();
 
             var viewModel = _services.GetRequiredService<MainWindowViewModel>();
+
             viewModel.StartupFinished += (_, _) => splash.Finish();
 
             // Video overlays are separate windows; the application must end with the main window.
@@ -103,6 +105,7 @@ public partial class App : Application
 
             desktop.MainWindow = mainWindow;
             desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
+
             desktop.Exit += OnDesktopExit;
 
             SingleInstance.Current?.ListenForActivation(() => Dispatcher.UIThread.Post(() =>

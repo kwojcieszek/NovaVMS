@@ -109,6 +109,7 @@ public partial class CameraView : UserControl
             {
                 // A single tap opens the playback menu once no second tap follows.
                 _singleTap ??= new DispatcherTimer(DoubleTapTime, DispatcherPriority.Normal, OnSingleTap);
+
                 _singleTap.Stop();
                 _singleTap.Start();
             }
@@ -117,6 +118,7 @@ public partial class CameraView : UserControl
         }
 
         _singleTap?.Stop();
+
         _lastTapTime = default;
         e.Handled = true;
 

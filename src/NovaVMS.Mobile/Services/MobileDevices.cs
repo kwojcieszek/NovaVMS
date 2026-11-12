@@ -72,6 +72,23 @@ public static class MobileDevices
             new BackgroundDeviceClient(await CreateClientAsync(device, preferOptional, cancellationToken)), cancellationToken);
     }
 
+    // A tap produces a bounded pulse. Stop is sent even when navigation cancels the pulse.
+    public static async Task PulseAsync(IDeviceClient client, int channel, int pan, int tilt, int zoom,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await client.PtzMoveAsync(channel, pan, tilt, zoom, cancellationToken);
+            await Task.Delay(250, cancellationToken);
+        }
+        finally
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+
+            await client.PtzStopAsync(channel, timeout.Token);
+        }
+    }
+
     private static async Task<IDeviceClient> CreateClientAsync(Device device, bool preferOptional, CancellationToken cancellationToken)
     {
         var resolved = Resolve(device, preferOptional);
@@ -122,23 +139,6 @@ public static class MobileDevices
             DeviceProtocol.Onvif => new OnvifDeviceClient(selected),
             _ => throw new NotSupportedException()
         };
-    }
-
-    // A tap produces a bounded pulse. Stop is sent even when navigation cancels the pulse.
-    public static async Task PulseAsync(IDeviceClient client, int channel, int pan, int tilt, int zoom,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            await client.PtzMoveAsync(channel, pan, tilt, zoom, cancellationToken);
-            await Task.Delay(250, cancellationToken);
-        }
-        finally
-        {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-
-            await client.PtzStopAsync(channel, timeout.Token);
-        }
     }
 
     // The port the protocol talks to (HTTP for ISAPI and ONVIF) and the video port.

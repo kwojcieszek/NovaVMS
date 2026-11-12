@@ -138,7 +138,9 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
             await _optionsStore.SaveAsync(updated);
 
             _options = updated;
+
             _store?.Dispose();
+
             _store = null;
 
             ApplySchedule();
@@ -302,6 +304,7 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
         }
 
         _isDisposed = true;
+
         _configuration.Saved -= OnConfigurationSaved;
 
         _checkTimer.Tick -= OnCheckTimerTick;
@@ -310,6 +313,7 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
         _uploadTimer.Dispose();
 
         _store?.Dispose();
+
         _store = null;
     }
 
@@ -352,6 +356,7 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
         var configuration = await store.DownloadAsync(version.Id);
 
         _uploadTimer.Stop();
+
         _uploadPending = false;
 
         await _configuration.ReplaceAsync(configuration);

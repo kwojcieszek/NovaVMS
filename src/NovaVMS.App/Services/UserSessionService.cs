@@ -48,6 +48,7 @@ public sealed partial class UserSessionService : ObservableObject
     {
         _configuration = configuration;
         _localSettings = localSettings;
+
         _configuration.Changed += (_, _) => Refresh();
     }
 

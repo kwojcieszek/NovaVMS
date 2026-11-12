@@ -225,6 +225,7 @@ public sealed partial class PlaybackWorkspaceViewModel
                             Path.Combine(folder, filename), progress, cancellation.Token);
 
                         files++;
+
                         done += duration.TotalSeconds;
                     }
                 }

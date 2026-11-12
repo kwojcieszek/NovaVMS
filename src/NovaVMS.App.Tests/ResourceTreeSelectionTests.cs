@@ -55,6 +55,7 @@ public sealed class ResourceTreeSelectionTests
             var rows = tree.Groups.ToArray();
             var containers = control.GetVisualDescendants().OfType<TreeViewItem>().ToArray();
             var collectionChanges = 0;
+
             tree.Groups.CollectionChanged += (_, _) => collectionChanges++;
 
             foreach (var group in rows.Where(node => node.IsCustom).Skip(15).Take(10))

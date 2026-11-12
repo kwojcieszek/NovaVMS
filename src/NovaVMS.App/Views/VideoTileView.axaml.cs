@@ -96,6 +96,7 @@ public partial class VideoTileView : UserControl
         }
 
         _ownerWindow = owner;
+
         owner.LayoutUpdated += OnOwnerLayoutUpdated;
         owner.PositionChanged += OnOwnerPositionChanged;
         owner.PropertyChanged += OnOwnerPropertyChanged;
@@ -176,6 +177,7 @@ public partial class VideoTileView : UserControl
             Focusable = false,
             Content = VideoOverlay
         };
+
         // Capture input at the window root, including presses whose hit-test target is the
         // window itself rather than VideoOverlay (for example during a layout update).
         _overlayWindow.AddHandler(PointerPressedEvent, OnTilePointerPressed,
@@ -199,6 +201,7 @@ public partial class VideoTileView : UserControl
         }
 
         _overlayUpdateQueued = true;
+
         // Native moves/resizes can arrive outside the owner's layout pass. Finish the current
         // notification before correcting geometry, including changes made by our own update.
         Dispatcher.UIThread.Post(() =>
@@ -220,6 +223,7 @@ public partial class VideoTileView : UserControl
 
             overlay.PositionChanged -= OnOverlayPositionChanged;
             overlay.SizeChanged -= OnOverlaySizeChanged;
+
             overlay.Content = null;
 
             overlay.Close();

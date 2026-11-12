@@ -21,6 +21,7 @@ public sealed class RecordingExporterTests
 
         using var vlc = new LibVLC("--no-osd", "--no-audio", "--no-video-title-show", "--vout=dummy");
         var logs = new System.Collections.Concurrent.ConcurrentQueue<string>();
+
         vlc.Log += (_, e) =>
         {
             if (e.Level >= LogLevel.Warning)
@@ -28,6 +29,7 @@ public sealed class RecordingExporterTests
                 logs.Enqueue(e.Message);
             }
         };
+
         var folder = Path.Combine(Path.GetTempPath(), "NovaVMS-export-test-O'Brien-" + Guid.NewGuid().ToString("N"));
 
         Directory.CreateDirectory(folder);

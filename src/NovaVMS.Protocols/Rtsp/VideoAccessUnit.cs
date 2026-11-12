@@ -33,6 +33,7 @@ public sealed class VideoAccessUnit(VideoCodec codec, IReadOnlyList<byte[]> nals
         {
             BinaryPrimitives.WriteInt32BigEndian(result.AsSpan(offset), nal.Length);
             nal.CopyTo(result.AsSpan(offset + 4));
+
             offset += 4 + nal.Length;
         }
 
@@ -74,6 +75,7 @@ public sealed class VideoAccessUnit(VideoCodec codec, IReadOnlyList<byte[]> nals
         destination[1] = 0;
         destination[2] = 0;
         destination[3] = 1;
+
         nal.CopyTo(destination[4..]);
 
         return nal.Length + 4;

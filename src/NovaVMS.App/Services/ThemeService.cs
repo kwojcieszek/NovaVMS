@@ -14,6 +14,7 @@ public sealed class ThemeService
     public ThemeService(ConfigurationService configuration)
     {
         _configuration = configuration;
+
         _configuration.Changed += OnConfigurationChanged;
     }
 

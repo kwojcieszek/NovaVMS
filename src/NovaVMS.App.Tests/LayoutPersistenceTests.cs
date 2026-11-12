@@ -28,7 +28,9 @@ public sealed class LayoutPersistenceTests
             foreach (var id in new[] { "standard-16", "wide-16" })
             {
                 var saved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
                 void OnSaved(object? sender, EventArgs args) => saved.TrySetResult();
+
                 configuration.Saved += OnSaved;
 
                 try

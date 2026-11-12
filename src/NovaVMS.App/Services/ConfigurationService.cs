@@ -118,6 +118,7 @@ public sealed class ConfigurationService : ISynchronizedConfiguration
             // Views stay; their cameras show again when the imported devices contain them.
             Views = Current.Views.Select(view => view.Copy()).ToList()
         }.CreateSnapshot();
+
         // A failed write must leave the current devices and groups available.
         await _saves.RunAsync(() => _store.SaveAsync(replacement.CreateSnapshot()));
 

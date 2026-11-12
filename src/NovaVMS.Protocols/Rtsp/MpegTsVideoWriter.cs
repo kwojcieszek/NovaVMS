@@ -46,6 +46,23 @@ internal sealed class MpegTsVideoWriter
         _delimiter = codec == VideoCodec.H265 ? H265Delimiter : H264Delimiter;
     }
 
+    internal static uint Crc32(ReadOnlySpan<byte> data)
+    {
+        var crc = 0xffffffffu;
+
+        foreach (var value in data)
+        {
+            crc ^= (uint)value << 24;
+
+            for (var bit = 0; bit < 8; bit++)
+            {
+                crc = (crc & 0x80000000) != 0 ? (crc << 1) ^ 0x04c11db7 : crc << 1;
+            }
+        }
+
+        return crc;
+    }
+
     /// <summary>
     /// Returns the transport stream packets of one picture; parameter sets precede every key frame.
     /// Large pictures span several PES packets; only the first carries the presentation time and clock reference.
@@ -78,27 +95,11 @@ internal sealed class MpegTsVideoWriter
             WritePes(output, pes, first ? clock : null, first && unit.IsKeyFrame);
 
             offset += size;
+
             first = false;
         }
 
         return output.ToArray();
-    }
-
-    internal static uint Crc32(ReadOnlySpan<byte> data)
-    {
-        var crc = 0xffffffffu;
-
-        foreach (var value in data)
-        {
-            crc ^= (uint)value << 24;
-
-            for (var bit = 0; bit < 8; bit++)
-            {
-                crc = (crc & 0x80000000) != 0 ? (crc << 1) ^ 0x04c11db7 : crc << 1;
-            }
-        }
-
-        return crc;
     }
 
     private static byte[] BuildSection(byte tableId, byte[] body, int tableIdExtension)
@@ -115,6 +116,7 @@ internal sealed class MpegTsVideoWriter
         section[5] = 0xc1;
         section[6] = 0;
         section[7] = 0;
+
         body.CopyTo(section, 8);
 
         var crc = Crc32(section.AsSpan(0, section.Length - 4));
@@ -160,7 +162,9 @@ internal sealed class MpegTsVideoWriter
 
         packet.AsSpan().Fill(0xff);
         WriteHeader(packet, pid, start: true, ref counter, adaptation: false);
+
         packet[4] = 0;
+
         section.CopyTo(packet, 5);
         output.Write(packet);
     }
@@ -184,6 +188,7 @@ internal sealed class MpegTsVideoWriter
         }
 
         field[1] = (byte)((randomAccess ? 0x40 : 0) | (clock is null ? 0 : 0x10));
+
         field[2..].Fill(0xff);
 
         if (clock is { } value)
@@ -227,6 +232,7 @@ internal sealed class MpegTsVideoWriter
             output.Write(packet);
 
             offset += payload;
+
             first = false;
         }
     }

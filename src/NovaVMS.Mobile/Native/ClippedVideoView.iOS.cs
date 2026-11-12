@@ -45,6 +45,7 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
         set
         {
             base.Frame = value;
+
             ApplyVisibleArea();
         }
     }
@@ -55,6 +56,7 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
         ClipsToBounds = true;
         _display.VideoGravity = KeepProportions;
         _display.BackgroundColor = UIColor.Black.CGColor;
+
         Layer.AddSublayer(_display);
     }
 
@@ -71,6 +73,7 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
             {
                 // The system stops the decoder, e.g. while the application was in the background.
                 Flush(removeImage: false);
+
                 _needKeyFrame = true;
             }
 
@@ -94,6 +97,7 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
             }
 
             Enqueue(sample);
+
             _needKeyFrame = false;
 
             return true;
@@ -144,18 +148,6 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
         RequestLayout();
     }
 
-    private void RequestLayout()
-    {
-        if (NSThread.IsMain)
-        {
-            SetNeedsLayout();
-        }
-        else
-        {
-            BeginInvokeOnMainThread(SetNeedsLayout);
-        }
-    }
-
     public void SetVisibleArea(Avalonia.Rect? area, double scale)
     {
         _area = area is { } visible
@@ -174,6 +166,7 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
             OverlayBackground.Detach(previous.Content);
 
             previous.Content = null;
+
             previous.RemoveFromSuperview();
             previous.Dispose();
         }
@@ -195,9 +188,11 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
         };
 
         view.Layer.Opaque = false;
+
         OverlayBackground.Attach(overlay);
 
         AddSubview(view);
+
         _overlay = view;
     }
 
@@ -221,8 +216,10 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
             }
 
             _detached = true;
+
             Flush(removeImage: true);
             _format?.Dispose();
+
             _format = null;
         }
     }
@@ -234,6 +231,7 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
         var bounds = Bounds;
 
         CATransaction.Begin();
+
         CATransaction.DisableActions = true;
 
         if (!_fill && _aspectRatio is { } ratio and > 0 && bounds.Width > 0 && bounds.Height > 0)
@@ -254,10 +252,23 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
         CATransaction.Commit();
     }
 
+    private void RequestLayout()
+    {
+        if (NSThread.IsMain)
+        {
+            SetNeedsLayout();
+        }
+        else
+        {
+            BeginInvokeOnMainThread(SetNeedsLayout);
+        }
+    }
+
     // The area is in the coordinates of the Avalonia view that hosts this view; the mask is in its own coordinates.
     private void ApplyVisibleArea()
     {
         CATransaction.Begin();
+
         CATransaction.DisableActions = true;
 
         if (_area is { } area)
@@ -341,6 +352,7 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
         if (format is null || error != CMFormatDescriptionError.None)
         {
             format?.Dispose();
+
             _needKeyFrame = true;
 
             return false;
@@ -364,6 +376,7 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
         }
 
         _format?.Dispose();
+
         _format = format;
         _formatParameters = picture.ParameterSets;
 

@@ -22,6 +22,7 @@ internal sealed class PlayCtrlApi : IPlayCtrlApi
     {
         // Delegates and the library stay loaded for the lifetime of the process, including late native callbacks.
         T Export<T>(string name) where T : Delegate => Marshal.GetDelegateForFunctionPointer<T>(NativeLibrary.GetExport(library, name));
+
         _getPort = Export<GetPortCall>("PlayM4_GetPort");
         _mode = Export<ModeCall>("PlayM4_SetStreamOpenMode");
         _open = Export<OpenCall>("PlayM4_OpenStream");

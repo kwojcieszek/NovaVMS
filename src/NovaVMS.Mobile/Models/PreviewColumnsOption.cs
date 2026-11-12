@@ -29,6 +29,7 @@ public sealed class PreviewColumnsOption : ObservableObject
     private PreviewColumnsOption(int value)
     {
         Value = value;
+
         Localizer.Instance.LanguageChanged += (_, _) => OnLanguageChanged();
     }
 

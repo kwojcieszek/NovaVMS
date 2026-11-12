@@ -89,6 +89,7 @@ internal sealed class IsapiDeviceService
 
             var channelNumber = streamId / IsapiStreamId.Multiplier;
             var video = element.Elements().FirstOrDefault(child => child.Name.LocalName == "Video");
+
             _ = uint.TryParse(video?.ChildValue("videoResolutionWidth"), out var width);
             _ = uint.TryParse(video?.ChildValue("videoResolutionHeight"), out var height);
 

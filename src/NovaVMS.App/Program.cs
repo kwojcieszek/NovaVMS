@@ -11,6 +11,7 @@ internal static class Program
         try
         {
             UnhandledExceptionLogger.Install();
+
             // An installer holds this file exclusively until all replacement/rollback work is complete.
             var updateLock = Path.Combine(AppContext.BaseDirectory, ".novavms-update.lock");
 
@@ -18,6 +19,7 @@ internal static class Program
             {
                 using (new FileStream(updateLock, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
+
                 }
             }
 

@@ -105,6 +105,7 @@ public sealed class UpdateInstallerTests
         Assert.Equal("SDK dependency", File.ReadAllText(Path.Combine(fixture.Install, "retained.dll")));
         Assert.Equal("old", File.ReadAllText(Path.Combine(fixture.Job, "backup", "NovaVMS.exe")));
         Assert.Equal(1, host.Starts);
+
         // The installer must release its exclusive startup lock before launching NovaVMS.
         using var gate = File.Open(Path.Combine(fixture.Install, ".novavms-update.lock"), FileMode.Open, FileAccess.ReadWrite, FileShare.None);
     }

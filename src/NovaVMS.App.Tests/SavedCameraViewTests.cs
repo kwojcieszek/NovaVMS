@@ -123,6 +123,7 @@ public sealed class SavedCameraViewTests
         Assert.True(node.CanRemoveFromView);
 
         CameraNodeViewModel? removed = null;
+
         tree.ViewCameraRemoved += (_, item) => removed = item;
 
         await tree.RemoveFromViewCommand.ExecuteAsync(node);

@@ -27,6 +27,7 @@ public sealed class IvmsReplacementTests
         var replaced = 0;
         var changed = 0;
         var saved = 0;
+
         configuration.Replaced += (_, _) => replaced++;
         configuration.Changed += (_, _) => changed++;
         configuration.Saved += (_, _) => saved++;
@@ -56,6 +57,7 @@ public sealed class IvmsReplacementTests
         original.Groups.Add(new CameraGroup { Name = "Keep" });
 
         var replaced = false;
+
         configuration.Replaced += (_, _) => replaced = true;
 
         await Assert.ThrowsAsync<IOException>(() => configuration.ReplaceDevicesAndGroupsAsync([new Device()], []));

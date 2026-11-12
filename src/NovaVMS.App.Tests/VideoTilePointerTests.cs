@@ -88,6 +88,7 @@ public sealed class VideoTilePointerTests
             Assert.Null(TopLevel.GetTopLevel(scene.Overlay));
 
             var suppressedDuringClose = false;
+
             settings.Closed += (_, _) => suppressedDuringClose = scene.Owner.GetValue(ModalDialog.DepthProperty) > 0;
 
             settings.Close();

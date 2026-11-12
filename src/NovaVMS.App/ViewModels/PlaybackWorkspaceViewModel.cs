@@ -109,6 +109,7 @@ public sealed partial class PlaybackWorkspaceViewModel : ViewModelBase, IDisposa
         _dialogs = dialogs;
         _exporter = exporter;
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+
         _timer.Tick += OnTick;
 
         AddTile();

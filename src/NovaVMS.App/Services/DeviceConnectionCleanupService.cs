@@ -19,12 +19,14 @@ public sealed class DeviceConnectionCleanupService : IDisposable
     {
         _configuration = configuration;
         _clientFactory = clientFactory;
+
         _configuration.Changed += OnConfigurationChanged;
     }
 
     public void Dispose()
     {
         _configuration.Changed -= OnConfigurationChanged;
+
         Disposal = _cleanups.WhenIdle;
     }
 
@@ -41,6 +43,7 @@ public sealed class DeviceConnectionCleanupService : IDisposable
         }
 
         _lastSignature = signature;
+
         _ = _cleanups.RunAsync(() => _clientFactory.ReleaseUnusedConnections(devices));
     }
 }

@@ -65,7 +65,9 @@ public sealed partial class CameraTileViewModel : ViewModelBase
             State = Localizer.Text("Mobile_Connecting");
 
             _player = _shell.CreatePreviewPlayer();
+
             _player.SetFillArea(_shell.Current.Settings.VideoAspectMode == VideoAspectMode.Fit);
+
             Video = _player.View;
             _client = await MobileDevices.ConnectAsync(_camera.Device, _shell.LocalSettings.UseOptionalProtocol, token);
 
@@ -74,6 +76,7 @@ public sealed partial class CameraTileViewModel : ViewModelBase
             await _player.PlayAsync(source, _camera.Device, options with { DisplayAspectRatio = _camera.Channel.MainAspectRatio }, token);
 
             _player.SetMuted(true);
+
             State = string.Empty;
         }
         catch (OperationCanceledException)
@@ -83,6 +86,7 @@ public sealed partial class CameraTileViewModel : ViewModelBase
         catch (Exception exception)
         {
             State = Localizer.Text("Mobile_PreviewFailed");
+
             MobileLog.Post($"{State} ({_camera.Channel.DisplayName})", exception);
         }
         finally
@@ -156,6 +160,7 @@ public sealed partial class CameraTileViewModel : ViewModelBase
             Video = null;
 
             _client?.Dispose();
+
             _client = null;
         }
         catch

@@ -16,6 +16,7 @@ public sealed class ModalDialogTests
     public async Task ConfirmationDefersInputAndKeepsVideoOverlayHiddenUntilEitherAnswer()
     {
         var tile = new VideoTileView();
+
         // Keep the real overlay window lifecycle without native VLC surfaces.
         tile.FindControl<Panel>("VideoHost")!.Children.Clear();
 
@@ -34,6 +35,7 @@ public sealed class ModalDialogTests
             {
                 var dialog = new ConfirmDialog("Layout", "Change the layout?");
                 var result = ModalDialog.ShowAsync<bool>(dialog, owner);
+
                 // The tree/selector input handler can finish before the window opens.
                 Assert.False(dialog.IsVisible);
                 Dispatcher.UIThread.RunJobs();

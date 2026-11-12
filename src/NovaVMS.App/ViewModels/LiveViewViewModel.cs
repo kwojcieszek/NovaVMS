@@ -115,6 +115,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         _statusBar = statusBar;
         _dialogs = dialogs;
         Session = session;
+
         _resizeStreamTimer.Tick += OnResizeStreamTick;
 
         _configuration.Changed += OnConfigurationChanged;
@@ -556,6 +557,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
             Cameras = Tiles.Take(SelectedLayout.Count)
                 .Select(tile => _assignments.GetValueOrDefault(tile) ?? tile.Camera).ToList()
         };
+
         _ = SaveGroupViewsAsync();
     }
 
@@ -946,6 +948,7 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
 
         settings.DefaultLayoutId = layout.Id;
         settings.DefaultLayoutCount = layout.Count;
+
         _ = SaveDefaultLayoutAsync();
     }
 

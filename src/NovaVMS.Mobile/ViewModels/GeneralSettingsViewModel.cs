@@ -201,6 +201,7 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
 
         // The page is rebuilt, so every field shows the imported settings.
         _shell.ShowGeneralSettings();
+
         _shell.Status = Localizer.Format("General_Imported", result.DevicesAdded, result.DevicesUpdated, result.GroupsAdded, result.GroupsUpdated);
     }
 
@@ -240,12 +241,14 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
     partial void OnUseOptionalProtocolChanged(bool value)
     {
         _shell.LocalSettings.UseOptionalProtocol = value;
+
         _ = _shell.SaveLocalSettingsAsync();
     }
 
     partial void OnSelectedPreviewColumnsChanged(PreviewColumnsOption value)
     {
         _shell.LocalSettings.PreviewColumns = value.Value;
+
         _ = _shell.SaveLocalSettingsAsync();
     }
 

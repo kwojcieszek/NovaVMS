@@ -28,7 +28,9 @@ public sealed class MultiCameraPlaybackTests
         var previousTiles = workspace.Tiles.ToArray();
         var firstCamera = previousTiles[0].Camera!;
         var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
         workspace.RecordingOpening += (_, args) => args.WaitFor(ready.Task);
+
         var seek = workspace.SeekCommand.ExecuteAsync(3600d);
 
         try
@@ -212,7 +214,9 @@ public sealed class MultiCameraPlaybackTests
     {
         await using var scene = await Scene.CreateAsync(2);
         var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
         scene.Workspace.RecordingOpening += (_, args) => args.WaitFor(ready.Task);
+
         var seek = scene.Workspace.SeekCommand.ExecuteAsync(3600d);
 
         await WaitForAsync(() => scene.Workspace.Tiles.All(tile => tile.Playback.IsPaused));
@@ -320,7 +324,9 @@ public sealed class MultiCameraPlaybackTests
     {
         await using var scene = await Scene.CreateAsync(2);
         var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
         scene.Workspace.RecordingOpening += (_, args) => args.WaitFor(ready.Task);
+
         var first = scene.Workspace.SeekCommand.ExecuteAsync(3600d);
 
         await WaitForAsync(() => scene.Workspace.Tiles.All(tile => tile.Playback.IsPaused));

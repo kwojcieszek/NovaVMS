@@ -20,6 +20,7 @@ internal sealed class HikvisionRtpVideo(string codec, int payloadType, IReadOnly
     internal static byte[] WrapPes(ReadOnlySpan<byte> elementary, ulong timestamp)
     {
         using var result = new MemoryStream();
+
         // MPEG-2 pack header, SCR=0, mux rate=25200. PES carries the RTP-derived presentation time.
         result.Write(Convert.FromHexString("000001BA4400040004010189C3F8"));
 

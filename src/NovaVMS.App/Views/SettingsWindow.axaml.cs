@@ -14,6 +14,7 @@ public partial class SettingsWindow : Window
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
+
         // Pages the user may not open are hidden; start on the first one that is shown.
         var first = Pages.Items.OfType<TabItem>().FirstOrDefault(page => page.IsVisible);
 

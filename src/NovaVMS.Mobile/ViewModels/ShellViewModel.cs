@@ -130,18 +130,22 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         _localSettingsStore = new LocalSettingsStore(files.LocalSettingsFile);
 
         Configuration = new MobileConfigurationService(configurationStore, serializer, new MobileDeviceStore(platform.DataDirectory, platform.Protection));
+
         Configuration.Changed += OnConfigurationChanged;
         Configuration.Replaced += OnConfigurationReplaced;
 
         Sync = new SettingsSyncService(Configuration, optionsStore, new BackgroundRemoteSettingsStoreFactory(new RemoteSettingsStoreFactory(serializer)));
+
         Sync.Notified += OnSyncNotified;
 
         LocalSettings = _localSettingsStore.Load();
+
         _display?.SetRotationLocked(LocalSettings.LockRotation);
 
         _createPlayer = platform.CreatePlayer;
         _display = platform.Display;
         Player = platform.CreatePlayer();
+
         Player.StatusChanged += PlayerStatusChanged;
 
         ShowCameras();
@@ -161,6 +165,7 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
             await Configuration.LoadAsync(token);
 
             StorageReady = true;
+
             ShowCameras();
         });
 
@@ -179,11 +184,13 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
     public async Task SuspendAsync()
     {
         _suspended = true;
+
         Confirmation?.Cancel();
 
         await CloseCameraAsync();
 
         ShowCameras();
+
         Status = string.Empty;
 
         await Sync.FlushAsync();
@@ -226,11 +233,13 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
 
         _disposed = true;
         _suspended = true;
+
         Confirmation?.Cancel();
 
         await CloseCameraAsync();
 
         CurrentPage = null;
+
         Player.StatusChanged -= PlayerStatusChanged;
         Sync.Notified -= OnSyncNotified;
         Sync.Dispose();
@@ -291,6 +300,7 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         var log = new LogViewModel();
 
         CurrentPage = log;
+
         log.RefreshCommand.Execute(null);
     }
 
@@ -348,56 +358,6 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         return RunAsync(operation, waitForRunning: true);
     }
 
-    private async Task RunAsync(Func<CancellationToken, Task> operation, bool waitForRunning)
-    {
-        if (_suspended)
-        {
-            return;
-        }
-
-        if (waitForRunning)
-        {
-            await _operations.WaitAsync();
-        }
-        else if (!await _operations.WaitAsync(0))
-        {
-            return;
-        }
-
-        if (_suspended)
-        {
-            _operations.Release();
-
-            return;
-        }
-
-        using var cancellation = new CancellationTokenSource(OperationTimeout);
-
-        _pending = cancellation;
-        IsBusy = true;
-
-        try
-        {
-            await operation(cancellation.Token);
-        }
-        catch (OperationCanceledException exception)
-        {
-            Status = Localizer.Text("Mobile_OperationCancelled");
-            MobileLog.Post(Status, exception);
-        }
-        catch (Exception exception)
-        {
-            Status = Localizer.Text("Mobile_OperationFailed");
-            MobileLog.Post(Status, exception);
-        }
-        finally
-        {
-            _pending = null;
-            IsBusy = false;
-            _operations.Release();
-        }
-    }
-
     /// <summary>Cancels the running operation and runs <paramref name="action"/> once it has finished.</summary>
     internal async Task RunExclusiveAsync(Func<Task> action)
     {
@@ -425,6 +385,7 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         catch (Exception exception)
         {
             Status = Localizer.Text("Mobile_ActionFailed");
+
             MobileLog.Post(Status, exception);
         }
     }
@@ -439,6 +400,7 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             Status = Localizer.Format("General_SaveFailed", exception.Message);
+
             MobileLog.Post(Status, exception);
         }
     }
@@ -447,6 +409,7 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
     internal async Task SetRotationLockedAsync(bool locked)
     {
         LocalSettings.LockRotation = locked;
+
         _display?.SetRotationLocked(locked);
 
         await SaveLocalSettingsAsync();
@@ -461,6 +424,7 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             Status = Localizer.Format("General_SaveFailed", exception.Message);
+
             MobileLog.Post(Status, exception);
         }
     }
@@ -487,6 +451,7 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
             }
 
             _client?.Dispose();
+
             _client = null;
         });
     }
@@ -554,6 +519,59 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
             ThemeMode.Dark => ThemeVariant.Dark,
             _ => ThemeVariant.Default
         };
+    }
+
+    private async Task RunAsync(Func<CancellationToken, Task> operation, bool waitForRunning)
+    {
+        if (_suspended)
+        {
+            return;
+        }
+
+        if (waitForRunning)
+        {
+            await _operations.WaitAsync();
+        }
+        else if (!await _operations.WaitAsync(0))
+        {
+            return;
+        }
+
+        if (_suspended)
+        {
+            _operations.Release();
+
+            return;
+        }
+
+        using var cancellation = new CancellationTokenSource(OperationTimeout);
+
+        _pending = cancellation;
+        IsBusy = true;
+
+        try
+        {
+            await operation(cancellation.Token);
+        }
+        catch (OperationCanceledException exception)
+        {
+            Status = Localizer.Text("Mobile_OperationCancelled");
+
+            MobileLog.Post(Status, exception);
+        }
+        catch (Exception exception)
+        {
+            Status = Localizer.Text("Mobile_OperationFailed");
+
+            MobileLog.Post(Status, exception);
+        }
+        finally
+        {
+            _pending = null;
+            IsBusy = false;
+
+            _operations.Release();
+        }
     }
 
     [RelayCommand]

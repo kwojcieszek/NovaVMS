@@ -252,6 +252,7 @@ public sealed partial class DeviceEditViewModel : PageViewModel
         await _shell.ReplaceDeviceAsync(_existing, device, token);
 
         _shell.ShowDevices();
+
         _shell.Status = Localizer.Text("Mobile_DeviceSaved");
     }
 }

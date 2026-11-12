@@ -55,6 +55,7 @@ public sealed class SystemVideoPlayer : IMobilePlayer
         cancellationToken.ThrowIfCancellationRequested();
 
         _aspectRatio = ParseAspectRatio(options.DisplayAspectRatio);
+
         _renderer?.SetAspectRatio(_aspectRatio);
 
         var encryptedUri = source.EncryptedUri;
@@ -96,6 +97,7 @@ public sealed class SystemVideoPlayer : IMobilePlayer
         _run = run;
         _paused = false;
         _playingReported = 0;
+
         _renderer?.Restart();
 
         StatusChanged?.Invoke(this, Localizer.Text("Mobile_Connecting"));
@@ -106,6 +108,57 @@ public sealed class SystemVideoPlayer : IMobilePlayer
     public Task StopAsync()
     {
         return StopAsync(clear: true);
+    }
+
+    public void SetPaused(bool paused)
+    {
+        _paused = paused;
+
+        if (!paused)
+        {
+            _renderer?.RequireKeyFrame();
+        }
+    }
+
+    public void SetMuted(bool muted)
+    {
+    }
+
+    public void SetFillArea(bool fill)
+    {
+        _fill = fill;
+
+        _renderer?.SetFill(fill);
+    }
+
+    public void SetOverlay(Control? overlay)
+    {
+        _overlay = overlay;
+        _overlayVisible = false;
+
+        _renderer?.SetOverlay(overlay);
+    }
+
+    public void SetOverlayVisible(bool visible)
+    {
+        _overlayVisible = visible;
+
+        _renderer?.SetOverlayVisible(visible);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await StopAsync();
+    }
+
+    private static double? ParseAspectRatio(string? ratio)
+    {
+        var parts = ratio?.Split(':');
+
+        return parts is [var width, var height]
+            && double.TryParse(width, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var w)
+            && double.TryParse(height, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var h)
+            && w > 0 && h > 0 ? w / h : null;
     }
 
     private async Task StopAsync(bool clear)
@@ -139,54 +192,6 @@ public sealed class SystemVideoPlayer : IMobilePlayer
         {
             _renderer?.Clear();
         }
-    }
-
-    public void SetPaused(bool paused)
-    {
-        _paused = paused;
-
-        if (!paused)
-        {
-            _renderer?.RequireKeyFrame();
-        }
-    }
-
-    public void SetMuted(bool muted)
-    {
-    }
-
-    private static double? ParseAspectRatio(string? ratio)
-    {
-        var parts = ratio?.Split(':');
-
-        return parts is [var width, var height]
-            && double.TryParse(width, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var w)
-            && double.TryParse(height, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var h)
-            && w > 0 && h > 0 ? w / h : null;
-    }
-
-    public void SetFillArea(bool fill)
-    {
-        _fill = fill;
-        _renderer?.SetFill(fill);
-    }
-
-    public void SetOverlay(Control? overlay)
-    {
-        _overlay = overlay;
-        _overlayVisible = false;
-        _renderer?.SetOverlay(overlay);
-    }
-
-    public void SetOverlayVisible(bool visible)
-    {
-        _overlayVisible = visible;
-        _renderer?.SetOverlayVisible(visible);
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        await StopAsync();
     }
 
     private async Task ReceiveAsync(RtspVideoSession session, string description, CancellationToken token)
@@ -260,6 +265,7 @@ public sealed class SystemVideoPlayer : IMobilePlayer
             _native.SetAspectRatio(player._aspectRatio);
             _native.SetOverlay(player._overlay);
             _native.SetOverlayVisible(player._overlayVisible);
+
             _visibleArea = null;
 
             UpdateVisibleArea();
@@ -308,6 +314,7 @@ public sealed class SystemVideoPlayer : IMobilePlayer
             }
 
             _visibleArea = area;
+
             _native.SetVisibleArea(area, TopLevel.GetTopLevel(this)?.RenderScaling ?? 1);
         }
 

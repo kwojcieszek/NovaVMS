@@ -346,8 +346,10 @@ public sealed class OnvifDeviceClient : IDeviceClient
             }
 
             var resolution = encoder.DescendantsByLocalName("Resolution").FirstOrDefault();
+
             _ = int.TryParse(resolution?.ChildValue("Width"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var width);
             _ = int.TryParse(resolution?.ChildValue("Height"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var height);
+
             var hasPtz = element.Elements().Any(child => child.Name.LocalName == "PTZConfiguration");
 
             profiles.Add(new OnvifProfile(token, source.ChildValue("SourceToken"), width, height, hasPtz));

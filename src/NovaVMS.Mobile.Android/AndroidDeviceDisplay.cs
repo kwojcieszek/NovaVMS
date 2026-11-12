@@ -8,11 +8,11 @@ namespace NovaVMS.Mobile.Android;
 /// <summary>Full screen landscape mode of the main activity.</summary>
 public sealed class AndroidDeviceDisplay : IDeviceDisplay
 {
-    public static AndroidDeviceDisplay Instance { get; } = new();
-
     private Activity? _activity;
     private bool _rotationLocked = true;
     private bool _fullScreen;
+
+    public static AndroidDeviceDisplay Instance { get; } = new();
 
     /// <summary>Activity currently shown; set by <see cref="MainActivity"/>, which takes the current rotation lock.</summary>
     public Activity? Activity
@@ -63,12 +63,6 @@ public sealed class AndroidDeviceDisplay : IDeviceDisplay
         }
     }
 
-    // "User" returns to the orientation chosen by the user even when auto-rotation is off.
-    private ScreenOrientation WindowedOrientation()
-    {
-        return _rotationLocked ? ScreenOrientation.Portrait : ScreenOrientation.User;
-    }
-
     private static void SetSystemBarsVisible(Activity activity, bool visible)
     {
         if (activity.Window is not { } window)
@@ -86,6 +80,7 @@ public sealed class AndroidDeviceDisplay : IDeviceDisplay
             {
                 // The bars come back temporarily with a swipe from the screen edge.
                 controller.SystemBarsBehavior = (int)WindowInsetsControllerBehavior.ShowTransientBarsBySwipe;
+
                 controller.Hide(WindowInsets.Type.SystemBars());
             }
 
@@ -97,6 +92,12 @@ public sealed class AndroidDeviceDisplay : IDeviceDisplay
             ? SystemUiFlags.Visible
             : SystemUiFlags.Fullscreen | SystemUiFlags.HideNavigation | SystemUiFlags.ImmersiveSticky;
 #pragma warning restore CA1422
+    }
+
+    // "User" returns to the orientation chosen by the user even when auto-rotation is off.
+    private ScreenOrientation WindowedOrientation()
+    {
+        return _rotationLocked ? ScreenOrientation.Portrait : ScreenOrientation.User;
     }
 
     private void Run(Action<Activity> action)

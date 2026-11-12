@@ -22,6 +22,7 @@ public sealed class FirstChanceExceptionCapture(Action<string, Exception> log) :
             }
 
             AppDomain.CurrentDomain.FirstChanceException += OnException;
+
             _installed = true;
         }
     }
@@ -36,6 +37,7 @@ public sealed class FirstChanceExceptionCapture(Action<string, Exception> log) :
             }
 
             AppDomain.CurrentDomain.FirstChanceException -= OnException;
+
             _installed = false;
         }
     }

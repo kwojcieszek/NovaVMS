@@ -173,6 +173,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     {
         _isDisposed = true;
         _sdkStatusVersion++;
+
         _configuration.Changed -= OnConfigurationChanged;
         Localizer.Instance.LanguageChanged -= OnLanguageChanged;
     }
@@ -204,6 +205,7 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     {
         var version = ++_sdkStatusVersion;
         var directory = HcNetSdkDirectory;
+
         // Typing a UNC path must not synchronously probe a network share on every keypress.
         await Task.Delay(200);
 
@@ -303,12 +305,14 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
     partial void OnStartFullScreenChanged(bool value)
     {
         _localSettings.Current.StartFullScreen = value;
+
         _ = SaveLocalAsync();
     }
 
     partial void OnUseOptionalProtocolChanged(bool value)
     {
         _localSettings.Current.UseOptionalProtocol = value;
+
         _ = SaveLocalAsync();
     }
 

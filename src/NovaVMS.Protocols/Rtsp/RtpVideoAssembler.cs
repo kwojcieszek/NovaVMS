@@ -220,6 +220,7 @@ public sealed class RtpVideoAssembler : IDisposable
             if (start)
             {
                 _fragment.SetLength(0);
+
                 _fragmentFlagged = false;
 
                 if (hevc)
@@ -243,12 +244,14 @@ public sealed class RtpVideoAssembler : IDisposable
             if (_fragment.Length + payload.Length > MaxPictureSize)
             {
                 _fragment.SetLength(0);
+
                 _pictureDamaged = true;
 
                 return;
             }
 
             _fragmentFlagged |= _packetFlagged;
+
             _fragment.Write(payload[fuSize..]);
 
             if (finish)
@@ -302,6 +305,7 @@ public sealed class RtpVideoAssembler : IDisposable
         }
 
         _keyFrame |= _codec == VideoCodec.H265 ? type is >= 16 and <= 21 : type == 5;
+
         _nals.Add(nal.ToArray());
     }
 
@@ -311,6 +315,7 @@ public sealed class RtpVideoAssembler : IDisposable
         {
             // A fragmented NAL unit lost its end.
             _pictureDamaged = true;
+
             _fragment.SetLength(0);
         }
 
@@ -341,6 +346,7 @@ public sealed class RtpVideoAssembler : IDisposable
         }
 
         _nals.Clear();
+
         _pictureSize = 0;
         _keyFrame = false;
         _pictureDamaged = false;

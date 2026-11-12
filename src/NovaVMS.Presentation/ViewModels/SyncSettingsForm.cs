@@ -116,6 +116,7 @@ public sealed partial class SyncSettingsForm : ObservableObject, IDisposable
     public void Dispose()
     {
         _isDisposed = true;
+
         _sync.PropertyChanged -= OnSyncPropertyChanged;
         _sync.VersionsChanged -= OnVersionsChanged;
     }

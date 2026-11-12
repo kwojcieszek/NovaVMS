@@ -25,6 +25,7 @@ public sealed partial class PlaybackTileViewModel : ViewModelBase
         Number = number;
         Playback = playback;
         _workspace = workspace;
+
         Playback.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(PlaybackViewModel.CameraName))

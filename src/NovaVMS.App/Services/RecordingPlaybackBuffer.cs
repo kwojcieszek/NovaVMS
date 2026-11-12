@@ -42,6 +42,7 @@ internal sealed class RecordingPlaybackBuffer : IAsyncDisposable
         Slot? target = null;
         Slot? previous = null;
         var promoted = false;
+
         bool Current() => !_disposed && version == Volatile.Read(ref _version) && !token.IsCancellationRequested;
 
         try

@@ -74,6 +74,7 @@ public sealed class RecordingExporter([Microsoft.Extensions.DependencyInjection.
             }
 
             token.ThrowIfCancellationRequested();
+
             // The completed file appears only after the MP4 index has been finalized.
             var partial = destination + $".{Guid.NewGuid():N}.partial";
 
@@ -87,6 +88,7 @@ public sealed class RecordingExporter([Microsoft.Extensions.DependencyInjection.
 
                 using var player = VideoPlayerFactory.Create(libVlc);
                 var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
                 player.EndReached += (_, _) => completion.TrySetResult(true);
                 player.EncounteredError += (_, _) => completion.TrySetException(new IOException(media.ErrorMessage ?? "Recording export failed."));
 

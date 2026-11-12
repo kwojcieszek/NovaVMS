@@ -218,11 +218,13 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         _exporter = exporter;
 
         _buffer = new RecordingPlaybackBuffer(libVlc);
+
         _buffer.ActivePlayerChanged += OnActivePlayerChanged;
         _buffer.PrimaryPlayer.EncounteredError += OnPrimaryPlayerError;
         _buffer.SecondaryPlayer.EncounteredError += OnSecondaryPlayerError;
         _buffer.PrimaryPlayer.EndReached += OnPrimaryPlayerEndReached;
         _buffer.SecondaryPlayer.EndReached += OnSecondaryPlayerEndReached;
+
         PrimaryPlayer = _buffer.PrimaryPlayer;
         SecondaryPlayer = _buffer.SecondaryPlayer;
         VideoPlayer = _player;
@@ -231,6 +233,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         {
             Interval = TimeSpan.FromMilliseconds(500)
         };
+
         _positionTimer.Tick += OnPositionTimerTick;
         Localizer.Instance.LanguageChanged += OnLanguageChanged;
     }
@@ -582,6 +585,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         }
 
         _ = _buffer.SetPauseAsync(IsPaused);
+
         StatusText = Localizer.Text(IsPaused ? "Playback_Paused" : "Playback_Playing");
     }
 
@@ -734,9 +738,11 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
             var caching = _configuration.Current.Settings.GetNetworkCachingMs(StreamType.Main);
             var withAudio = SelectedSpeed.Rate == 1;
+
             Task<bool> OpenAsync() => _buffer.SwitchAsync(() => VideoMedia.Create(_libVlc, source,
                 camera.Device.Username, camera.Device.Password, caching,
                 withAudio, paceStream: true), _lifetime.Token);
+
             bool started;
 
             try

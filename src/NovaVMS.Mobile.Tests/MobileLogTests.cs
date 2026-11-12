@@ -18,9 +18,6 @@ public sealed class MobileLogTests : IDisposable
         Directory.Delete(_directory, recursive: true);
     }
 
-    private static string Entry(int number) =>
-        $"[2026-11-12 14:05:{number % 60:00}.000 +01:00] [PID 1, thread 2] Entry {number}\n{new string('x', 300)}\n\n";
-
     [Fact]
     public void OldestFilesAreRemovedFirst()
     {
@@ -36,6 +33,7 @@ public sealed class MobileLogTests : IDisposable
     public void NewestFileKeepsWholeNewestEntriesWithinTheLimit()
     {
         var path = Path.Combine(_directory, "errors-20261112.log");
+
         File.WriteAllText(path, string.Concat(Enumerable.Range(1, 30).Select(Entry)));
 
         MobileLog.Trim(_directory, MobileLog.MaxBytes);
@@ -53,6 +51,7 @@ public sealed class MobileLogTests : IDisposable
     {
         var path = Path.Combine(_directory, "errors-20261112.log");
         var lines = string.Concat(Enumerable.Range(1, 200).Select(line => $"   at Frame{line}()\n"));
+
         File.WriteAllText(path, "[2026-11-12 14:05:00.000 +01:00] [PID 1, thread 2] Long\n" + lines, new UTF8Encoding(false));
 
         MobileLog.Trim(_directory, 1024);
@@ -63,4 +62,7 @@ public sealed class MobileLogTests : IDisposable
         Assert.StartsWith("   at Frame", text);
         Assert.EndsWith("   at Frame200()\n", text);
     }
+
+    private static string Entry(int number) =>
+        $"[2026-11-12 14:05:{number % 60:00}.000 +01:00] [PID 1, thread 2] Entry {number}\n{new string('x', 300)}\n\n";
 }

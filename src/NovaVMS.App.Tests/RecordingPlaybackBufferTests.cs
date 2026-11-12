@@ -24,15 +24,19 @@ public sealed class RecordingPlaybackBufferTests
         using var release = new ManualResetEventSlim();
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var stopped = 0;
+
         outgoing.Stopped += (_, _) => Interlocked.Increment(ref stopped);
+
         var incoming = new MemoryStream(bytes);
         var readyAtSwitch = false;
         var oldFrameAtSwitch = false;
+
         buffer.ActivePlayerChanged += (_, _) =>
         {
             readyAtSwitch = buffer.ActiveMedia!.Media.Statistics.DisplayedPictures > 0;
             oldFrameAtSwitch = first.CanRead && outgoing.State == VLCState.Paused;
         };
+
         var seek = buffer.SwitchAsync(() =>
         {
             entered.TrySetResult();

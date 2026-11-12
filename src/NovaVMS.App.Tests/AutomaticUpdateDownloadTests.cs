@@ -107,6 +107,7 @@ public sealed class AutomaticUpdateDownloadTests
         var dialogs = new Dialogs();
         using var updates = new ApplicationUpdateService(configuration, dialogs, new HttpClient(handler), DirectoryPath());
         var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
         updates.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(updates.IsBusy) && !updates.IsBusy && updates.IsDownloaded)
