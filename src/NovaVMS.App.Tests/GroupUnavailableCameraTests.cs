@@ -66,5 +66,10 @@ public sealed class GroupUnavailableCameraTests
         {
             return Task.FromResult(check(device));
         }
+
+        public Task<bool> IsPortReachableAsync(string host, int port, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(false);
+        }
     }
 }

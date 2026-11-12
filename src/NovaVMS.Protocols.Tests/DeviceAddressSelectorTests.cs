@@ -204,5 +204,8 @@ public sealed class DeviceAddressSelectorTests
 
             return Check(device);
         }
+
+        public Task<bool> IsPortReachableAsync(string host, int port, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
     }
 }

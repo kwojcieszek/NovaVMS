@@ -24,7 +24,6 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
     private const string NewDeviceTitleKey = "Devices_New";
 
     private static readonly TimeSpan DiscoveryTimeout = TimeSpan.FromSeconds(3);
-    private static readonly TimeSpan StateCheckInterval = TimeSpan.FromSeconds(30);
 
     private readonly ConfigurationService _configuration;
     private readonly DeviceSyncService _sync;
@@ -155,15 +154,13 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
 
         _stateTimer = new DispatcherTimer
         {
-            Interval = StateCheckInterval
+            Interval = DeviceAvailability.CheckInterval
         };
         _stateTimer.Tick += OnStateTimerTick;
 
         _stateTimer.Start();
 
         Localizer.Instance.LanguageChanged += OnLanguageChanged;
-
-        _ = CheckStatesAsync();
     }
 
     public void Dispose()

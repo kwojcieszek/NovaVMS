@@ -81,5 +81,8 @@ public sealed class SecondaryRtspPortTests
     {
         public Task<bool> IsReachableAsync(Device device, CancellationToken cancellationToken = default)
             => Task.FromResult(device.Host == "secondary" || primary);
+
+        public Task<bool> IsPortReachableAsync(string host, int port, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
     }
 }

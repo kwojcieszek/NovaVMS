@@ -12,16 +12,20 @@ public sealed class DeviceReachability : IDeviceReachability
 {
     private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(3);
 
-    public async Task<bool> IsReachableAsync(Device device, CancellationToken cancellationToken = default)
+    public Task<bool> IsReachableAsync(Device device, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(device);
 
-        if (string.IsNullOrWhiteSpace(device.Host))
+        return IsPortReachableAsync(device.Host, device.ConnectionPort, cancellationToken);
+    }
+
+    public async Task<bool> IsPortReachableAsync(string host, int port, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(host) || port is < 1 or > 65535)
         {
             return false;
         }
 
-        var port = device.Protocol == DeviceProtocol.HikvisionSdk ? device.SdkPort : device.HttpPort;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         timeout.CancelAfter(ConnectTimeout);
@@ -30,7 +34,7 @@ public sealed class DeviceReachability : IDeviceReachability
         {
             using var client = new TcpClient();
 
-            await client.ConnectAsync(device.Host.Trim(), port, timeout.Token).ConfigureAwait(false);
+            await client.ConnectAsync(host.Trim(), port, timeout.Token).ConfigureAwait(false);
 
             return true;
         }

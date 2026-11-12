@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using NovaVMS.App.Services;
 using NovaVMS.App.ViewModels;
 using NovaVMS.Core.Abstractions;
+using NovaVMS.Core.Exceptions;
 using NovaVMS.Core.Models;
 using NovaVMS.Infrastructure.Storage;
 using NovaVMS.Protocols;
@@ -134,6 +135,91 @@ public sealed class DeviceAvailabilityTests
     }
 
     [Fact]
+    public async Task SdkDeviceIsAvailableWhenOnlyRtspAnswers()
+    {
+        var device = new Device { Host = "nvr", Protocol = DeviceProtocol.HikvisionSdk, SdkPort = 8000, HttpPort = 80, RtspPort = 554 };
+        var probe = new Probe((_, _) => Task.FromResult(false), (_, port) => port == 554);
+
+        Assert.True(await DeviceAvailability.CheckAsync(probe, device));
+        Assert.Contains(("nvr", 554), probe.Ports);
+        Assert.DoesNotContain(probe.Ports, endpoint => endpoint.Port == 8000 || endpoint.Port == 80);
+    }
+
+    [Theory]
+    [InlineData(DeviceProtocol.Isapi)]
+    [InlineData(DeviceProtocol.Onvif)]
+    public async Task HttpDeviceIsAvailableWhenOnlySdkOrRtspAnswers(DeviceProtocol protocol)
+    {
+        var device = new Device { Host = "camera", Protocol = protocol, HttpPort = 80, SdkPort = 8000, RtspPort = 554 };
+        var sdk = new Probe((_, _) => Task.FromResult(false), (_, port) => port == 8000);
+        var rtsp = new Probe((_, _) => Task.FromResult(false), (_, port) => port == 554);
+        var none = new Probe((_, _) => Task.FromResult(false));
+
+        Assert.True(await DeviceAvailability.CheckAsync(sdk, device));
+        Assert.True(await DeviceAvailability.CheckAsync(rtsp, device));
+        Assert.False(await DeviceAvailability.CheckAsync(none, device));
+        Assert.Contains(("camera", 8000), none.Ports);
+        Assert.Contains(("camera", 554), none.Ports);
+    }
+
+    [Fact]
+    public async Task SecondaryAddressUsesItsOwnAlternativePorts()
+    {
+        var device = new Device
+        {
+            Host = "first",
+            SecondaryHost = "second",
+            Protocol = DeviceProtocol.Isapi,
+            SdkPort = 8000,
+            RtspPort = 554,
+            SecondaryPort = 8080,
+            SecondarySdkPort = 18000,
+            SecondaryRtspPort = 10554
+        };
+        var probe = new Probe((_, _) => Task.FromResult(false));
+
+        Assert.False(await DeviceAvailability.CheckAsync(probe, device));
+        Assert.Contains(("second", 18000), probe.Ports);
+        Assert.Contains(("second", 10554), probe.Ports);
+        Assert.Contains(("first", 8000), probe.Ports);
+        Assert.Contains(("first", 554), probe.Ports);
+    }
+
+    [Fact]
+    public async Task DoesNotProbeAlternativePortEqualToControlPort()
+    {
+        var device = new Device { Host = "same", Protocol = DeviceProtocol.Isapi, HttpPort = 554, RtspPort = 554, SdkPort = 554 };
+        var probe = new Probe((_, _) => Task.FromResult(false));
+
+        Assert.False(await DeviceAvailability.CheckAsync(probe, device));
+        Assert.Empty(probe.Ports);
+    }
+
+    [Fact]
+    public async Task FailedSynchronizationDoesNotMarkDeviceOfflineBeforeAvailabilityCheck()
+    {
+        var device = new Device { Host = "recorder", Channels = [new Channel { Number = 1 }] };
+        var configuration = new ConfigurationService(new MemoryConfigurationStore(new() { Devices = [device] }), new JsonConfigurationSerializer());
+        var factory = new FakeDeviceClientFactory
+        {
+            ConfigureClient = client => client.ReadInfo = _ => throw new DeviceCommunicationException("unreachable")
+        };
+        var sync = new DeviceSyncService(configuration, factory);
+
+        await configuration.LoadAsync();
+
+        var result = await sync.TrySyncAsync(device);
+
+        Assert.False(result.Success);
+        Assert.False(sync.IsOffline(device.Id));
+        Assert.False(sync.IsOnline(device.Id));
+
+        await sync.RefreshAvailabilityAsync(new Probe((_, _) => Task.FromResult(false)), default);
+
+        Assert.True(sync.IsOffline(device.Id));
+    }
+
+    [Fact]
     public async Task RecorderRowFollowsReachabilityAcrossRefreshAndTreeRebuild()
     {
         var device = new Device { Host = "primary", SecondaryHost = "backup", Channels = [new Channel { Number = 1 }] };
@@ -172,8 +258,17 @@ public sealed class DeviceAvailabilityTests
         Assert.False(recorder.IsRecorderOffline);
     }
 
-    private sealed class Probe(Func<Device, CancellationToken, Task<bool>> check) : IDeviceReachability
+    private sealed class Probe(Func<Device, CancellationToken, Task<bool>> check, Func<string, int, bool>? portCheck = null) : IDeviceReachability
     {
+        public ConcurrentBag<(string Host, int Port)> Ports { get; } = new();
+
         public Task<bool> IsReachableAsync(Device device, CancellationToken cancellationToken = default) => check(device, cancellationToken);
+
+        public Task<bool> IsPortReachableAsync(string host, int port, CancellationToken cancellationToken = default)
+        {
+            Ports.Add((host, port));
+
+            return Task.FromResult(portCheck?.Invoke(host, port) ?? false);
+        }
     }
 }

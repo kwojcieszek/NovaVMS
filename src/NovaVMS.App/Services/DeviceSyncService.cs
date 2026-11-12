@@ -7,6 +7,8 @@ namespace NovaVMS.App.Services;
 
 /// <summary>
 /// Reads device information and channel lists, and tracks device availability.
+/// A device is marked unavailable only by the periodic availability check, never by a failed synchronization,
+/// so no device is shown offline before the first check one minute after start.
 /// </summary>
 public sealed class DeviceSyncService
 {
@@ -34,7 +36,7 @@ public sealed class DeviceSyncService
 
     public async Task MonitorAvailabilityAsync(IDeviceReachability reachability, CancellationToken token)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        using var timer = new PeriodicTimer(DeviceAvailability.CheckInterval);
 
         try
         {
@@ -110,8 +112,6 @@ public sealed class DeviceSyncService
 
                 if (!connection.Success)
                 {
-                    SetOnline(device.Id, false);
-
                     var message = DeviceOperationErrors.Report($"Device synchronization: {device.DisplayName} ({device.Host})", connection.Error!);
 
                     return new DeviceSyncResult(false, null, message);
@@ -171,8 +171,6 @@ public sealed class DeviceSyncService
         }
         catch (Exception exception) when (DeviceFailure.IsExpected(exception) || exception is OperationCanceledException)
         {
-            SetOnline(device.Id, false);
-
             var message = DeviceOperationErrors.Report($"Device synchronization: {device.DisplayName} ({device.Host})", exception);
 
             return new DeviceSyncResult(false, null, message);
