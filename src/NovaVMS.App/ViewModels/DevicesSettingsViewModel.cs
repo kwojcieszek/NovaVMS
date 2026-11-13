@@ -189,6 +189,18 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
         return ImportedCameraGroups.DeviceKey(device);
     }
 
+    private static string FormatImportNotes(IReadOnlyList<string> warnings)
+    {
+        var notes = warnings.Take(8).ToList();
+
+        if (warnings.Count > notes.Count)
+        {
+            notes.Add(Localizer.Format("Devices_ImportMoreNotes", warnings.Count - notes.Count));
+        }
+
+        return string.Join("\n", notes);
+    }
+
     private void LoadDevices()
     {
         foreach (var device in _configuration.Current.Devices)
@@ -464,6 +476,13 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
             message += "\n" + Localizer.Format("Devices_ImportSkippedNote", skipped);
         }
 
+        var notes = FormatImportNotes(result.Warnings);
+
+        if (notes.Length > 0)
+        {
+            message += "\n\n" + notes;
+        }
+
         var title = Localizer.Text(replaceExisting ? "Devices_IvmsReplaceTitle" : "Devices_ImportTitle");
 
         if (!await _dialogs.ConfirmAsync(title, message))
@@ -542,14 +561,7 @@ public sealed partial class DevicesSettingsViewModel : ViewModelBase, IDisposabl
             summary += Localizer.Format("Devices_ImportSkipped", skipped);
         }
 
-        var notes = result.Warnings.Take(8).ToList();
-
-        if (result.Warnings.Count > notes.Count)
-        {
-            notes.Add(Localizer.Format("Devices_ImportMoreNotes", result.Warnings.Count - notes.Count));
-        }
-
-        InfoText = notes.Count == 0 ? summary : summary + "\n\n" + string.Join("\n", notes);
+        InfoText = notes.Length == 0 ? summary : summary + "\n\n" + notes;
     }
 
     [RelayCommand]

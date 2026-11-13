@@ -8,6 +8,35 @@ namespace NovaVMS.Infrastructure.Tests;
 public sealed class IvmsGroupTests
 {
     [Fact]
+    public void SkipsHikConnectCamerasEvenWhenTheyReferenceALocalChannel()
+    {
+        using var db = new SqliteConnection("Data Source=:memory:");
+
+        db.Open();
+
+        using var command = db.CreateCommand();
+
+        command.CommandText = """
+            CREATE TABLE Grouping (ID INTEGER, Name TEXT, Sequence INTEGER);
+            CREATE TABLE Camera (ID INTEGER, GroupID INTEGER, ChannelGUID TEXT, Sequence INTEGER, IsSubsystem INTEGER);
+            INSERT INTO Grouping VALUES (1, 'Mixed', 0), (2, 'Cloud', 1);
+            INSERT INTO Camera VALUES (1, 1, 'local', 1, 0), (2, 1, NULL, 2, 2),
+                (3, 2, 'local', 1, 2), (4, 2, 'cloud', 2, 2);
+            """;
+
+        command.ExecuteNonQuery();
+
+        var camera = new CameraReference { DeviceId = Guid.NewGuid(), ChannelId = Guid.NewGuid() };
+        var warnings = new List<string>();
+        var groups = IvmsDeviceReader.ReadGroupRows(db,
+            new Dictionary<string, CameraReference> { ["local"] = camera }, warnings, CancellationToken.None);
+
+        Assert.Equal(camera, Assert.Single(groups[0].Cameras));
+        Assert.Empty(groups[1].Cameras);
+        Assert.Empty(warnings);
+    }
+
+    [Fact]
     public void GroupsKeepOrderPolishNamesEmptyGroupsAndChannelReferences()
     {
         using var db = new SqliteConnection("Data Source=:memory:");

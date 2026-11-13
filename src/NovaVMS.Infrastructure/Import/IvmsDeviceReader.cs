@@ -10,7 +10,7 @@ using NovaVMS.Core.Models;
 namespace NovaVMS.Infrastructure.Import;
 
 /// <summary>
-/// Imports iVMS-4200 SQLCipher 3 backups using their accompanying DESetup.xml.
+/// Imports iVMS-4200 SQLite and SQLCipher 3 backups using their accompanying DESetup.xml.
 /// No vendor DLLs or application login password are required.
 /// </summary>
 public sealed class IvmsDeviceReader
@@ -20,6 +20,37 @@ public sealed class IvmsDeviceReader
     private const int ReserveSize = 48;
 
     private static readonly Encoding LegacyNameEncoding = CodePagesEncodingProvider.Instance.GetEncoding(1250)!;
+
+    private static ReadOnlySpan<byte> SqliteHeader => "SQLite format 3\0"u8;
+
+    public async Task<DeviceCsvResult> ReadAsync(Stream source, Stream? encryptionSetup = null,
+        CancellationToken cancellationToken = default)
+    {
+        byte[] database;
+        byte[] setup;
+        byte[]? entities = null;
+
+        if (encryptionSetup is not null)
+        {
+            database = await ReadLimitedAsync(source, MaximumDatabaseSize, cancellationToken);
+            setup = await ReadLimitedAsync(encryptionSetup, 64 * 1024, cancellationToken);
+        }
+        else
+        {
+            using var archive = new ZipArchive(source, ZipArchiveMode.Read, leaveOpen: true);
+
+            database = await ReadEntryAsync(archive, "Device", MaximumDatabaseSize, cancellationToken);
+            setup = await ReadEntryAsync(archive, "DESetup.xml", 64 * 1024, cancellationToken);
+
+            if (archive.Entries.Any(entry => string.Equals(entry.Name, "Entity", StringComparison.OrdinalIgnoreCase)))
+            {
+                entities = await ReadEntryAsync(archive, "Entity", MaximumDatabaseSize, cancellationToken);
+            }
+        }
+
+        // Cryptography and database parsing run off the UI thread.
+        return await Task.Run(() => Parse(database, setup, entities, cancellationToken), cancellationToken);
+    }
 
     internal static string DecodeName(byte[] bytes)
     {
@@ -35,20 +66,29 @@ public sealed class IvmsDeviceReader
         using (var command = connection.CreateCommand())
         {
             command.CommandText = "SELECT ID, CAST(Name AS BLOB) FROM Grouping ORDER BY Sequence, ID";
+
             using var rows = command.ExecuteReader();
 
             while (rows.Read())
             {
                 token.ThrowIfCancellationRequested();
+
                 groups.Add(rows.GetInt64(0), new CameraGroup { Name = DecodeName((byte[])rows.GetValue(1)) });
             }
         }
 
         var skipped = 0;
+        var hasSubsystem = HasColumn(connection, "Camera", "IsSubsystem", token);
 
         using (var command = connection.CreateCommand())
         {
-            command.CommandText = "SELECT GroupID, ChannelGUID FROM Camera ORDER BY GroupID, Sequence, ID";
+            // Hik-Connect/Ezviz cameras belong to subsystem 2 and a separate Ezviz
+            // database. Ignore these deliberately, including stale local references.
+            // Older exports may not have the subsystem column.
+            command.CommandText = "SELECT GroupID, ChannelGUID FROM Camera"
+                + (hasSubsystem ? " WHERE IsSubsystem IS NULL OR IsSubsystem <> 2" : string.Empty)
+                + " ORDER BY GroupID, Sequence, ID";
+
             using var rows = command.ExecuteReader();
 
             while (rows.Read())
@@ -77,32 +117,38 @@ public sealed class IvmsDeviceReader
         return groups.Values.ToList();
     }
 
-    public async Task<DeviceCsvResult> ReadAsync(Stream source, Stream? encryptionSetup = null,
-        CancellationToken cancellationToken = default)
+    private static bool HasColumn(SqliteConnection connection, string table, string column, CancellationToken token)
     {
-        byte[] database;
-        byte[] setup;
-        byte[]? entities = null;
+        using var command = connection.CreateCommand();
 
-        if (encryptionSetup is not null)
-        {
-            database = await ReadLimitedAsync(source, MaximumDatabaseSize, cancellationToken);
-            setup = await ReadLimitedAsync(encryptionSetup, 64 * 1024, cancellationToken);
-        }
-        else
-        {
-            using var archive = new ZipArchive(source, ZipArchiveMode.Read, leaveOpen: true);
-            database = await ReadEntryAsync(archive, "Device", MaximumDatabaseSize, cancellationToken);
-            setup = await ReadEntryAsync(archive, "DESetup.xml", 64 * 1024, cancellationToken);
+        command.CommandText = $"PRAGMA table_info({table})";
 
-            if (archive.Entries.Any(entry => string.Equals(entry.Name, "Entity", StringComparison.OrdinalIgnoreCase)))
+        using var columns = command.ExecuteReader();
+
+        while (columns.Read())
+        {
+            token.ThrowIfCancellationRequested();
+
+            if (string.Equals(columns.GetString(1), column, StringComparison.OrdinalIgnoreCase))
             {
-                entities = await ReadEntryAsync(archive, "Entity", MaximumDatabaseSize, cancellationToken);
+                return true;
             }
         }
 
-        // Cryptography and database parsing run off the UI thread.
-        return await Task.Run(() => Parse(database, setup, entities, cancellationToken), cancellationToken);
+        return false;
+    }
+
+    private static bool IsPlaintextDatabase(ReadOnlySpan<byte> data)
+    {
+        return data.StartsWith(SqliteHeader);
+    }
+
+    private static int CredentialScore(Device device)
+    {
+        var username = string.IsNullOrEmpty(device.Username) ? 0 : 1;
+        var password = string.IsNullOrEmpty(device.Password) ? 0 : 2;
+
+        return username + password;
     }
 
     private static DeviceCsvResult Parse(byte[] encrypted, byte[] setup, byte[]? entities, CancellationToken cancellationToken)
@@ -113,7 +159,7 @@ public sealed class IvmsDeviceReader
 
         try
         {
-            plaintext = DecryptDatabase(encrypted, parameters.Secret, cancellationToken);
+            plaintext = ReadDatabase(encrypted, parameters.Secret, cancellationToken);
 
             File.WriteAllBytes(temporaryPath, plaintext);
 
@@ -138,13 +184,16 @@ public sealed class IvmsDeviceReader
 
             var devices = new Dictionary<string, (Device Device, int AnalogStart, int AnalogCount, int DigitalStart)>();
             var warnings = new List<string>();
+            var unreadableCredentials = new HashSet<Guid>();
             var channels = new Dictionary<string, CameraReference>(StringComparer.OrdinalIgnoreCase);
+            var isPlaintextDatabase = IsPlaintextDatabase(encrypted);
 
             using (var command = connection.CreateCommand())
             {
                 // Some iVMS backups store ANSI name bytes in a database labelled UTF-8.
                 // Read raw bytes before SQLite's UTF-8 conversion can replace Polish letters.
                 command.CommandText = "SELECT GUID, CAST(Name AS BLOB), LoginMode, LoginAddress, LoginPort, UserName, UserPwd, SN, AChanStartNo, AChanCount, DChanStartNo FROM HikDevice";
+
                 using var rows = command.ExecuteReader();
 
                 while (rows.Read())
@@ -167,16 +216,39 @@ public sealed class IvmsDeviceReader
                         throw new FormatException(LibraryText.Get("IvmsDamaged"));
                     }
 
+                    var username = string.Empty;
+                    var password = string.Empty;
+                    var credentialsUnreadable = false;
+
+                    try
+                    {
+                        username = ReadCredential(rows.GetString(5), parameters.Key, parameters.Iv);
+                        password = ReadCredential(rows.GetString(6), parameters.Key, parameters.Iv);
+                    }
+                    catch (FormatException) when (isPlaintextDatabase)
+                    {
+                        // Plaintext exports can contain credentials that do not match the
+                        // included setup. Keep the device without unverified credentials.
+                        username = string.Empty;
+                        password = string.Empty;
+                        credentialsUnreadable = true;
+                    }
+
                     var device = new Device
                     {
                         Name = name,
                         Host = host,
                         Protocol = DeviceProtocol.HikvisionSdk,
                         SdkPort = port,
-                        Username = ReadCredential(rows.GetString(5), parameters.Key, parameters.Iv),
-                        Password = ReadCredential(rows.GetString(6), parameters.Key, parameters.Iv),
+                        Username = username,
+                        Password = password,
                         SerialNumber = rows.GetString(7)
                     };
+
+                    if (credentialsUnreadable)
+                    {
+                        unreadableCredentials.Add(device.Id);
+                    }
 
                     devices.Add(rows.GetString(0), (device, rows.GetInt32(8), rows.GetInt32(9), rows.GetInt32(10)));
                 }
@@ -186,6 +258,7 @@ public sealed class IvmsDeviceReader
             {
                 // Channel type 2 is a device resource, not an additional camera.
                 command.CommandText = "SELECT DeviceGUID, CAST(Name AS BLOB), ChannelType, ChannelNo, GUID FROM Channel WHERE ChannelType IN (0, 1) ORDER BY ChannelType, ChannelNo";
+
                 using var rows = command.ExecuteReader();
 
                 while (rows.Read())
@@ -214,10 +287,12 @@ public sealed class IvmsDeviceReader
                 }
             }
 
+            var mergedDevices = MergeDevices(devices.Values.Select(item => item.Device), channels,
+                unreadableCredentials, warnings, cancellationToken);
             var groups = entities is null ? new List<CameraGroup>()
                 : ReadGroups(entities, parameters.Secret, channels, warnings, cancellationToken);
 
-            return new DeviceCsvResult(devices.Values.Select(item => item.Device).ToList(), warnings) { Groups = groups };
+            return new DeviceCsvResult(mergedDevices, warnings) { Groups = groups };
         }
         catch (Exception exception) when (exception is SqliteException or InvalidCastException or ArgumentException)
         {
@@ -241,10 +316,60 @@ public sealed class IvmsDeviceReader
         }
     }
 
+    private static List<Device> MergeDevices(IEnumerable<Device> devices,
+        Dictionary<string, CameraReference> channels, HashSet<Guid> unreadableCredentials,
+        List<string> warnings, CancellationToken token)
+    {
+        var result = new List<Device>();
+        var references = new Dictionary<CameraReference, CameraReference>();
+
+        // One SDK endpoint represents one recorder. Older copies may have different
+        // GUIDs, serial numbers or credentials; prefer the copy with usable credentials.
+        foreach (var duplicates in devices.GroupBy(device => (device.Host.ToUpperInvariant(), device.SdkPort)))
+        {
+            token.ThrowIfCancellationRequested();
+
+            var ordered = duplicates.OrderByDescending(CredentialScore).ToList();
+            var preferred = ordered[0];
+            var mergedChannels = preferred.Channels.ToDictionary(channel => channel.Number);
+
+            foreach (var device in ordered)
+            {
+                foreach (var channel in device.Channels)
+                {
+                    if (!mergedChannels.TryGetValue(channel.Number, out var target))
+                    {
+                        target = channel;
+
+                        mergedChannels.Add(channel.Number, target);
+                    }
+
+                    references[CameraReference.For(device, channel)] = CameraReference.For(preferred, target);
+                }
+            }
+
+            preferred.Channels = mergedChannels.Values.OrderBy(channel => channel.Number).ToList();
+
+            if (unreadableCredentials.Contains(preferred.Id))
+            {
+                warnings.Add(LibraryText.Format("IvmsDeviceCredentialsMissing", preferred.Name));
+            }
+
+            result.Add(preferred);
+        }
+
+        foreach (var guid in channels.Keys.ToArray())
+        {
+            channels[guid] = references[channels[guid]];
+        }
+
+        return result;
+    }
+
     private static List<CameraGroup> ReadGroups(byte[] encrypted, byte[] secret,
         IReadOnlyDictionary<string, CameraReference> channels, List<string> warnings, CancellationToken token)
     {
-        var plaintext = DecryptDatabase(encrypted, secret, token);
+        var plaintext = ReadDatabase(encrypted, secret, token);
         var path = Path.Combine(Path.GetTempPath(), $"novavms-groups-{Guid.NewGuid():N}.db");
 
         try
@@ -315,6 +440,17 @@ public sealed class IvmsDeviceReader
         return hash;
     }
 
+    private static byte[] ReadDatabase(byte[] data, byte[] secret, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // macOS exports use ordinary SQLite databases, but still encrypt credentials
+        // with DESetup.xml. Detect each database independently, including Entity.
+        return IsPlaintextDatabase(data)
+            ? data.ToArray()
+            : DecryptDatabase(data, secret, cancellationToken);
+    }
+
     private static byte[] DecryptDatabase(byte[] encrypted, byte[] secret, CancellationToken cancellationToken)
     {
         if (encrypted.Length == 0 || encrypted.Length % PageSize != 0)
@@ -362,7 +498,7 @@ public sealed class IvmsDeviceReader
                 CryptographicOperations.ZeroMemory(decrypted);
             }
 
-            "SQLite format 3\0"u8.CopyTo(output);
+            SqliteHeader.CopyTo(output);
 
             if (!output.AsSpan(16, 8).SequenceEqual(new byte[] { 4, 0, 1, 1, 48, 64, 32, 32 }))
             {

@@ -381,6 +381,7 @@
   "RowNoPassword": "Row {0} ({1}): no password - enter it in the device form.",
   "SdkPortReplaced": "Port {0} is the Hikvision SDK port; HTTP port {1} is used instead.",
   "IvmsDamaged": "The iVMS database is damaged or uses an unsupported format.",
+  "IvmsDeviceCredentialsMissing": "Device '{0}': credentials cannot be read using the included DESetup.xml. Enter the username and password in the device settings after import.",
   "IvmsSetupInvalid": "The DESetup.xml file is invalid or uses an unsupported encryption format.",
   "IvmsAuthenticationFailed": "Database authentication failed. Select the DESetup.xml from the same backup; the database may also be damaged or use an unsupported SQLCipher version.",
   "IvmsCredentialsInvalid": "Device credentials could not be decoded. Import was cancelled without adding devices.",

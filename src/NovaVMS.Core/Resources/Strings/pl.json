@@ -381,6 +381,7 @@
   "RowNoPassword": "Wiersz {0} ({1}): brak hasła - wpisz je w formularzu urządzenia.",
   "SdkPortReplaced": "Port {0} to port SDK Hikvision; zamiast niego używany jest port HTTP {1}.",
   "IvmsDamaged": "Baza iVMS jest uszkodzona lub ma nieobsługiwany format.",
+  "IvmsDeviceCredentialsMissing": "Urządzenie „{0}”: nie można odczytać danych logowania za pomocą dołączonego DESetup.xml. Po imporcie uzupełnij login i hasło w ustawieniach urządzenia.",
   "IvmsSetupInvalid": "Plik DESetup.xml jest nieprawidłowy lub używa nieobsługiwanego szyfrowania.",
   "IvmsAuthenticationFailed": "Weryfikacja bazy nie powiodła się. Wybierz DESetup.xml z tej samej kopii; baza może też być uszkodzona lub używać nieobsługiwanej wersji SQLCipher.",
   "IvmsCredentialsInvalid": "Nie udało się odczytać danych logowania urządzeń. Import anulowano bez dodawania urządzeń.",
