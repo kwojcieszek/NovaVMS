@@ -74,7 +74,7 @@
         <TextBlock Classes="muted" Text="{Binding Subtitle}" TextTrimming="CharacterEllipsis" />
       </StackPanel>
       <PathIcon Grid.Column="1"
-                Classes="connecting"
+                Classes="connecting page"
                 Data="{StaticResource IconConnecting}"
                 Width="24"
                 Height="24"

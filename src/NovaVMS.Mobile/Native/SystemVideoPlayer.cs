@@ -35,6 +35,7 @@ public sealed class SystemVideoPlayer : IMobilePlayer
     private double? _aspectRatio;
     private Control? _overlay;
     private bool _overlayVisible;
+    private volatile bool _connecting;
 
     public Control View => _host;
 
@@ -103,7 +104,7 @@ public sealed class SystemVideoPlayer : IMobilePlayer
         _renderer?.Restart();
 
         StatusChanged?.Invoke(this, Localizer.Text("Mobile_Connecting"));
-        ConnectingChanged?.Invoke(this, true);
+        ReportConnecting(true);
 
         _receiving = Task.Run(() => ReceiveAsync(session, description, run.Token), CancellationToken.None);
     }
@@ -181,7 +182,7 @@ public sealed class SystemVideoPlayer : IMobilePlayer
 
         await run.CancelAsync();
 
-        ConnectingChanged?.Invoke(this, false);
+        ReportConnecting(false);
 
         if (receiving is not null)
         {
@@ -209,14 +210,14 @@ public sealed class SystemVideoPlayer : IMobilePlayer
             {
                 MobileLog.Post($"Player ended: {description}");
                 StatusChanged?.Invoke(this, Localizer.Text("Mobile_StreamEnded"));
-                ConnectingChanged?.Invoke(this, false);
+                ReportConnecting(false);
             }
         }
         catch (Exception exception) when (!token.IsCancellationRequested)
         {
             MobileLog.Post($"Player failed: {description}", exception);
             StatusChanged?.Invoke(this, Localizer.Text("Mobile_PlaybackError"));
-            ConnectingChanged?.Invoke(this, false);
+            ReportConnecting(false);
         }
         catch (Exception)
         {
@@ -235,8 +236,17 @@ public sealed class SystemVideoPlayer : IMobilePlayer
         if (renderer.Render(picture) && Interlocked.Exchange(ref _playingReported, 1) == 0)
         {
             StatusChanged?.Invoke(this, Localizer.Text("Mobile_Playing"));
-            ConnectingChanged?.Invoke(this, false);
+            ReportConnecting(false);
         }
+    }
+
+    // The view shows the ring in the middle of the picture; pages show their own indicators from the event.
+    private void ReportConnecting(bool connecting)
+    {
+        _connecting = connecting;
+
+        _renderer?.SetConnecting(connecting);
+        ConnectingChanged?.Invoke(this, connecting);
     }
 
     /// <summary>
@@ -280,6 +290,7 @@ public sealed class SystemVideoPlayer : IMobilePlayer
             _native.SetAspectRatio(_player._aspectRatio);
             _native.SetOverlay(_player._overlay);
             _native.SetOverlayVisible(_player._overlayVisible);
+            _native.SetConnecting(_player._connecting);
 
             _visibleArea = null;
 

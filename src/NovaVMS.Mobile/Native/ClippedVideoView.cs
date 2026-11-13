@@ -2,6 +2,7 @@ using Android.Content;
 using Android.Graphics;
 using Android.Media;
 using Android.Views;
+using Android.Views.Animations;
 using Android.Widget;
 using Avalonia.Android;
 using Avalonia.Controls;
@@ -23,6 +24,7 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
 
     private readonly object _gate = new();
     private readonly TextureView _texture;
+    private readonly SpinnerView _spinner;
     private readonly MediaCodec.BufferInfo _info = new();
     private Surface? _surface;
     private MediaCodec? _decoder;
@@ -48,6 +50,12 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
         };
 
         AddView(_texture, new LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent));
+
+        _spinner = new SpinnerView(context);
+
+        var size = (int)Math.Round(SpinnerView.Size * (context.Resources?.DisplayMetrics?.Density ?? 1));
+
+        AddView(_spinner, new LayoutParams(size, size, GravityFlags.Center));
     }
 
     public bool Render(VideoAccessUnit picture)
@@ -232,9 +240,15 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
         }
     }
 
+    public void SetConnecting(bool connecting)
+    {
+        Post(() => _spinner.SetSpinning(connecting));
+    }
+
     public void Detach()
     {
         SetOverlay(null);
+        _spinner.SetSpinning(false);
 
         lock (_gate)
         {
@@ -431,5 +445,73 @@ public sealed class ClippedVideoView : FrameLayout, TextureView.ISurfaceTextureL
         }
 
         _texture.SetTransform(matrix);
+    }
+
+    /// <summary>The loading spinner of the desktop video tiles: a three quarter ring turning once every 0.9 s.</summary>
+    private sealed class SpinnerView : View
+    {
+        public const float Size = 24;
+
+        private readonly Paint _paint;
+        private readonly RectF _ring = new();
+        private bool _spinning;
+
+        public SpinnerView(Context context)
+            : base(context)
+        {
+            var density = context.Resources?.DisplayMetrics?.Density ?? 1;
+
+            _paint = new Paint(PaintFlags.AntiAlias)
+            {
+                Color = Color.Argb(0xBF, 0xFF, 0xFF, 0xFF),
+                StrokeWidth = 2 * density,
+                StrokeCap = Paint.Cap.Round!
+            };
+
+            _paint.SetStyle(Paint.Style.Stroke);
+
+            Visibility = ViewStates.Gone;
+        }
+
+        public void SetSpinning(bool spinning)
+        {
+            if (_spinning == spinning)
+            {
+                return;
+            }
+
+            _spinning = spinning;
+
+            if (spinning)
+            {
+                var spin = new RotateAnimation(0, 360, Dimension.RelativeToSelf, 0.5f, Dimension.RelativeToSelf, 0.5f)
+                {
+                    Duration = 900,
+                    RepeatCount = Animation.Infinite,
+                    Interpolator = new LinearInterpolator()
+                };
+
+                Visibility = ViewStates.Visible;
+
+                StartAnimation(spin);
+            }
+            else
+            {
+                ClearAnimation();
+
+                Visibility = ViewStates.Gone;
+            }
+        }
+
+        // Radius 10 of 24 units, from the top clockwise to the left, as the desktop path "M 12,2 A 10,10 0 1 1 2,12".
+        protected override void OnDraw(Canvas canvas)
+        {
+            base.OnDraw(canvas);
+
+            var inset = Width * 2f / Size;
+
+            _ring.Set(inset, inset, Width - inset, Height - inset);
+            canvas.DrawArc(_ring, -90, 270, false, _paint);
+        }
     }
 }

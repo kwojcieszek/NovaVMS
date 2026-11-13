@@ -25,6 +25,13 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
     private readonly object _gate = new();
     private readonly AVSampleBufferDisplayLayer _display = new();
 
+    // Size and line of the loading spinner of the desktop video tiles.
+    private const double SpinnerSize = 24;
+    private const double SpinnerRadius = 10;
+    private const string SpinAnimation = "spin";
+
+    private readonly CAShapeLayer _spinner = CreateSpinner();
+
     private readonly CALayer _mask = new()
     {
         BackgroundColor = UIColor.Black.CGColor
@@ -38,6 +45,7 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
     private CGRect? _area;
     private bool _fill;
     private double? _aspectRatio;
+    private bool _connecting;
 
     /// <summary>The host moves the view by its frame; the mask follows in the same transaction.</summary>
     public override CGRect Frame
@@ -59,6 +67,7 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
         _display.BackgroundColor = UIColor.Black.CGColor;
 
         Layer.AddSublayer(_display);
+        Layer.AddSublayer(_spinner);
     }
 
     public bool Render(VideoAccessUnit picture)
@@ -205,9 +214,22 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
         }
     }
 
+    public void SetConnecting(bool connecting)
+    {
+        if (NSThread.IsMain)
+        {
+            ApplyConnecting(connecting);
+        }
+        else
+        {
+            BeginInvokeOnMainThread(() => ApplyConnecting(connecting));
+        }
+    }
+
     public void Detach()
     {
         SetOverlay(null);
+        ApplyConnecting(false);
 
         lock (_gate)
         {
@@ -248,6 +270,61 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
         {
             _display.VideoGravity = _fill ? Stretch : KeepProportions;
             _display.Frame = bounds;
+        }
+
+        _spinner.Position = new CGPoint(bounds.Width / 2, bounds.Height / 2);
+
+        CATransaction.Commit();
+    }
+
+    // A three quarter ring from the top clockwise to the left, as the desktop path "M 12,2 A 10,10 0 1 1 2,12".
+    private static CAShapeLayer CreateSpinner()
+    {
+        var center = new CGPoint(SpinnerSize / 2, SpinnerSize / 2);
+        using var path = UIBezierPath.FromArc(center, (nfloat)SpinnerRadius, (nfloat)(-Math.PI / 2), (nfloat)Math.PI, true);
+
+        return new CAShapeLayer
+        {
+            Bounds = new CGRect(0, 0, SpinnerSize, SpinnerSize),
+            Path = path.CGPath,
+            StrokeColor = UIColor.White.ColorWithAlpha(0.75f).CGColor,
+            FillColor = UIColor.Clear.CGColor,
+            LineWidth = 2,
+            LineCap = CAShapeLayer.CapRound,
+            Hidden = true
+        };
+    }
+
+    private void ApplyConnecting(bool connecting)
+    {
+        if (_connecting == connecting)
+        {
+            return;
+        }
+
+        _connecting = connecting;
+
+        CATransaction.Begin();
+
+        CATransaction.DisableActions = true;
+        _spinner.Hidden = !connecting;
+
+        if (connecting)
+        {
+            var spin = CABasicAnimation.FromKeyPath("transform.rotation.z");
+
+            spin.From = NSNumber.FromDouble(0);
+            spin.To = NSNumber.FromDouble(2 * Math.PI);
+            spin.Duration = 0.9;
+            spin.RepeatCount = float.PositiveInfinity;
+            // Leaving the application and coming back keeps the ring turning.
+            spin.RemovedOnCompletion = false;
+
+            _spinner.AddAnimation(spin, SpinAnimation);
+        }
+        else
+        {
+            _spinner.RemoveAnimation(SpinAnimation);
         }
 
         CATransaction.Commit();

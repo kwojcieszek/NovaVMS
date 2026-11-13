@@ -24,10 +24,14 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
 {
     private static readonly TimeSpan OperationTimeout = TimeSpan.FromSeconds(45);
 
+    /// <summary>A message in the status bar disappears after this time.</summary>
+    private static readonly TimeSpan StatusDisplayTime = TimeSpan.FromSeconds(30);
+
     private readonly LocalSettingsStore _localSettingsStore;
     private readonly Func<IMobilePlayer> _createPlayer;
     private readonly IDeviceDisplay? _display;
     private readonly SemaphoreSlim _operations = new(1, 1);
+    private readonly DispatcherTimer _statusTimer = new() { Interval = StatusDisplayTime };
     private CancellationTokenSource? _pending;
     private IDeviceClient? _client;
     private bool _loaded;
@@ -148,6 +152,7 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         Player = platform.CreatePlayer();
 
         Player.StatusChanged += PlayerStatusChanged;
+        _statusTimer.Tick += StatusTimerTick;
 
         ShowCameras();
     }
@@ -240,6 +245,9 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
         await CloseCameraAsync();
 
         CurrentPage = null;
+
+        _statusTimer.Stop();
+        _statusTimer.Tick -= StatusTimerTick;
 
         Player.StatusChanged -= PlayerStatusChanged;
         Sync.Notified -= OnSyncNotified;
@@ -601,6 +609,24 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
             await CloseCameraAsync();
             ShowSettings();
         });
+    }
+
+    // Every new message is shown for the full time.
+    partial void OnStatusChanged(string value)
+    {
+        _statusTimer.Stop();
+
+        if (!string.IsNullOrEmpty(value))
+        {
+            _statusTimer.Start();
+        }
+    }
+
+    private void StatusTimerTick(object? sender, EventArgs e)
+    {
+        _statusTimer.Stop();
+
+        Status = string.Empty;
     }
 
     partial void OnIsFullScreenChanged(bool value)

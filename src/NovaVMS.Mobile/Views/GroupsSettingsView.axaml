@@ -48,8 +48,8 @@
               <Button Classes="row" AutomationProperties.Name="{Binding Name}" Command="{Binding EditCommand}">
                 <Grid ColumnDefinitions="Auto,*">
                   <Panel VerticalAlignment="Center">
-                    <PathIcon Classes="muted" Data="{StaticResource IconFolder}" Width="22" Height="22" IsVisible="{Binding IsCustom}" />
-                    <PathIcon Classes="muted" Data="{StaticResource IconServer}" Width="22" Height="22" IsVisible="{Binding IsDeviceGroup}" />
+                    <PathIcon Classes="customGroup" Data="{StaticResource IconFolder}" Width="22" Height="22" IsVisible="{Binding IsCustom}" />
+                    <PathIcon Data="{StaticResource IconServer}" Width="22" Height="22" IsVisible="{Binding IsDeviceGroup}" />
                   </Panel>
                   <StackPanel Grid.Column="1" Spacing="2" Margin="12,0" VerticalAlignment="Center">
                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />

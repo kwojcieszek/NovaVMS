@@ -45,6 +45,8 @@
           <PathIcon Grid.Column="2" Classes="muted" Data="{StaticResource IconChevronRight}" Width="18" Height="18" />
         </Grid>
       </Button>
+
+      <TextBlock Classes="muted" Margin="0,16,0,0" HorizontalAlignment="Center" Text="{Binding VersionText}" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

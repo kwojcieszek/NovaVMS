@@ -39,6 +39,12 @@ internal interface IVideoRenderer
     /// <summary>Shows or hides the overlay layer.</summary>
     void SetOverlayVisible(bool visible);
 
+    /// <summary>
+    /// Shows the turning ring of the desktop tiles in the middle of the picture while the stream connects.
+    /// Native video covers Avalonia content, so the ring is drawn by the native view. Callable from any thread.
+    /// </summary>
+    void SetConnecting(bool connecting);
+
     /// <summary>Releases the decoder; the view is not used afterwards.</summary>
     void Detach();
 }

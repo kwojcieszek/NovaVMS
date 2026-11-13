@@ -14,8 +14,9 @@
         <Grid ColumnDefinitions="Auto,*,Auto">
           <Panel Grid.Column="0" VerticalAlignment="Center">
             <PathIcon Classes="favorite" Data="{StaticResource IconStar}" Width="22" Height="22" IsVisible="{Binding IsFavorites}" />
-            <PathIcon Classes="muted" Data="{StaticResource IconViewGrid}" Width="22" Height="22" IsVisible="{Binding IsView}" />
-            <PathIcon Classes="muted" Data="{StaticResource IconFolder}" Width="22" Height="22" IsVisible="{Binding IsGroup}" />
+            <PathIcon Classes="view" Data="{StaticResource IconViewGrid}" Width="22" Height="22" IsVisible="{Binding IsView}" />
+            <PathIcon Classes="customGroup" Data="{StaticResource IconFolder}" Width="22" Height="22" IsVisible="{Binding IsCustomGroup}" />
+            <PathIcon Data="{StaticResource IconServer}" Width="22" Height="22" IsVisible="{Binding IsDeviceGroup}" />
           </Panel>
           <StackPanel Grid.Column="1" Spacing="2" Margin="12,0" VerticalAlignment="Center">
             <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
