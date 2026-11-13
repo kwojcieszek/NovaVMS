@@ -42,14 +42,14 @@ public static class PlaybackPolicy
 
         if (index < HardwareDecodedPreviews)
         {
-            return new PlaybackOptions(cachingMs, HardwareDecoding: true, WithAudio: false);
+            return new PlaybackOptions(cachingMs, hardwareDecoding: true, withAudio: false);
         }
 
         var frameRate = settings.SubStreamMaxFrameRate > 0
             ? settings.SubStreamMaxFrameRate
             : AutomaticPreviewFrameRate(previewCount);
 
-        return new PlaybackOptions(cachingMs, HardwareDecoding: false, MaxFrameRate: frameRate, WithAudio: false, LowCostDecoding: true);
+        return new PlaybackOptions(cachingMs, hardwareDecoding: false, maxFrameRate: frameRate, withAudio: false, lowCostDecoding: true);
     }
 
     /// <summary>A single camera keeps its audio, full quality and the hardware decoder.</summary>

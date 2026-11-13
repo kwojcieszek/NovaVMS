@@ -1,6 +1,5 @@
 using NovaVMS.App.Services;
 using NovaVMS.App.ViewModels;
-using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
 using NovaVMS.Infrastructure.Storage;
 using Xunit;
@@ -151,32 +150,13 @@ public sealed class SavedCameraViewTests
             MaximizedTileIndex = 1, Layout = new GroupLiveView { LayoutId = "standard-6", LayoutCount = 6,
                 Cameras = [null, reference], EmptySlots = [0] } }]
         };
-        var configuration = new ConfigurationService(new Store(config), new JsonConfigurationSerializer());
+        var configuration = new ConfigurationService(new MemoryConfigurationStore(config), new JsonConfigurationSerializer());
         var session = TestSessions.Create(configuration);
-        var tree = new ResourceTreeViewModel(configuration, new DeviceSyncService(configuration, null!), new Dialogs(), session);
+        var tree = new ResourceTreeViewModel(configuration, new DeviceSyncService(configuration, null!), new FakeDialogService { PromptReply = "Renamed view", ConfirmReply = Task.FromResult(true) }, session);
 
         await configuration.LoadAsync();
         TestSessions.LogInAsDefaultAdmin(session);
 
         return (configuration, tree);
-    }
-
-    private sealed class Store(AppConfiguration initial) : IConfigurationStore
-    {
-        public Task<AppConfiguration> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(initial);
-        public Task SaveAsync(AppConfiguration configuration, CancellationToken cancellationToken = default) => Task.CompletedTask;
-    }
-
-    private sealed class Dialogs : IDialogService
-    {
-        public Task<string?> PromptTextAsync(string title, string message, string initialValue) => Task.FromResult<string?>("Renamed view");
-        public Task<bool> ConfirmAsync(string title, string message) => Task.FromResult(true);
-        public Task<bool> LoginAsync(UserSessionService session, string userName) => throw new NotSupportedException();
-        public Task<Stream?> OpenJsonFileAsync(string title) => throw new NotSupportedException();
-        public Task<Stream?> SaveJsonFileAsync(string title, string suggestedFileName) => throw new NotSupportedException();
-        public Task<Stream?> OpenCsvFileAsync(string title) => throw new NotSupportedException();
-        public Task<(Stream Content, Stream? Setup)?> OpenIvmsFileAsync(string title) => throw new NotSupportedException();
-        public Task<Stream?> SaveCsvFileAsync(string title, string suggestedFileName) => throw new NotSupportedException();
-        public Task<string?> PickFolderAsync(string title) => throw new NotSupportedException();
     }
 }

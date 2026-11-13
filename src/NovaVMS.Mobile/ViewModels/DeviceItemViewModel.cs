@@ -4,6 +4,7 @@ using NovaVMS.Core.Models;
 using NovaVMS.Mobile.Services;
 using NovaVMS.Presentation.Localization;
 using NovaVMS.Presentation.Models;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.Mobile.ViewModels;
 

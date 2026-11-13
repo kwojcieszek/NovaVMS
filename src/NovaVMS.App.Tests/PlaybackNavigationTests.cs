@@ -135,7 +135,10 @@ public sealed class PlaybackNavigationTests
         return playback;
     }
 
-    private static LibVLC Engine() => VideoPlayerFactory.CreateRecordingEngine("--vout=dummy", "--aout=dummy", "--avcodec-hw=none");
+    private static LibVLC Engine()
+    {
+        return VideoPlayerFactory.CreateRecordingEngine("--vout=dummy", "--aout=dummy", "--avcodec-hw=none");
+    }
 
     private static async Task WaitForAsync(Func<bool> ready)
     {

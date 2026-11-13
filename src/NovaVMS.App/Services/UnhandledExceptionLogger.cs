@@ -86,7 +86,10 @@ internal static class UnhandledExceptionLogger
         return barrier.Task;
     }
 
-    internal static void LogStartupFailure(Exception exception) => WriteLog("Application startup or main loop failure", exception);
+    internal static void LogStartupFailure(Exception exception)
+    {
+        WriteLog("Application startup or main loop failure", exception);
+    }
 
     private static async Task WriteLogsAsync()
     {
@@ -174,5 +177,19 @@ internal static class UnhandledExceptionLogger
         }
     }
 
-    private sealed record Entry(string Source, Exception? Exception, TaskCompletionSource? Barrier = null);
+    private sealed record Entry
+    {
+        public string Source { get; init; }
+
+        public Exception? Exception { get; init; }
+
+        public TaskCompletionSource? Barrier { get; init; }
+
+        public Entry(string source, Exception? exception, TaskCompletionSource? barrier = null)
+        {
+            Source = source;
+            Exception = exception;
+            Barrier = barrier;
+        }
+    }
 }

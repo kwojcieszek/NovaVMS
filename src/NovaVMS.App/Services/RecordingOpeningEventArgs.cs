@@ -7,5 +7,8 @@ public sealed class RecordingOpeningEventArgs : EventArgs
 
     internal Task WhenReady => Task.WhenAll(_preparations);
 
-    public void WaitFor(Task preparation) => _preparations.Add(preparation);
+    public void WaitFor(Task preparation)
+    {
+        _preparations.Add(preparation);
+    }
 }

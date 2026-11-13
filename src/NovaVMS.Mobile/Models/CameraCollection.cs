@@ -7,8 +7,21 @@ namespace NovaVMS.Mobile.Models;
 /// Favorites, a saved view or a camera group. Holds only identifiers, so it can be resolved again
 /// after a configuration from the settings database replaced every object.
 /// </summary>
-public sealed record CameraCollection(CameraCollectionKind Kind, Guid? Id, string Title)
+public sealed record CameraCollection
 {
+    public CameraCollectionKind Kind { get; init; }
+
+    public Guid? Id { get; init; }
+
+    public string Title { get; init; }
+
+    public CameraCollection(CameraCollectionKind kind, Guid? id, string title)
+    {
+        Kind = kind;
+        Id = id;
+        Title = title;
+    }
+
     public static CameraCollection Favorites(string title)
     {
         return new CameraCollection(CameraCollectionKind.Favorites, null, title);

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- In-memory test doubles shared by the desktop and the mobile test projects. -->
+  <PropertyGroup><IsPackable>false</IsPackable></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../NovaVMS.Core/NovaVMS.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -10,16 +10,25 @@ using NovaVMS.Protocols.Common;
 namespace NovaVMS.Protocols.Onvif;
 
 /// <summary>Profile G recording discovery, track history and replay URI negotiation.</summary>
-internal sealed class OnvifRecordingService(Device device,
-    Func<Uri, XElement, CancellationToken, Task<XElement>> call)
+internal sealed class OnvifRecordingService
 {
     private static readonly XNamespace Search = "http://www.onvif.org/ver10/search/wsdl";
     private static readonly XNamespace Replay = "http://www.onvif.org/ver10/replay/wsdl";
     private static readonly XNamespace Recording = "http://www.onvif.org/ver10/recording/wsdl";
     private static readonly XNamespace Schema = OnvifNamespaces.Schema;
 
+    private readonly Device _device;
+    private readonly Func<Uri, XElement, CancellationToken, Task<XElement>> _call;
     private Uri? _search, _replay, _recording;
     private List<XElement>? _recordings;
+
+    public OnvifRecordingService(
+        Device device,
+        Func<Uri, XElement, CancellationToken, Task<XElement>> call)
+    {
+        _device = device;
+        _call = call;
+    }
 
     internal static List<RecordingSegment> BuildSegments(IEnumerable<XElement> events, HashSet<string> videoTracks,
         int channel, DateTime from, DateTime to)
@@ -114,7 +123,7 @@ internal sealed class OnvifRecordingService(Device device,
             throw new DeviceCommunicationException(LibraryText.Get("OnvifNoRecordingAtTime"));
         }
 
-        var response = await call(_replay!, new XElement(Replay + "GetReplayUri",
+        var response = await _call(_replay!, new XElement(Replay + "GetReplayUri",
             new XElement(Replay + "StreamSetup", new XElement(Schema + "Stream", "RTP-Unicast"),
                 new XElement(Schema + "Transport", new XElement(Schema + "Protocol", "RTSP"))),
             new XElement(Replay + "RecordingToken", recording.ChildValue("RecordingToken"))), token).ConfigureAwait(false);
@@ -126,23 +135,29 @@ internal sealed class OnvifRecordingService(Device device,
 
         var remote = new UriBuilder(reported)
         {
-            Host = device.Host,
-            Port = device.RtspPortOverride ?? reported.Port,
+            Host = _device.Host,
+            Port = _device.RtspPortOverride ?? reported.Port,
             UserName = "",
             Password = ""
         }.Uri;
 
         return VideoSource.FromUri(() =>
         {
-            var session = new OnvifReplayProxy(remote, device.Username, device.Password, start.ToUniversalTime(), end.ToUniversalTime());
+            var session = new OnvifReplayProxy(remote, _device.Username, _device.Password, start.ToUniversalTime(), end.ToUniversalTime());
 
             return (session.Uri, (IDisposable)session);
         });
     }
 
-    private static string Utc(DateTime time) => XmlConvert.ToString(time.ToUniversalTime(), XmlDateTimeSerializationMode.Utc);
+    private static string Utc(DateTime time)
+    {
+        return XmlConvert.ToString(time.ToUniversalTime(), XmlDateTimeSerializationMode.Utc);
+    }
 
-    private static DateTime ParseTime(string text) => DateTime.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToLocalTime();
+    private static DateTime ParseTime(string text)
+    {
+        return DateTime.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToLocalTime();
+    }
 
     private async Task<List<XElement>> ForChannelAsync(string source, IReadOnlyList<string> profiles, CancellationToken token)
     {
@@ -160,7 +175,7 @@ internal sealed class OnvifRecordingService(Device device,
 
         if (_recording is not null)
         {
-            var jobs = await call(_recording, new XElement(Recording + "GetRecordingJobs"), token).ConfigureAwait(false);
+            var jobs = await _call(_recording, new XElement(Recording + "GetRecordingJobs"), token).ConfigureAwait(false);
             var references = jobs.DescendantsByLocalName("JobConfiguration").Where(j => j.DescendantsByLocalName("SourceToken")
                 .Any(s => s.Attribute("Type")?.Value == Schema.NamespaceName + "/Profile" && profiles.Contains(s.ChildValue("Token"))))
                 .Select(j => j.ChildValue("RecordingToken")).ToHashSet();
@@ -168,7 +183,7 @@ internal sealed class OnvifRecordingService(Device device,
         }
 
         // Only an unambiguous single-camera/single-recording device can omit source mapping.
-        if (matched.Count == 0 && device.Channels.Count == 1 && recordings.Count == 1)
+        if (matched.Count == 0 && _device.Channels.Count == 1 && recordings.Count == 1)
         {
             return recordings;
         }
@@ -188,7 +203,7 @@ internal sealed class OnvifRecordingService(Device device,
             return;
         }
 
-        var services = await call(new UriBuilder(device.UseHttps ? "https" : "http", device.Host, device.HttpPort,
+        var services = await _call(new UriBuilder(_device.UseHttps ? "https" : "http", _device.Host, _device.HttpPort,
             "onvif/device_service").Uri, new XElement(OnvifNamespaces.Device + "GetServices",
             new XElement(OnvifNamespaces.Device + "IncludeCapability", false)), token).ConfigureAwait(false);
 
@@ -199,7 +214,7 @@ internal sealed class OnvifRecordingService(Device device,
                 continue;
             }
 
-            var uri = new UriBuilder(address) { Host = device.Host, Port = device.HttpPort }.Uri;
+            var uri = new UriBuilder(address) { Host = _device.Host, Port = _device.HttpPort }.Uri;
 
             switch (service.ChildValue("Namespace"))
             {
@@ -226,7 +241,7 @@ internal sealed class OnvifRecordingService(Device device,
 
     private async Task<List<XElement>> RunSearchAsync(XElement request, string resultsMethod, string resultName, CancellationToken token)
     {
-        var response = await call(_search!, request, token).ConfigureAwait(false);
+        var response = await _call(_search!, request, token).ConfigureAwait(false);
         var searchToken = response.ChildValue("SearchToken");
 
         if (string.IsNullOrEmpty(searchToken))
@@ -243,7 +258,7 @@ internal sealed class OnvifRecordingService(Device device,
             {
                 token.ThrowIfCancellationRequested();
 
-                var page = await call(_search!, new XElement(Search + resultsMethod,
+                var page = await _call(_search!, new XElement(Search + resultsMethod,
                     new XElement(Search + "SearchToken", searchToken), new XElement(Search + "MinResults", 1),
                     new XElement(Search + "MaxResults", 100), new XElement(Search + "WaitTime", "PT1S")), token).ConfigureAwait(false);
 
@@ -273,7 +288,7 @@ internal sealed class OnvifRecordingService(Device device,
 
             try
             {
-                await call(_search!, new XElement(Search + "EndSearch", new XElement(Search + "SearchToken", searchToken)), cleanup.Token).ConfigureAwait(false);
+                await _call(_search!, new XElement(Search + "EndSearch", new XElement(Search + "SearchToken", searchToken)), cleanup.Token).ConfigureAwait(false);
             }
             catch (Exception e) when (DeviceFailure.IsExpected(e) || e is OperationCanceledException)
             {

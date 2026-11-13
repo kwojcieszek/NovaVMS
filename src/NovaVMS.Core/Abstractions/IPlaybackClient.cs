@@ -12,5 +12,7 @@ public interface IPlaybackClient
     VideoSource GetPlaybackSource(int channelNumber, DateTime start, DateTime end);
 
     Task<VideoSource> GetPlaybackSourceAsync(int channelNumber, DateTime start, DateTime end, CancellationToken cancellationToken = default)
-        => Task.Run(() => GetPlaybackSource(channelNumber, start, end), cancellationToken);
+    {
+        return Task.Run(() => GetPlaybackSource(channelNumber, start, end), cancellationToken);
+    }
 }

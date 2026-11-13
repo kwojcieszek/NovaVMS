@@ -74,6 +74,7 @@ public static class MobileLog
         while (files.Count > 1 && total > maxBytes)
         {
             total -= files[0].Length;
+
             files[0].Delete();
             files.RemoveAt(0);
         }

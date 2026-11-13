@@ -25,14 +25,20 @@ public sealed class DeviceSyncService
         _clientFactory = clientFactory;
     }
 
-    public Task ShutdownAsync() => _operations.StopAsync();
+    public Task ShutdownAsync()
+    {
+        return _operations.StopAsync();
+    }
 
     public bool IsOnline(Guid deviceId)
     {
         return _online.TryGetValue(deviceId, out var online) && online;
     }
 
-    public bool IsOffline(Guid deviceId) => _online.TryGetValue(deviceId, out var online) && !online;
+    public bool IsOffline(Guid deviceId)
+    {
+        return _online.TryGetValue(deviceId, out var online) && !online;
+    }
 
     public async Task MonitorAvailabilityAsync(IDeviceReachability reachability, CancellationToken token)
     {
@@ -94,7 +100,9 @@ public sealed class DeviceSyncService
     }
 
     public Task<DeviceSyncResult> TrySyncAsync(Device device, CancellationToken cancellationToken = default)
-        => _operations.RunAsync(token => TrySyncCoreAsync(device, token), cancellationToken);
+    {
+        return _operations.RunAsync(token => TrySyncCoreAsync(device, token), cancellationToken);
+    }
 
     private async Task<DeviceSyncResult> TrySyncCoreAsync(Device device, CancellationToken cancellationToken)
     {

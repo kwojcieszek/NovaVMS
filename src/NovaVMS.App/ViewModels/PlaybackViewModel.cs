@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using Avalonia.Threading;
@@ -11,6 +12,7 @@ using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Exceptions;
 using NovaVMS.Core.Models;
 using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -111,22 +113,6 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
-    private DateTime? _exportFromDate = DateTime.Today;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
-    private DateTime? _exportToDate = DateTime.Today;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
-    private TimeSpan? _exportFromTime = TimeSpan.Zero;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
-    private TimeSpan? _exportToTime = new(23, 59, 59);
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelExportCommand))]
     private bool _isExporting;
 
@@ -135,12 +121,6 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private string _exportStatus = string.Empty;
-
-    [ObservableProperty]
-    private string _exportFromText = "00:00:00";
-
-    [ObservableProperty]
-    private string _exportToText = "23:59:59";
 
     private MediaPlayer _player => _buffer.ActivePlayer;
 
@@ -191,6 +171,8 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<RecordingSegment> Segments { get; } = new();
 
+    public ExportRangeViewModel ExportRange { get; } = new();
+
     public DateTime Day => (SelectedDate ?? DateTime.Today).Date;
 
     /// <summary>
@@ -220,6 +202,7 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         _buffer = new RecordingPlaybackBuffer(libVlc);
 
         _buffer.ActivePlayerChanged += OnActivePlayerChanged;
+        ExportRange.PropertyChanged += OnExportRangeChanged;
         _buffer.PrimaryPlayer.EncounteredError += OnPrimaryPlayerError;
         _buffer.SecondaryPlayer.EncounteredError += OnSecondaryPlayerError;
         _buffer.PrimaryPlayer.EndReached += OnPrimaryPlayerEndReached;
@@ -254,9 +237,15 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         }
     }
 
-    internal bool HasRecordingAt(DateTime time) => Segments.Any(segment => segment.Start <= time && time < segment.End);
+    internal bool HasRecordingAt(DateTime time)
+    {
+        return Segments.Any(segment => segment.Start <= time && time < segment.End);
+    }
 
-    internal bool HasSourceAt(DateTime time) => IsPlaying && _media is not null && _playbackStart <= time && time < _playbackEnd;
+    internal bool HasSourceAt(DateTime time)
+    {
+        return IsPlaying && _media is not null && _playbackStart <= time && time < _playbackEnd;
+    }
 
     internal async Task OpenSynchronizedAsync(double seconds)
     {
@@ -309,7 +298,10 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         await _buffer.SetPauseAsync(paused);
     }
 
-    internal Task SetSynchronizedMuteAsync(bool muted) => _buffer.SetMuteAsync(muted);
+    internal Task SetSynchronizedMuteAsync(bool muted)
+    {
+        return _buffer.SetMuteAsync(muted);
+    }
 
     internal void StopSynchronized(double? position = null)
     {
@@ -370,26 +362,9 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
         SearchCommand.NotifyCanExecuteChanged();
     }
 
-    public void Dispose() => _disposal ??= DisposeCoreAsync();
-
-    partial void OnExportFromTextChanged(string value) => ExportFromTime = ExportTimeRange.Parse(value);
-
-    partial void OnExportToTextChanged(string value) => ExportToTime = ExportTimeRange.Parse(value);
-
-    partial void OnExportFromTimeChanged(TimeSpan? value)
+    public void Dispose()
     {
-        if (value.HasValue)
-        {
-            ExportFromText = ExportTimeRange.Format(value.Value);
-        }
-    }
-
-    partial void OnExportToTimeChanged(TimeSpan? value)
-    {
-        if (value.HasValue)
-        {
-            ExportToText = ExportTimeRange.Format(value.Value);
-        }
+        _disposal ??= DisposeCoreAsync();
     }
 
     private void OnActivePlayerChanged(object? sender, EventArgs e)
@@ -398,6 +373,11 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
         OnPropertyChanged(nameof(VideoPlayer));
         OnPropertyChanged(nameof(IsPrimaryPlayerActive));
+    }
+
+    private void OnExportRangeChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        ExportCommand.NotifyCanExecuteChanged();
     }
 
     private async Task DisposeCoreAsync()
@@ -508,10 +488,8 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
 
             if (coverage.Count > 0)
             {
-                ExportFromDate = coverage[0].Start.Date;
-                ExportFromTime = coverage[0].Start.TimeOfDay;
-                ExportToDate = coverage[^1].End.Date;
-                ExportToTime = coverage[^1].End.TimeOfDay;
+                ExportRange.SetStart(coverage[0].Start);
+                ExportRange.SetEnd(coverage[^1].End);
             }
         }
         catch (OperationCanceledException) when (_isShutDown)
@@ -739,9 +717,12 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
             var caching = _configuration.Current.Settings.GetNetworkCachingMs(StreamType.Main);
             var withAudio = SelectedSpeed.Rate == 1;
 
-            Task<bool> OpenAsync() => _buffer.SwitchAsync(() => VideoMedia.Create(_libVlc, source,
-                camera.Device.Username, camera.Device.Password, caching,
-                withAudio, paceStream: true), _lifetime.Token);
+            Task<bool> OpenAsync()
+            {
+                return _buffer.SwitchAsync(() => VideoMedia.Create(_libVlc, source,
+                    camera.Device.Username, camera.Device.Password, caching,
+                    withAudio, paceStream: true), _lifetime.Token);
+            }
 
             bool started;
 
@@ -925,13 +906,25 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     }
 
     // LibVLC raises events on its own threads - marshal them to the UI thread.
-    private void OnPrimaryPlayerError(object? sender, EventArgs e) => OnPlayerError(_buffer.PrimaryPlayer);
+    private void OnPrimaryPlayerError(object? sender, EventArgs e)
+    {
+        OnPlayerError(_buffer.PrimaryPlayer);
+    }
 
-    private void OnSecondaryPlayerError(object? sender, EventArgs e) => OnPlayerError(_buffer.SecondaryPlayer);
+    private void OnSecondaryPlayerError(object? sender, EventArgs e)
+    {
+        OnPlayerError(_buffer.SecondaryPlayer);
+    }
 
-    private void OnPrimaryPlayerEndReached(object? sender, EventArgs e) => OnPlayerEndReached(_buffer.PrimaryPlayer);
+    private void OnPrimaryPlayerEndReached(object? sender, EventArgs e)
+    {
+        OnPlayerEndReached(_buffer.PrimaryPlayer);
+    }
 
-    private void OnSecondaryPlayerEndReached(object? sender, EventArgs e) => OnPlayerEndReached(_buffer.SecondaryPlayer);
+    private void OnSecondaryPlayerEndReached(object? sender, EventArgs e)
+    {
+        OnPlayerEndReached(_buffer.SecondaryPlayer);
+    }
 
     private void OnPlayerError(MediaPlayer player)
     {
@@ -1041,24 +1034,28 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private void NormalSpeed() => SelectedSpeed = Speeds.Single(option => option.Rate == 1);
+    private void NormalSpeed()
+    {
+        SelectedSpeed = Speeds.Single(option => option.Rate == 1);
+    }
 
     [RelayCommand(CanExecute = nameof(HasCamera))]
     private void MarkExportStart()
     {
-        ExportFromDate = Day;
-        ExportFromTime = TimeSpan.FromSeconds(Math.Floor(TimelinePosition));
+        ExportRange.MarkStart(Day, TimelinePosition);
     }
 
     [RelayCommand(CanExecute = nameof(HasCamera))]
     private void MarkExportEnd()
     {
-        ExportToDate = Day;
-        ExportToTime = TimeSpan.FromSeconds(Math.Floor(TimelinePosition));
+        ExportRange.MarkEnd(Day, TimelinePosition);
     }
 
-    private bool CanExport() => !_isShutDown && HasCamera && !IsExporting
-        && ExportTimeRange.IsValid(ExportFromDate, ExportFromTime, ExportToDate, ExportToTime);
+    private bool CanExport()
+    {
+        return !_isShutDown && HasCamera && !IsExporting
+            && ExportRange.IsValid;
+    }
 
     [RelayCommand(CanExecute = nameof(CanExport))]
     private Task ExportAsync()
@@ -1077,8 +1074,8 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var from = ExportFromDate!.Value.Date + ExportFromTime!.Value;
-        var to = ExportToDate!.Value.Date + ExportToTime!.Value;
+        var from = ExportRange.From;
+        var to = ExportRange.To;
         IsExporting = true;
         ExportProgress = 0;
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
@@ -1151,5 +1148,8 @@ public sealed partial class PlaybackViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand(CanExecute = nameof(IsExporting))]
-    private void CancelExport() => _exportCancellation?.Cancel();
+    private void CancelExport()
+    {
+        _exportCancellation?.Cancel();
+    }
 }

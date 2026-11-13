@@ -3,11 +3,19 @@ using System.Text;
 namespace NovaVMS.Infrastructure.Diagnostics;
 
 /// <summary>Synchronously persists exceptions, including during process termination.</summary>
-public sealed class ExceptionLogWriter(Func<string> logDirectory, Func<string>? fallbackDirectory = null)
+public sealed class ExceptionLogWriter
 {
     [ThreadStatic] private static bool _isWriting;
 
+    private readonly Func<string> _logDirectory;
+    private readonly Func<string>? _fallbackDirectory;
     private readonly object _fileLock = new();
+
+    public ExceptionLogWriter(Func<string> logDirectory, Func<string>? fallbackDirectory = null)
+    {
+        _logDirectory = logDirectory;
+        _fallbackDirectory = fallbackDirectory;
+    }
 
     public void Write(string source, Exception? exception)
     {
@@ -38,12 +46,12 @@ public sealed class ExceptionLogWriter(Func<string> logDirectory, Func<string>? 
 
             lock (_fileLock)
             {
-                if (TryWrite(logDirectory, fileName, entry))
+                if (TryWrite(_logDirectory, fileName, entry))
                 {
                     return;
                 }
 
-                if (fallbackDirectory is not null && TryWrite(fallbackDirectory, fileName, entry))
+                if (_fallbackDirectory is not null && TryWrite(_fallbackDirectory, fileName, entry))
                 {
                     return;
                 }

@@ -57,7 +57,10 @@ public sealed partial class ResourceGroupNodeViewModel : ResourceNodeViewModel
         Cameras.CollectionChanged += OnCamerasChanged;
     }
 
-    public static string GetViewKey(Guid? id, GroupNodeKind kind) => id?.ToString() ?? $"special:{kind}";
+    public static string GetViewKey(Guid? id, GroupNodeKind kind)
+    {
+        return id?.ToString() ?? $"special:{kind}";
+    }
 
     private void OnCamerasChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {

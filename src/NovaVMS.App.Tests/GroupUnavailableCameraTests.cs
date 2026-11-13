@@ -1,6 +1,5 @@
 using NovaVMS.App.Services;
 using NovaVMS.App.ViewModels;
-using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
 using NovaVMS.Infrastructure.Storage;
 using Xunit;
@@ -46,7 +45,7 @@ public sealed class GroupUnavailableCameraTests
         Assert.False(healthyNode.HasUnavailableCamera);
 
         var offlineReachable = false;
-        var probe = new Probe(device => device.Host == "online" || offlineReachable);
+        var probe = FakeReachability.Answering(device => device.Host == "online" || offlineReachable);
 
         await sync.RefreshAvailabilityAsync(probe, default);
 
@@ -58,18 +57,5 @@ public sealed class GroupUnavailableCameraTests
         await sync.RefreshAvailabilityAsync(probe, default);
 
         Assert.False(mixedNode.HasUnavailableCamera);
-    }
-
-    private sealed class Probe(Func<Device, bool> check) : IDeviceReachability
-    {
-        public Task<bool> IsReachableAsync(Device device, CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult(check(device));
-        }
-
-        public Task<bool> IsPortReachableAsync(string host, int port, CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult(false);
-        }
     }
 }

@@ -111,7 +111,10 @@ public sealed class Device
         return copy;
     }
 
-    public Device ForSecondaryAddress() => ForConnection(SecondaryHost.Trim(), SecondaryPort ?? ConnectionPort, SecondaryRtspPort);
+    public Device ForSecondaryAddress()
+    {
+        return ForConnection(SecondaryHost.Trim(), SecondaryPort ?? ConnectionPort, SecondaryRtspPort);
+    }
 
     public Device ForProtocol(bool useOptional)
     {

@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.Input;
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.Mobile.ViewModels;
 

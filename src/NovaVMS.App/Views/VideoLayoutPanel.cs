@@ -24,7 +24,10 @@ public sealed class VideoLayoutPanel : Panel
         set => SetValue(IsMaximizedProperty, value);
     }
 
-    static VideoLayoutPanel() => AffectsMeasure<VideoLayoutPanel>(LayoutProperty, IsMaximizedProperty);
+    static VideoLayoutPanel()
+    {
+        AffectsMeasure<VideoLayoutPanel>(LayoutProperty, IsMaximizedProperty);
+    }
 
     protected override Size MeasureOverride(Size availableSize)
     {

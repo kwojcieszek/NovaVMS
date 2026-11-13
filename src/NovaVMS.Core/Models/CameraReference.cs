@@ -21,7 +21,10 @@ public sealed record CameraReference
     [JsonIgnore]
     public bool IsLegacy => ChannelId == Guid.Empty;
 
-    public static CameraReference For(Device device, Channel channel) => new() { DeviceId = device.Id, ChannelId = channel.Id };
+    public static CameraReference For(Device device, Channel channel)
+    {
+        return new() { DeviceId = device.Id, ChannelId = channel.Id };
+    }
 
     public bool Equals(CameraReference? other)
     {
@@ -33,5 +36,8 @@ public sealed record CameraReference
         return IsLegacy && other.IsLegacy ? ChannelNumber == other.ChannelNumber : ChannelId == other.ChannelId;
     }
 
-    public override int GetHashCode() => IsLegacy ? HashCode.Combine(DeviceId, ChannelNumber) : HashCode.Combine(DeviceId, ChannelId);
+    public override int GetHashCode()
+    {
+        return IsLegacy ? HashCode.Combine(DeviceId, ChannelNumber) : HashCode.Combine(DeviceId, ChannelId);
+    }
 }

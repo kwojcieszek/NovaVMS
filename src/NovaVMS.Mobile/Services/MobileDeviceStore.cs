@@ -8,12 +8,21 @@ namespace NovaVMS.Mobile.Services;
 /// Encrypted device list of earlier mobile versions; a failed write never replaces the previous file.
 /// Read once and moved into the shared configuration format.
 /// </summary>
-public sealed class MobileDeviceStore(string directory, IDataProtection protection)
+public sealed class MobileDeviceStore
 {
+    private readonly string _directory;
+    private readonly IDataProtection _protection;
     private readonly SemaphoreSlim _gate = new(1, 1);
-    private readonly string _path = Path.Combine(directory, "devices.enc");
+    private readonly string _path;
 
     public bool Exists => File.Exists(_path);
+
+    public MobileDeviceStore(string directory, IDataProtection protection)
+    {
+        _path = Path.Combine(directory, "devices.enc");
+        _directory = directory;
+        _protection = protection;
+    }
 
     public async Task<List<Device>> LoadAsync(CancellationToken cancellationToken = default)
     {
@@ -27,7 +36,7 @@ public sealed class MobileDeviceStore(string directory, IDataProtection protecti
             }
 
             var encrypted = await File.ReadAllBytesAsync(_path, cancellationToken);
-            var plain = protection.Unprotect(encrypted);
+            var plain = _protection.Unprotect(encrypted);
 
             try
             {
@@ -57,14 +66,14 @@ public sealed class MobileDeviceStore(string directory, IDataProtection protecti
 
         try
         {
-            Directory.CreateDirectory(directory);
+            Directory.CreateDirectory(_directory);
 
             var plain = JsonSerializer.SerializeToUtf8Bytes(devices, MobileJsonContext.Default.ListDevice);
             byte[] encrypted;
 
             try
             {
-                encrypted = protection.Protect(plain);
+                encrypted = _protection.Protect(plain);
             }
             finally
             {

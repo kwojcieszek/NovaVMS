@@ -16,7 +16,10 @@ public sealed class GridLayoutPreview : Control
         set => SetValue(LayoutProperty, value);
     }
 
-    static GridLayoutPreview() => AffectsRender<GridLayoutPreview>(LayoutProperty);
+    static GridLayoutPreview()
+    {
+        AffectsRender<GridLayoutPreview>(LayoutProperty);
+    }
 
     public override void Render(DrawingContext context)
     {

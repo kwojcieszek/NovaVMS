@@ -8,7 +8,8 @@ internal static class LiveSourceLoader
 {
     public static Task<VideoSource> OpenAsync(IDeviceClientFactory factory, Device device,
         int channel, StreamType streamType, CancellationToken cancellationToken)
-        => Task.Run(async () =>
+    {
+        return Task.Run(async () =>
         {
             using var client = await factory.CreateAsync(device, cancellationToken: cancellationToken).ConfigureAwait(false);
 
@@ -16,4 +17,5 @@ internal static class LiveSourceLoader
 
             return await client.GetLiveSourceAsync(channel, streamType, cancellationToken).ConfigureAwait(false);
         }, cancellationToken);
+    }
 }

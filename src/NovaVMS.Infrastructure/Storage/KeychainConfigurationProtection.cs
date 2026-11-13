@@ -3,13 +3,19 @@ using System.Security.Cryptography;
 namespace NovaVMS.Infrastructure.Storage;
 
 /// <summary>An authenticated envelope; its random key lives only in the system credential store.</summary>
-internal sealed class KeychainConfigurationProtection(IConfigurationKeyStore keyStore) : IConfigurationProtection
+internal sealed class KeychainConfigurationProtection : IConfigurationProtection
 {
     private const int IdLength = 16, NonceLength = 12, TagLength = 16, KeyLength = 32;
 
+    private readonly IConfigurationKeyStore _keyStore;
     private Guid? _keyId;
 
     private static ReadOnlySpan<byte> Header => "NovaVMS.Settings.AESGCM.v1\0"u8;
+
+    public KeychainConfigurationProtection(IConfigurationKeyStore keyStore)
+    {
+        _keyStore = keyStore;
+    }
 
     public byte[] Protect(ReadOnlySpan<byte> plaintext)
     {
@@ -22,7 +28,7 @@ internal sealed class KeychainConfigurationProtection(IConfigurationKeyStore key
             // each other's credential; loading always looks up the identifier from that file.
             if (!_keyId.HasValue)
             {
-                keyStore.CreateKey(id.ToString("N"), key);
+                _keyStore.CreateKey(id.ToString("N"), key);
             }
 
             var prefixLength = Header.Length + IdLength;
@@ -88,7 +94,7 @@ internal sealed class KeychainConfigurationProtection(IConfigurationKeyStore key
 
     private byte[] ReadKey(Guid id)
     {
-        var key = keyStore.ReadKey(id.ToString("N"));
+        var key = _keyStore.ReadKey(id.ToString("N"));
 
         if (key is null)
         {

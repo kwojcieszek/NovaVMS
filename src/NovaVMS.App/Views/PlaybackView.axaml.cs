@@ -4,5 +4,8 @@ namespace NovaVMS.App.Views;
 
 public partial class PlaybackView : UserControl
 {
-    public PlaybackView() => InitializeComponent();
+    public PlaybackView()
+    {
+        InitializeComponent();
+    }
 }

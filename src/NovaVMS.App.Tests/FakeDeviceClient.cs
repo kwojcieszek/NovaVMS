@@ -6,9 +6,9 @@ namespace NovaVMS.App.Tests;
 /// <summary>
 /// Device client that records PTZ commands and disposal.
 /// </summary>
-internal sealed class FakeDeviceClient(Device device) : IDeviceClient
+internal sealed class FakeDeviceClient : IDeviceClient
 {
-    public Device Device { get; } = device;
+    public Device Device { get; }
 
     public List<string> Commands { get; } = new();
 
@@ -17,6 +17,11 @@ internal sealed class FakeDeviceClient(Device device) : IDeviceClient
     public Func<CancellationToken, Task<DeviceInfo>>? ReadInfo { get; set; }
     public Func<int, DateTime, DateTime, VideoSource>? OpenRecording { get; set; }
     public Func<int, DateTime, DateTime, CancellationToken, Task<IReadOnlyList<RecordingSegment>>>? SearchRecordings { get; set; }
+
+    public FakeDeviceClient(Device device)
+    {
+        Device = device;
+    }
 
     public Task PtzMoveAsync(int channelNumber, int pan, int tilt, int zoom, CancellationToken cancellationToken = default)
     {

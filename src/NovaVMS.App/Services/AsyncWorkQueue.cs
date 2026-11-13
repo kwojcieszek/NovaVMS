@@ -17,21 +17,30 @@ internal sealed class AsyncWorkQueue
         }
     }
 
-    public Task<T> RunAsync<T>(Func<T> operation) => RunCoreAsync(() => Task.FromResult(operation()));
-
-    public Task RunAsync(Func<Task> operation) => RunCoreAsync(async () =>
+    public Task<T> RunAsync<T>(Func<T> operation)
     {
-        await operation().ConfigureAwait(false);
+        return RunCoreAsync(() => Task.FromResult(operation()));
+    }
 
-        return true;
-    });
-
-    public Task RunAsync(Action operation) => RunAsync(() =>
+    public Task RunAsync(Func<Task> operation)
     {
-        operation();
+        return RunCoreAsync(async () =>
+        {
+            await operation().ConfigureAwait(false);
 
-        return true;
-    });
+            return true;
+        });
+    }
+
+    public Task RunAsync(Action operation)
+    {
+        return RunAsync(() =>
+        {
+            operation();
+
+            return true;
+        });
+    }
 
     private Task<T> RunCoreAsync<T>(Func<Task<T>> operation)
     {

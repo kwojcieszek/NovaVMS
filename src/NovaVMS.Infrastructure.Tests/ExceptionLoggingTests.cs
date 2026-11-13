@@ -243,7 +243,13 @@ public sealed class ExceptionLoggingTests : IDisposable
         }
     }
 
-    private static void ThrowForLog(string message) => throw new InvalidOperationException(message);
+    private static void ThrowForLog(string message)
+    {
+        throw new InvalidOperationException(message);
+    }
 
-    private string ReadLog() => File.ReadAllText(Assert.Single(Directory.GetFiles(_directory, "errors-*.log")));
+    private string ReadLog()
+    {
+        return File.ReadAllText(Assert.Single(Directory.GetFiles(_directory, "errors-*.log")));
+    }
 }

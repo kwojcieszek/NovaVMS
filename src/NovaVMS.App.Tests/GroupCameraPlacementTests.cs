@@ -68,5 +68,8 @@ public sealed class GroupCameraPlacementTests
         Assert.Equal(new CameraReference?[] { Camera(1), Camera(2), null }, second);
     }
 
-    private static CameraReference Camera(int channel) => new() { DeviceId = Guid.Empty, ChannelNumber = channel };
+    private static CameraReference Camera(int channel)
+    {
+        return new() { DeviceId = Guid.Empty, ChannelNumber = channel };
+    }
 }

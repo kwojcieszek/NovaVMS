@@ -6,9 +6,16 @@ using NovaVMS.Core.Models;
 namespace NovaVMS.Protocols.HcNetSdk;
 
 /// <summary>Searches the recorder over its SDK connection; no HTTP or RTSP service is required.</summary>
-internal sealed class HcNetSdkRecordingService(IHcNetSdkRecordingApi api)
+internal sealed class HcNetSdkRecordingService
 {
     private static readonly TimeSpan SearchTimeout = TimeSpan.FromSeconds(60);
+
+    private readonly IHcNetSdkRecordingApi _api;
+
+    public HcNetSdkRecordingService(IHcNetSdkRecordingApi api)
+    {
+        _api = api;
+    }
 
     public Task<IReadOnlyList<RecordingSegment>> SearchAsync(HcNetSdkSession session, int channelNumber,
         DateTime from, DateTime to, CancellationToken cancellationToken)
@@ -34,7 +41,7 @@ internal sealed class HcNetSdkRecordingService(IHcNetSdkRecordingApi api)
                 Start = NetDvrTime.From(from),
                 End = NetDvrTime.From(to)
             };
-            var handle = api.Find(session.UserId, ref condition);
+            var handle = _api.Find(session.UserId, ref condition);
 
             if (handle < 0)
             {
@@ -50,7 +57,7 @@ internal sealed class HcNetSdkRecordingService(IHcNetSdkRecordingApi api)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    var status = api.Next(handle, out var data);
+                    var status = _api.Next(handle, out var data);
 
                     switch (status)
                     {
@@ -84,14 +91,14 @@ internal sealed class HcNetSdkRecordingService(IHcNetSdkRecordingApi api)
             }
             finally
             {
-                api.Close(handle);
+                _api.Close(handle);
             }
         }, cancellationToken);
     }
 
     private DeviceCommunicationException Error(HcNetSdkSession session)
     {
-        var code = api.GetLastError();
+        var code = _api.GetLastError();
 
         if (HcNetSdkErrors.InvalidatesSession(code))
         {

@@ -1,7 +1,6 @@
 using System.Text;
 using NovaVMS.App.Services;
 using NovaVMS.App.ViewModels;
-using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
 using NovaVMS.Infrastructure.Storage;
 using Xunit;
@@ -51,7 +50,7 @@ public sealed class MainStreamHeightTests
     [Fact]
     public async Task SettingsControlSavesAndRestoresHeight()
     {
-        var store = new MemoryStore();
+        var store = new MemoryConfigurationStore();
         var configuration = new ConfigurationService(store, new JsonConfigurationSerializer());
 
         using (var settings = new GeneralSettingsViewModel(configuration, new LocalSettingsService(new MemoryLocalSettingsStore()), null!, null!))
@@ -80,19 +79,5 @@ public sealed class MainStreamHeightTests
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes("{\"Settings\":{}}"));
 
         Assert.Equal(540, (await new JsonConfigurationSerializer().DeserializeAsync(stream)).Settings.MainStreamMinimumHeight);
-    }
-
-    private sealed class MemoryStore : IConfigurationStore
-    {
-        public AppConfiguration? Saved { get; private set; }
-
-        public Task<AppConfiguration> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(new AppConfiguration());
-
-        public Task SaveAsync(AppConfiguration configuration, CancellationToken cancellationToken = default)
-        {
-            Saved = configuration;
-
-            return Task.CompletedTask;
-        }
     }
 }

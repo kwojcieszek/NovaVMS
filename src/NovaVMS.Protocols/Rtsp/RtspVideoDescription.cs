@@ -3,8 +3,24 @@ using System.Text.RegularExpressions;
 namespace NovaVMS.Protocols.Rtsp;
 
 /// <summary>The video track of an RTSP session description (SDP): control address, payload type, codec and parameter sets.</summary>
-public sealed record RtspVideoDescription(Uri Track, int PayloadType, VideoCodec Codec, IReadOnlyList<byte[]> ParameterSets)
+public sealed record RtspVideoDescription
 {
+    public Uri Track { get; init; }
+
+    public int PayloadType { get; init; }
+
+    public VideoCodec Codec { get; init; }
+
+    public IReadOnlyList<byte[]> ParameterSets { get; init; }
+
+    public RtspVideoDescription(Uri track, int payloadType, VideoCodec codec, IReadOnlyList<byte[]> parameterSets)
+    {
+        Track = track;
+        PayloadType = payloadType;
+        Codec = codec;
+        ParameterSets = parameterSets;
+    }
+
     public static RtspVideoDescription Parse(string sdp, Uri baseUri)
     {
         var lines = sdp.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

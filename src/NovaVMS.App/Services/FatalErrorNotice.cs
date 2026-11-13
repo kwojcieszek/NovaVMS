@@ -23,7 +23,10 @@ internal static class FatalErrorNotice
                 Console.Error.WriteLine(message);
             }
         }
-        catch { /* Reporting a fatal error must not throw another exception. */ }
+        catch
+        {
+            // Reporting a fatal error must not throw another exception.
+        }
     }
 
     [DllImport("user32.dll", EntryPoint = "MessageBoxW", CharSet = CharSet.Unicode)]

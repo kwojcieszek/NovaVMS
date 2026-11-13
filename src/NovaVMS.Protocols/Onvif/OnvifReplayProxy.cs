@@ -155,7 +155,10 @@ internal sealed class OnvifReplayProxy : IDisposable, IVideoStreamStatus
         await stream.WriteAsync(message.Body, token).ConfigureAwait(false);
     }
 
-    private static string Clock(DateTime value) => value.ToUniversalTime().ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
+    private static string Clock(DateTime value)
+    {
+        return value.ToUniversalTime().ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
+    }
 
     private async Task RunAsync()
     {
@@ -314,22 +317,25 @@ internal sealed class OnvifReplayProxy : IDisposable, IVideoStreamStatus
         return new UriBuilder(local) { Host = _remote.Host, Port = _remote.Port }.Uri;
     }
 
-    private string LocalAddresses(string text) => Regex.Replace(text, @"rtsp://[^\s<>""']+", match =>
+    private string LocalAddresses(string text)
     {
-        if (!System.Uri.TryCreate(match.Value, UriKind.Absolute, out var address))
+        return Regex.Replace(text, @"rtsp://[^\s<>""']+", match =>
         {
-            return match.Value;
-        }
+            if (!System.Uri.TryCreate(match.Value, UriKind.Absolute, out var address))
+            {
+                return match.Value;
+            }
 
-        if (address.UserInfo.Length > 0)
-        {
-            throw new IOException("Unexpected RTSP media address.");
-        }
+            if (address.UserInfo.Length > 0)
+            {
+                throw new IOException("Unexpected RTSP media address.");
+            }
 
-        // NAT devices can report internal hosts/ports in SDP. All outgoing requests
-        // still use the originally configured recorder connection in RemoteUri.
-        return new UriBuilder(address) { Host = Uri.Host, Port = Uri.Port }.Uri.AbsoluteUri;
-    }, RegexOptions.IgnoreCase);
+            // NAT devices can report internal hosts/ports in SDP. All outgoing requests
+            // still use the originally configured recorder connection in RemoteUri.
+            return new UriBuilder(address) { Host = Uri.Host, Port = Uri.Port }.Uri.AbsoluteUri;
+        }, RegexOptions.IgnoreCase);
+    }
 
     private async Task WriteRemoteAsync(Stream stream, Message message)
     {

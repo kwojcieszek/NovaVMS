@@ -62,7 +62,10 @@ public sealed class SettingsSyncOptions
         && !string.IsNullOrWhiteSpace(UserName)
         && !string.IsNullOrEmpty(EncryptionPassword);
 
-    public SettingsSyncOptions Copy() => (SettingsSyncOptions)MemberwiseClone();
+    public SettingsSyncOptions Copy()
+    {
+        return (SettingsSyncOptions)MemberwiseClone();
+    }
 
     /// <summary>
     /// True when both options point to the same database.

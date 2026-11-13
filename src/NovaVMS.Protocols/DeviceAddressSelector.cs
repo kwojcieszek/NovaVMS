@@ -5,11 +5,20 @@ using NovaVMS.Core.Models;
 namespace NovaVMS.Protocols;
 
 /// <summary>Chooses an address/port pair once per device configuration and application session.</summary>
-internal sealed class DeviceAddressSelector(IDeviceReachability reachability)
+internal sealed class DeviceAddressSelector
 {
+    private readonly IDeviceReachability _reachability;
     private readonly ConcurrentDictionary<AddressKey, Lazy<Task<Endpoint>>> _choices = new();
 
-    public string? GetSelectedHost(Device device) => GetSelected(device)?.Host;
+    public DeviceAddressSelector(IDeviceReachability reachability)
+    {
+        _reachability = reachability;
+    }
+
+    public string? GetSelectedHost(Device device)
+    {
+        return GetSelected(device)?.Host;
+    }
 
     public Device GetSelectedConnection(Device device)
     {
@@ -19,7 +28,9 @@ internal sealed class DeviceAddressSelector(IDeviceReachability reachability)
     }
 
     public async Task<string> ResolveAsync(Device device, bool remember, CancellationToken cancellationToken)
-        => (await ResolveConnectionAsync(device, remember, cancellationToken).ConfigureAwait(false)).Host;
+    {
+        return (await ResolveConnectionAsync(device, remember, cancellationToken).ConfigureAwait(false)).Host;
+    }
 
     public async Task<Device> ResolveConnectionAsync(Device device, bool remember, CancellationToken cancellationToken)
     {
@@ -70,9 +81,11 @@ internal sealed class DeviceAddressSelector(IDeviceReachability reachability)
         }
     }
 
-    private Endpoint? GetSelected(Device device) =>
-        _choices.TryGetValue(AddressKey.From(device), out var choice) && choice.IsValueCreated
-            && choice.Value.IsCompletedSuccessfully ? choice.Value.Result : null;
+    private Endpoint? GetSelected(Device device)
+    {
+        return _choices.TryGetValue(AddressKey.From(device), out var choice) && choice.IsValueCreated
+                && choice.Value.IsCompletedSuccessfully ? choice.Value.Result : null;
+    }
 
     private async Task<Endpoint> ProbeAsync(Device device, CancellationToken token)
     {
@@ -86,12 +99,12 @@ internal sealed class DeviceAddressSelector(IDeviceReachability reachability)
             return primary;
         }
 
-        if (await reachability.IsReachableAsync(device, token).ConfigureAwait(false))
+        if (await _reachability.IsReachableAsync(device, token).ConfigureAwait(false))
         {
             return primary;
         }
 
-        if (await reachability.IsReachableAsync(secondary, token).ConfigureAwait(false))
+        if (await _reachability.IsReachableAsync(secondary, token).ConfigureAwait(false))
         {
             return new Endpoint(secondary.Host, secondary.ConnectionPort, device.SecondaryRtspPort);
         }
@@ -99,13 +112,73 @@ internal sealed class DeviceAddressSelector(IDeviceReachability reachability)
         return primary;
     }
 
-    private sealed record Endpoint(string Host, int Port, int? RtspPort = null);
-
-    private sealed record AddressKey(Guid Id, string Primary, string Secondary, DeviceProtocol Protocol,
-        int HttpPort, int RtspPort, int SdkPort, int? SecondaryPort, int? SecondaryRtspPort, bool UseHttps)
+    private sealed record Endpoint
     {
-        public static AddressKey From(Device device) => new(device.Id, device.Host.Trim().ToUpperInvariant(),
-            (device.SecondaryHost ?? "").Trim().ToUpperInvariant(), device.Protocol,
-            device.HttpPort, device.RtspPort, device.SdkPort, device.SecondaryPort, device.SecondaryRtspPort, device.UseHttps);
+        public string Host { get; init; }
+
+        public int Port { get; init; }
+
+        public int? RtspPort { get; init; }
+
+        public Endpoint(string host, int port, int? rtspPort = null)
+        {
+            Host = host;
+            Port = port;
+            RtspPort = rtspPort;
+        }
+    }
+
+    private sealed record AddressKey
+    {
+        public Guid Id { get; init; }
+
+        public string Primary { get; init; }
+
+        public string Secondary { get; init; }
+
+        public DeviceProtocol Protocol { get; init; }
+
+        public int HttpPort { get; init; }
+
+        public int RtspPort { get; init; }
+
+        public int SdkPort { get; init; }
+
+        public int? SecondaryPort { get; init; }
+
+        public int? SecondaryRtspPort { get; init; }
+
+        public bool UseHttps { get; init; }
+
+        public AddressKey(
+            Guid id,
+            string primary,
+            string secondary,
+            DeviceProtocol protocol,
+            int httpPort,
+            int rtspPort,
+            int sdkPort,
+            int? secondaryPort,
+            int? secondaryRtspPort,
+            bool useHttps)
+        {
+            Id = id;
+            Primary = primary;
+            Secondary = secondary;
+            Protocol = protocol;
+            HttpPort = httpPort;
+            RtspPort = rtspPort;
+            SdkPort = sdkPort;
+            SecondaryPort = secondaryPort;
+            SecondaryRtspPort = secondaryRtspPort;
+            UseHttps = useHttps;
+        }
+
+        public static AddressKey From(Device device)
+        {
+            return new(device.Id, device.Host.Trim().ToUpperInvariant(),
+                (device.SecondaryHost ?? "").Trim().ToUpperInvariant(), device.Protocol,
+                device.HttpPort, device.RtspPort, device.SdkPort, device.SecondaryPort, device.SecondaryRtspPort, device.UseHttps);
+        }
     }
 }

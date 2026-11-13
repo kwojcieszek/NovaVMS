@@ -6,6 +6,7 @@ using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Exceptions;
 using NovaVMS.Core.Models;
 using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -109,7 +110,9 @@ public sealed partial class PtzViewModel : ViewModelBase, IDisposable
     }
 
     public void Dispose()
-        => _disposal ??= DisposeCoreAsync();
+    {
+        _disposal ??= DisposeCoreAsync();
+    }
 
     private static (int Pan, int Tilt, int Zoom) ToVector(PtzDirection direction)
     {

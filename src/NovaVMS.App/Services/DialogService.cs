@@ -27,7 +27,9 @@ public sealed class DialogService : IDialogService
     };
 
     internal static Window? FindOwner(IEnumerable<Window> windows, Window? mainWindow)
-        => windows.FirstOrDefault(window => window.IsActive && window is not VideoOverlayWindow) ?? mainWindow;
+    {
+        return windows.FirstOrDefault(window => window.IsActive && window is not VideoOverlayWindow) ?? mainWindow;
+    }
 
     public async Task<string?> PromptTextAsync(string title, string message, string initialValue)
     {
@@ -100,20 +102,13 @@ public sealed class DialogService : IDialogService
             return null;
         }
 
-        var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = title,
-            AllowMultiple = false,
-            FileTypeFilter = new[] { new FilePickerFileType(Localizer.Text("FileType_Ivms"))
-                { Patterns = new[] { "*.zip", "Device", "Device.*" } }, FilePickerFileTypes.All }
-        });
+        var ivmsType = new FilePickerFileType(Localizer.Text("FileType_Ivms")) { Patterns = new[] { "*.zip", "Device", "Device.*" } };
+        var file = await PickFileAsync(owner, title, ivmsType, FilePickerFileTypes.All);
 
-        if (files.Count == 0)
+        if (file is null)
         {
             return null;
         }
-
-        var file = files[0];
 
         if (file.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
         {
@@ -131,19 +126,15 @@ public sealed class DialogService : IDialogService
         }
         else
         {
-            var companions = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = Localizer.Text("Devices_IvmsSetupTitle"),
-                AllowMultiple = false,
-                FileTypeFilter = new[] { new FilePickerFileType("DESetup.xml") { Patterns = new[] { "*.xml" } } }
-            });
+            var setupType = new FilePickerFileType("DESetup.xml") { Patterns = new[] { "*.xml" } };
+            var companion = await PickFileAsync(owner, Localizer.Text("Devices_IvmsSetupTitle"), setupType);
 
-            if (companions.Count == 0)
+            if (companion is null)
             {
                 return null;
             }
 
-            setup = await companions[0].OpenReadAsync();
+            setup = await companion.OpenReadAsync();
         }
 
         try
@@ -185,19 +176,27 @@ public sealed class DialogService : IDialogService
             return null;
         }
 
-        var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = title,
-            AllowMultiple = false,
-            FileTypeFilter = new[] { fileType }
-        });
+        var file = await PickFileAsync(owner, title, fileType);
 
-        if (files.Count == 0)
+        if (file is null)
         {
             return null;
         }
 
-        return await files[0].OpenReadAsync();
+        return await file.OpenReadAsync();
+    }
+
+    /// <summary>Lets the user pick a single file; null when the picker was cancelled.</summary>
+    private static async Task<IStorageFile?> PickFileAsync(Window owner, string title, params FilePickerFileType[] fileTypes)
+    {
+        var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = false,
+            FileTypeFilter = fileTypes
+        });
+
+        return files.Count == 0 ? null : files[0];
     }
 
     private static async Task<Stream?> SaveFileAsync(string title, string suggestedFileName, string extension, FilePickerFileType fileType)

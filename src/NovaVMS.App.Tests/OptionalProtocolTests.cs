@@ -96,26 +96,29 @@ public sealed class OptionalProtocolTests
         Assert.Equal("primary-password", device.Password);
     }
 
-    private static Device CreateDevice() => new()
+    private static Device CreateDevice()
     {
-        Host = "primary",
-        Protocol = DeviceProtocol.Isapi,
-        Username = "shared-user",
-        StreamEncryptionKey = "shared-key",
-        Password = "primary-password",
-        Channels = [new Channel { Number = 1, ProfileToken = "primary-profile" }],
-        OptionalConnection = new()
+        return new()
         {
-            Protocol = DeviceProtocol.HikvisionSdk,
-            Host = "optional",
-            SecondaryHost = "optional-secondary",
-            HttpPort = 81,
-            RtspPort = 555,
-            SdkPort = 8001,
-            SecondaryPort = 18001,
-            SecondaryRtspPort = 1555,
-            UseHttps = true,
-            Channels = [new Channel { Number = 1, ProfileToken = "optional-profile" }]
-        }
-    };
+            Host = "primary",
+            Protocol = DeviceProtocol.Isapi,
+            Username = "shared-user",
+            StreamEncryptionKey = "shared-key",
+            Password = "primary-password",
+            Channels = [new Channel { Number = 1, ProfileToken = "primary-profile" }],
+            OptionalConnection = new()
+            {
+                Protocol = DeviceProtocol.HikvisionSdk,
+                Host = "optional",
+                SecondaryHost = "optional-secondary",
+                HttpPort = 81,
+                RtspPort = 555,
+                SdkPort = 8001,
+                SecondaryPort = 18001,
+                SecondaryRtspPort = 1555,
+                UseHttps = true,
+                Channels = [new Channel { Number = 1, ProfileToken = "optional-profile" }]
+            }
+        };
+    }
 }

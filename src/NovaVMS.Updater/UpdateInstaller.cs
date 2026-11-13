@@ -1,7 +1,14 @@
 namespace NovaVMS.Updater;
 
-public sealed class UpdateInstaller(IUpdateProcessHost processes)
+public sealed class UpdateInstaller
 {
+    private readonly IUpdateProcessHost _processes;
+
+    public UpdateInstaller(IUpdateProcessHost processes)
+    {
+        _processes = processes;
+    }
+
     public async Task ApplyAsync(UpdatePlan plan, CancellationToken token = default)
     {
         var install = Path.GetFullPath(plan.InstallDirectory);
@@ -28,7 +35,7 @@ public sealed class UpdateInstaller(IUpdateProcessHost processes)
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
 
         timeout.CancelAfter(TimeSpan.FromSeconds(90));
-        await processes.WaitForExitAsync(executable, timeout.Token).ConfigureAwait(false);
+        await _processes.WaitForExitAsync(executable, timeout.Token).ConfigureAwait(false);
 
         var staging = UpdatePackage.SafePath(job, "payload");
         var backup = UpdatePackage.SafePath(job, "backup");
@@ -90,7 +97,7 @@ public sealed class UpdateInstaller(IUpdateProcessHost processes)
 
             if (readyToRestart || restored)
             {
-                processes.Start(executable, plan.Arguments);
+                _processes.Start(executable, plan.Arguments);
             }
         }
     }

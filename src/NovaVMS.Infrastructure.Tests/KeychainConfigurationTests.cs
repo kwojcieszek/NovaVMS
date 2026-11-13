@@ -170,7 +170,10 @@ public sealed class KeychainConfigurationTests : IDisposable
         }
     }
 
-    private JsonConfigurationStore Store() => new(_serializer, FilePath, new KeychainConfigurationProtection(_keys));
+    private JsonConfigurationStore Store()
+    {
+        return new(_serializer, FilePath, new KeychainConfigurationProtection(_keys));
+    }
 
     private sealed class MemoryKeyStore : IConfigurationKeyStore
     {

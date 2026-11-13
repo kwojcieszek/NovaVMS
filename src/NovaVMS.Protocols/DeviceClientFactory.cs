@@ -25,13 +25,25 @@ public sealed class DeviceClientFactory : IDeviceClientFactory, IDisposable
         _useOptionalProtocol = useOptionalProtocol;
     }
 
-    public bool UsesOptionalProtocol(Device device) => _useOptionalProtocol && device.OptionalConnection is not null;
+    public bool UsesOptionalProtocol(Device device)
+    {
+        return _useOptionalProtocol && device.OptionalConnection is not null;
+    }
 
-    public Device GetConfiguredConnection(Device device) => device.ForProtocol(_useOptionalProtocol);
+    public Device GetConfiguredConnection(Device device)
+    {
+        return device.ForProtocol(_useOptionalProtocol);
+    }
 
-    public string? GetSelectedHost(Device device) => _addresses.GetSelectedHost(GetConfiguredConnection(device));
+    public string? GetSelectedHost(Device device)
+    {
+        return _addresses.GetSelectedHost(GetConfiguredConnection(device));
+    }
 
-    public Device GetSelectedConnection(Device device) => _addresses.GetSelectedConnection(GetConfiguredConnection(device));
+    public Device GetSelectedConnection(Device device)
+    {
+        return _addresses.GetSelectedConnection(GetConfiguredConnection(device));
+    }
 
     public async Task<IDeviceClient> CreateAsync(Device device, bool rememberAddress = true, CancellationToken cancellationToken = default)
     {

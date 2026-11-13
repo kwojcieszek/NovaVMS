@@ -7,5 +7,8 @@ public sealed class SavedCameraView
     public GroupLiveView Layout { get; set; } = new();
     public int? MaximizedTileIndex { get; set; }
 
-    public SavedCameraView Copy() => new() { Id = Id, Name = Name, Layout = Layout.Copy(), MaximizedTileIndex = MaximizedTileIndex };
+    public SavedCameraView Copy()
+    {
+        return new() { Id = Id, Name = Name, Layout = Layout.Copy(), MaximizedTileIndex = MaximizedTileIndex };
+    }
 }

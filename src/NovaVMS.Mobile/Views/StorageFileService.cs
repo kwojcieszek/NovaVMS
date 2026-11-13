@@ -5,7 +5,7 @@ using NovaVMS.Mobile.Services;
 namespace NovaVMS.Mobile.Views;
 
 /// <summary>Settings files through the platform document picker (Android Storage Access Framework, iOS Files).</summary>
-public sealed class StorageFileService(TopLevel topLevel) : IFileService
+public sealed class StorageFileService : IFileService
 {
     private static readonly FilePickerFileType JsonFiles = new("JSON")
     {
@@ -14,9 +14,16 @@ public sealed class StorageFileService(TopLevel topLevel) : IFileService
         AppleUniformTypeIdentifiers = ["public.json"]
     };
 
+    private readonly TopLevel _topLevel;
+
+    public StorageFileService(TopLevel topLevel)
+    {
+        _topLevel = topLevel;
+    }
+
     public async Task<Stream?> SaveJsonFileAsync(string title, string suggestedFileName)
     {
-        var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        var file = await _topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = title,
             SuggestedFileName = suggestedFileName,
@@ -29,7 +36,7 @@ public sealed class StorageFileService(TopLevel topLevel) : IFileService
 
     public async Task<Stream?> OpenJsonFileAsync(string title)
     {
-        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        var files = await _topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = title,
             AllowMultiple = false,

@@ -48,7 +48,10 @@ public sealed class ConfigurationService : ISynchronizedConfiguration
         return AppConfigurationNormalizer.EnsureDefaultUser(configuration);
     }
 
-    public Task FlushAsync() => _saves.WhenIdle;
+    public Task FlushAsync()
+    {
+        return _saves.WhenIdle;
+    }
 
     public async Task LoadAsync()
     {

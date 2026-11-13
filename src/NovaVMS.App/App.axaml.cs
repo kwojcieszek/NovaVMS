@@ -16,7 +16,10 @@ public partial class App : Application
     private ServiceProvider? _services;
     private Task? _serviceDisposal;
 
-    internal Task DisposeServicesAsync() => _serviceDisposal ??= DisposeServicesCoreAsync();
+    internal Task DisposeServicesAsync()
+    {
+        return _serviceDisposal ??= DisposeServicesCoreAsync();
+    }
 
     public override void Initialize()
     {

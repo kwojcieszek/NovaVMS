@@ -7,8 +7,15 @@ using NovaVMS.Core.Models;
 namespace NovaVMS.App.Services;
 
 /// <summary>Independent player writes a bounded MP4 without interrupting the displayed recording.</summary>
-public sealed class RecordingExporter([Microsoft.Extensions.DependencyInjection.FromKeyedServices(VideoPlayerFactory.Recordings)] LibVLC libVlc)
+public sealed class RecordingExporter
 {
+    private readonly LibVLC _libVlc;
+
+    public RecordingExporter([Microsoft.Extensions.DependencyInjection.FromKeyedServices(VideoPlayerFactory.Recordings)] LibVLC libVlc)
+    {
+        _libVlc = libVlc;
+    }
+
     internal static string CameraDirectoryName(string cameraName)
     {
         var invalid = Path.GetInvalidFileNameChars().Concat("<>:\"/\\|?*").ToHashSet();
@@ -66,7 +73,8 @@ public sealed class RecordingExporter([Microsoft.Extensions.DependencyInjection.
 
     public Task ExportAsync(VideoSource source, string username, string password, TimeSpan duration,
         string destination, IProgress<double>? progress, CancellationToken token)
-        => Task.Run(async () =>
+    {
+        return Task.Run(async () =>
         {
             if (duration <= TimeSpan.Zero)
             {
@@ -80,13 +88,13 @@ public sealed class RecordingExporter([Microsoft.Extensions.DependencyInjection.
 
             try
             {
-                using var media = VideoMedia.Create(libVlc, source, username, password, 300, paceStream: true);
+                using var media = VideoMedia.Create(_libVlc, source, username, password, 300, paceStream: true);
 
                 media.Media.AddOption(":sout=" + BuildOutput(partial));
                 media.Media.AddOption(":run-time=" + duration.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture));
                 media.Media.AddOption(":no-sout-all");
 
-                using var player = VideoPlayerFactory.Create(libVlc);
+                using var player = VideoPlayerFactory.Create(_libVlc);
                 var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
                 player.EndReached += (_, _) => completion.TrySetResult(true);
@@ -179,6 +187,7 @@ public sealed class RecordingExporter([Microsoft.Extensions.DependencyInjection.
                 }
             }
         }, token);
+    }
 
     private static TimeSpan ReadBoxes(Stream stream, long end)
     {

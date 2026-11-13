@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using NovaVMS.Core.Models;
 using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -21,5 +22,8 @@ public sealed partial class PermissionOptionViewModel : ViewModelBase
         Permission = permission;
     }
 
-    public void NotifyLabelChanged() => OnPropertyChanged(nameof(Label));
+    public void NotifyLabelChanged()
+    {
+        OnPropertyChanged(nameof(Label));
+    }
 }

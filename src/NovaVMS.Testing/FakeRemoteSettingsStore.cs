@@ -1,18 +1,21 @@
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
 
-namespace NovaVMS.Mobile.Tests;
+namespace NovaVMS.Testing;
 
 /// <summary>
 /// In-memory settings database used by the synchronization tests; it is its own factory.
 /// </summary>
-internal sealed class FakeRemoteSettingsStore : IRemoteSettingsStore, IRemoteSettingsStoreFactory
+public sealed class FakeRemoteSettingsStore : IRemoteSettingsStore, IRemoteSettingsStoreFactory
 {
     private readonly List<(SettingsVersionInfo Info, AppConfiguration Configuration)> _versions = new();
 
     public int Count => _versions.Count;
 
-    public IRemoteSettingsStore Create(SettingsSyncOptions options) => this;
+    public IRemoteSettingsStore Create(SettingsSyncOptions options)
+    {
+        return this;
+    }
 
     public SettingsVersionInfo Add(AppConfiguration configuration, Guid instanceId, string machineName = "OTHER-PC")
     {
@@ -23,7 +26,10 @@ internal sealed class FakeRemoteSettingsStore : IRemoteSettingsStore, IRemoteSet
         return info;
     }
 
-    public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
+    }
 
     public Task<SettingsVersionInfo?> GetLatestAsync(CancellationToken cancellationToken = default)
     {

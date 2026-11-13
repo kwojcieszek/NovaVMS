@@ -139,15 +139,25 @@ public sealed class PtzViewModelTests
         return ptz;
     }
 
-    private sealed class ResolvingFactory(FakeDeviceClientFactory inner) : IDeviceClientFactory
+    private sealed class ResolvingFactory : IDeviceClientFactory
     {
-        public IDeviceClient Create(Device device) => throw new InvalidOperationException("Resolve the endpoint asynchronously first.");
+        private readonly FakeDeviceClientFactory _inner;
+
+        public ResolvingFactory(FakeDeviceClientFactory inner)
+        {
+            _inner = inner;
+        }
+
+        public IDeviceClient Create(Device device)
+        {
+            throw new InvalidOperationException("Resolve the endpoint asynchronously first.");
+        }
 
         public async Task<IDeviceClient> CreateAsync(Device device, bool rememberAddress = true, CancellationToken cancellationToken = default)
         {
             await Task.Yield();
 
-            return inner.Create(device.ForSecondaryAddress());
+            return _inner.Create(device.ForSecondaryAddress());
         }
     }
 }

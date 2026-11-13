@@ -116,6 +116,9 @@ public sealed class HcNetSdkPtzServiceTests
             return Success;
         }
 
-        public uint GetLastError() => 23;
+        public uint GetLastError()
+        {
+            return 23;
+        }
     }
 }

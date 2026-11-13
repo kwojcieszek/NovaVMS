@@ -32,9 +32,15 @@ public sealed partial class LogViewModel : PageViewModel
         shell.ShowSettings();
     }
 
-    private bool CanRefresh() => !IsBusy;
+    private bool CanRefresh()
+    {
+        return !IsBusy;
+    }
 
-    private bool CanClear() => !IsBusy && FilePath.Length > 0;
+    private bool CanClear()
+    {
+        return !IsBusy && FilePath.Length > 0;
+    }
 
     [RelayCommand(CanExecute = nameof(CanRefresh))]
     private async Task RefreshAsync()

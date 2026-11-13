@@ -46,8 +46,10 @@ public partial class PlaybackTileView : UserControl
         }
     }
 
-    private void OnVideoAttached(object? sender, VisualTreeAttachmentEventArgs e) =>
+    private void OnVideoAttached(object? sender, VisualTreeAttachmentEventArgs e)
+    {
         Dispatcher.UIThread.Post(UpdateSurfaceOrder, DispatcherPriority.Loaded);
+    }
 
     private void UpdateSurfaceOrder()
     {

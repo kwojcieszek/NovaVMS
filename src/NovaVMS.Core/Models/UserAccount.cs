@@ -20,7 +20,13 @@ public sealed class UserAccount
 
     public bool HasPassword => !string.IsNullOrEmpty(PasswordHash) && !string.IsNullOrEmpty(PasswordSalt);
 
-    public bool Has(UserPermissions permission) => (Permissions & permission) == permission;
+    public bool Has(UserPermissions permission)
+    {
+        return (Permissions & permission) == permission;
+    }
 
-    public UserAccount Copy() => (UserAccount)MemberwiseClone();
+    public UserAccount Copy()
+    {
+        return (UserAccount)MemberwiseClone();
+    }
 }

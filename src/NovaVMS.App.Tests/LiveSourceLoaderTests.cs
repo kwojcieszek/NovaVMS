@@ -54,16 +54,29 @@ public sealed class LiveSourceLoaderTests
 
     // Uses the interface's synchronous CreateAsync fallback, the case that previously
     // could keep the UI loop from dispatching the next tile's opening.
-    private sealed class BlockingFactory(Guid slowId, TaskCompletionSource entered,
-        ManualResetEventSlim release) : IDeviceClientFactory
+    private sealed class BlockingFactory : IDeviceClientFactory
     {
+        private readonly Guid _slowId;
+        private readonly TaskCompletionSource _entered;
+        private readonly ManualResetEventSlim _release;
+
+        public BlockingFactory(
+            Guid slowId,
+            TaskCompletionSource entered,
+            ManualResetEventSlim release)
+        {
+            _slowId = slowId;
+            _entered = entered;
+            _release = release;
+        }
+
         public IDeviceClient Create(Device device)
         {
-            if (device.Id == slowId)
+            if (device.Id == _slowId)
             {
-                entered.TrySetResult();
+                _entered.TrySetResult();
 
-                if (!release.Wait(TimeSpan.FromSeconds(10)))
+                if (!_release.Wait(TimeSpan.FromSeconds(10)))
                 {
                     throw new TimeoutException();
                 }

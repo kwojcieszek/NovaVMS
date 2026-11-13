@@ -105,11 +105,28 @@ public sealed class UpdateCatalogTests
         Assert.Equal("https://example.invalid/releases/", restored.Settings.UpdateServerUrl);
     }
 
-    private static HttpResponseMessage Json(string content) => new(HttpStatusCode.OK) { Content = new StringContent(content, Encoding.UTF8, "application/json") };
-    private static HttpClient Client(Func<HttpRequestMessage, HttpResponseMessage> handle) => new(new Handler(handle));
-
-    private sealed class Handler(Func<HttpRequestMessage, HttpResponseMessage> handle) : HttpMessageHandler
+    private static HttpResponseMessage Json(string content)
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => Task.FromResult(handle(request));
+        return new(HttpStatusCode.OK) { Content = new StringContent(content, Encoding.UTF8, "application/json") };
+    }
+
+    private static HttpClient Client(Func<HttpRequestMessage, HttpResponseMessage> handle)
+    {
+        return new(new Handler(handle));
+    }
+
+    private sealed class Handler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> _handle;
+
+        public Handler(Func<HttpRequestMessage, HttpResponseMessage> handle)
+        {
+            _handle = handle;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(_handle(request));
+        }
     }
 }

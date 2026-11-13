@@ -310,8 +310,11 @@ public sealed class TimelineBar : Control
         return Math.Clamp((seconds - _visibleStart) / (_visibleEnd - _visibleStart), 0, 1) * width;
     }
 
-    private double SecondsAt(double x) => Math.Min(SecondsPerDay - 1,
-        _visibleStart + Math.Clamp(x / Bounds.Width, 0, 1) * (_visibleEnd - _visibleStart));
+    private double SecondsAt(double x)
+    {
+        return Math.Min(SecondsPerDay - 1,
+            _visibleStart + Math.Clamp(x / Bounds.Width, 0, 1) * (_visibleEnd - _visibleStart));
+    }
 
     private void OnSegmentsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {

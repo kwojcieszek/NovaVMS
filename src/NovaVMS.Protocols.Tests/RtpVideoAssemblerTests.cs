@@ -147,5 +147,8 @@ public sealed class RtpVideoAssemblerTests
         Assert.Equal(0, assembler.DroppedPictures);
     }
 
-    private static byte[] Sized(byte[] nal) => [(byte)(nal.Length >> 8), (byte)nal.Length, .. nal];
+    private static byte[] Sized(byte[] nal)
+    {
+        return [(byte)(nal.Length >> 8), (byte)nal.Length, .. nal];
+    }
 }

@@ -31,7 +31,10 @@ internal sealed class RecordingPlaybackBuffer : IAsyncDisposable
         _active = _primary;
     }
 
-    internal void CancelPending() => Interlocked.Increment(ref _version);
+    internal void CancelPending()
+    {
+        Interlocked.Increment(ref _version);
+    }
 
     internal async Task<bool> SwitchAsync(Func<VideoMedia> createMedia, CancellationToken token)
     {
@@ -43,7 +46,10 @@ internal sealed class RecordingPlaybackBuffer : IAsyncDisposable
         Slot? previous = null;
         var promoted = false;
 
-        bool Current() => !_disposed && version == Volatile.Read(ref _version) && !token.IsCancellationRequested;
+        bool Current()
+        {
+            return !_disposed && version == Volatile.Read(ref _version) && !token.IsCancellationRequested;
+        }
 
         try
         {
@@ -224,9 +230,14 @@ internal sealed class RecordingPlaybackBuffer : IAsyncDisposable
         return media is null ? Task.CompletedTask : _operations.RunAsync(() => VideoMedia.Stop(slot.Player, media));
     }
 
-    private sealed class Slot(MediaPlayer player)
+    private sealed class Slot
     {
-        internal MediaPlayer Player { get; } = player;
+        internal MediaPlayer Player { get; }
         internal VideoMedia? Media { get; set; }
+
+        public Slot(MediaPlayer player)
+        {
+            Player = player;
+        }
     }
 }

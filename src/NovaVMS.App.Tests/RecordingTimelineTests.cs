@@ -56,12 +56,13 @@ public sealed class RecordingTimelineTests
         Assert.Equal(expectedSeconds, ExportTimeRange.Parse(text)?.TotalSeconds);
     }
 
-    private static RecordingSegment Segment(int start, int end, int channel = 1) =>
-
-        new()
-        {
-            Start = Day.AddSeconds(start),
-            End = Day.AddSeconds(end),
-            ChannelNumber = channel
-        };
+    private static RecordingSegment Segment(int start, int end, int channel = 1)
+    {
+        return new()
+            {
+                Start = Day.AddSeconds(start),
+                End = Day.AddSeconds(end),
+                ChannelNumber = channel
+            };
+    }
 }

@@ -6,6 +6,7 @@ using NovaVMS.App.Services;
 using NovaVMS.Core.Models;
 using NovaVMS.Presentation.Localization;
 using NovaVMS.Presentation.Models;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -183,15 +184,27 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
         return index >= 0 && index + offset >= 0 && index + offset < groups.Count;
     }
 
-    private bool CanMoveGroupUp() => CanMoveGroup(-1);
+    private bool CanMoveGroupUp()
+    {
+        return CanMoveGroup(-1);
+    }
 
-    private bool CanMoveGroupDown() => CanMoveGroup(1);
+    private bool CanMoveGroupDown()
+    {
+        return CanMoveGroup(1);
+    }
 
     [RelayCommand(CanExecute = nameof(CanMoveGroupUp))]
-    private Task MoveGroupUpAsync() => MoveGroupAsync(-1);
+    private Task MoveGroupUpAsync()
+    {
+        return MoveGroupAsync(-1);
+    }
 
     [RelayCommand(CanExecute = nameof(CanMoveGroupDown))]
-    private Task MoveGroupDownAsync() => MoveGroupAsync(1);
+    private Task MoveGroupDownAsync()
+    {
+        return MoveGroupAsync(1);
+    }
 
     private async Task MoveGroupAsync(int offset)
     {
@@ -222,16 +235,28 @@ public sealed partial class GroupsSettingsViewModel : ViewModelBase, IDisposable
         return SelectedGroup is not null && SelectedGroupCamera is not null;
     }
 
-    private bool CanMoveCameraUp() => SelectedGroupCamera is { } camera && GroupCameras.IndexOf(camera) > 0;
+    private bool CanMoveCameraUp()
+    {
+        return SelectedGroupCamera is { } camera && GroupCameras.IndexOf(camera) > 0;
+    }
 
-    private bool CanMoveCameraDown() => SelectedGroupCamera is { } camera &&
-        GroupCameras.IndexOf(camera) >= 0 && GroupCameras.IndexOf(camera) < GroupCameras.Count - 1;
+    private bool CanMoveCameraDown()
+    {
+        return SelectedGroupCamera is { } camera &&
+            GroupCameras.IndexOf(camera) >= 0 && GroupCameras.IndexOf(camera) < GroupCameras.Count - 1;
+    }
 
     [RelayCommand(CanExecute = nameof(CanMoveCameraUp))]
-    private Task MoveCameraUpAsync() => MoveCameraAsync(-1);
+    private Task MoveCameraUpAsync()
+    {
+        return MoveCameraAsync(-1);
+    }
 
     [RelayCommand(CanExecute = nameof(CanMoveCameraDown))]
-    private Task MoveCameraDownAsync() => MoveCameraAsync(1);
+    private Task MoveCameraDownAsync()
+    {
+        return MoveCameraAsync(1);
+    }
 
     private async Task MoveCameraAsync(int offset)
     {

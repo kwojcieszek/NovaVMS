@@ -24,7 +24,7 @@ public sealed class GroupLayoutCapacityTests
         {
             var (configuration, session) = await CreateAsync(count);
             configuration.Current.Settings.WarnWhenGroupExceedsLayout = enabled;
-            var dialogs = new Dialogs { Answer = Task.FromResult(answer) };
+            var dialogs = new FakeDialogService { ConfirmReply = Task.FromResult(answer) };
             var live = new LiveViewViewModel(vlc, configuration, new FakeDeviceClientFactory(), new StatusBarService(), dialogs, session);
 
             try
@@ -55,7 +55,7 @@ public sealed class GroupLayoutCapacityTests
             LayoutId = "standard-4",
             LayoutCount = 4
         };
-        var dialogs = new Dialogs();
+        var dialogs = new FakeDialogService { ConfirmReply = Task.FromResult(true) };
         var live = new LiveViewViewModel(vlc, configuration, new FakeDeviceClientFactory(), new StatusBarService(), dialogs, session);
 
         try
@@ -84,7 +84,7 @@ public sealed class GroupLayoutCapacityTests
         using var vlc = new LibVLC("--vout=dummy", "--aout=dummy", "--avcodec-hw=none");
         var (configuration, session) = await CreateAsync(6);
         var answer = new TaskCompletionSource<bool>();
-        var dialogs = new Dialogs { Answer = answer.Task };
+        var dialogs = new FakeDialogService { ConfirmReply = answer.Task };
         var live = new LiveViewViewModel(vlc, configuration, new FakeDeviceClientFactory(), new StatusBarService(), dialogs, session);
 
         try
@@ -117,7 +117,7 @@ public sealed class GroupLayoutCapacityTests
         using var vlc = new LibVLC("--vout=dummy", "--aout=dummy", "--avcodec-hw=none");
         var (configuration, session) = await CreateAsync(6);
         var live = new LiveViewViewModel(vlc, configuration, new FakeDeviceClientFactory(), new StatusBarService(),
-            new Dialogs(), session);
+            new FakeDialogService { ConfirmReply = Task.FromResult(true) }, session);
 
         try
         {
@@ -179,7 +179,7 @@ public sealed class GroupLayoutCapacityTests
             Cameras = [foreign[0], foreign[1], foreign[0], foreign[1]]
         };
         var live = new LiveViewViewModel(vlc, configuration, new FakeDeviceClientFactory(), new StatusBarService(),
-            new Dialogs(), session);
+            new FakeDialogService { ConfirmReply = Task.FromResult(true) }, session);
 
         try
         {
@@ -226,27 +226,5 @@ public sealed class GroupLayoutCapacityTests
         TestSessions.LogInAsDefaultAdmin(session);
 
         return (configuration, session);
-    }
-
-    private sealed class Dialogs : IDialogService
-    {
-        public Task<bool> Answer { get; init; } = Task.FromResult(true);
-        public int Confirmations { get; private set; }
-
-        public Task<bool> ConfirmAsync(string title, string message)
-        {
-            Confirmations++;
-
-            return Answer;
-        }
-
-        public Task<string?> PromptTextAsync(string title, string message, string initialValue) => throw new NotSupportedException();
-        public Task<bool> LoginAsync(UserSessionService session, string userName) => throw new NotSupportedException();
-        public Task<Stream?> OpenJsonFileAsync(string title) => throw new NotSupportedException();
-        public Task<Stream?> SaveJsonFileAsync(string title, string suggestedFileName) => throw new NotSupportedException();
-        public Task<Stream?> OpenCsvFileAsync(string title) => throw new NotSupportedException();
-        public Task<(Stream Content, Stream? Setup)?> OpenIvmsFileAsync(string title) => throw new NotSupportedException();
-        public Task<Stream?> SaveCsvFileAsync(string title, string suggestedFileName) => throw new NotSupportedException();
-        public Task<string?> PickFolderAsync(string title) => throw new NotSupportedException();
     }
 }

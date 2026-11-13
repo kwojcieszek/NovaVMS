@@ -19,26 +19,29 @@ public sealed class AppConfiguration
     public Dictionary<string, GroupLiveView> GroupLiveViews { get; set; } = new();
 
     /// <summary>Copies mutable settings before serialization runs on a background thread.</summary>
-    public AppConfiguration CreateSnapshot() => new()
+    public AppConfiguration CreateSnapshot()
     {
-        Settings = Settings.Copy(),
-        Views = Views.Select(view => view.Copy()).ToList(),
-        GroupLiveViews = GroupLiveViews.ToDictionary(pair => pair.Key, pair => pair.Value.Copy()),
-        Devices = Devices.Select(device =>
+        return new()
         {
-            var copy = device.ForHost(device.Host);
-            copy.OptionalConnection = device.OptionalConnection?.Copy();
-            copy.Channels = device.Channels.Select(channel => channel.Copy()).ToList();
+            Settings = Settings.Copy(),
+            Views = Views.Select(view => view.Copy()).ToList(),
+            GroupLiveViews = GroupLiveViews.ToDictionary(pair => pair.Key, pair => pair.Value.Copy()),
+            Devices = Devices.Select(device =>
+            {
+                var copy = device.ForHost(device.Host);
+                copy.OptionalConnection = device.OptionalConnection?.Copy();
+                copy.Channels = device.Channels.Select(channel => channel.Copy()).ToList();
 
-            return copy;
-        }).ToList(),
-        Groups = Groups.Select(group => new CameraGroup
-        {
-            Id = group.Id,
-            Name = group.Name,
-            SourceDeviceId = group.SourceDeviceId,
-            Cameras = group.Cameras.ToList() // CameraReference is immutable.
-        }).ToList(),
-        Users = Users.Select(user => user.Copy()).ToList()
-    };
+                return copy;
+            }).ToList(),
+            Groups = Groups.Select(group => new CameraGroup
+            {
+                Id = group.Id,
+                Name = group.Name,
+                SourceDeviceId = group.SourceDeviceId,
+                Cameras = group.Cameras.ToList() // CameraReference is immutable.
+            }).ToList(),
+            Users = Users.Select(user => user.Copy()).ToList()
+        };
+    }
 }

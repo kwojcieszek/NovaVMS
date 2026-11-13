@@ -4,13 +4,19 @@ using System.Runtime.ExceptionServices;
 namespace NovaVMS.Infrastructure.Diagnostics;
 
 /// <summary>Records managed exceptions when thrown, even if a later catch handles them.</summary>
-public sealed class FirstChanceExceptionCapture(Action<string, Exception> log) : IDisposable
+public sealed class FirstChanceExceptionCapture : IDisposable
 {
     [ThreadStatic] private static bool _isHandling;
 
+    private readonly Action<string, Exception> _log;
     private readonly object _gate = new();
     private bool _installed;
     private readonly ConditionalWeakTable<Exception, Captured> _seen = new();
+
+    public FirstChanceExceptionCapture(Action<string, Exception> log)
+    {
+        _log = log;
+    }
 
     public void Install()
     {
@@ -62,7 +68,7 @@ public sealed class FirstChanceExceptionCapture(Action<string, Exception> log) :
                 return;
             }
 
-            log("First-chance exception", e.Exception);
+            _log("First-chance exception", e.Exception);
         }
         catch
         {

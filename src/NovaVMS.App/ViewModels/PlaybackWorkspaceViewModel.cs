@@ -10,6 +10,7 @@ using NovaVMS.App.Services;
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
 using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -111,6 +112,7 @@ public sealed partial class PlaybackWorkspaceViewModel : ViewModelBase, IDisposa
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
 
         _timer.Tick += OnTick;
+        ExportRange.PropertyChanged += OnExportRangeChanged;
 
         AddTile();
 
@@ -235,7 +237,10 @@ public sealed partial class PlaybackWorkspaceViewModel : ViewModelBase, IDisposa
         _timer.Tick -= OnTick;
     }
 
-    public void Dispose() => _disposal ??= DisposeCoreAsync();
+    public void Dispose()
+    {
+        _disposal ??= DisposeCoreAsync();
+    }
 
     private void AddTile()
     {
@@ -365,7 +370,10 @@ public sealed partial class PlaybackWorkspaceViewModel : ViewModelBase, IDisposa
         RefreshExportSelection();
     }
 
-    private void OnRecordingOpening(object? sender, RecordingOpeningEventArgs args) => RecordingOpening?.Invoke(this, args);
+    private void OnRecordingOpening(object? sender, RecordingOpeningEventArgs args)
+    {
+        RecordingOpening?.Invoke(this, args);
+    }
 
     private void OnSessionChanged(object? sender, PropertyChangedEventArgs args)
     {
@@ -375,9 +383,15 @@ public sealed partial class PlaybackWorkspaceViewModel : ViewModelBase, IDisposa
         }
     }
 
-    private bool CanSearch() => !_shutdown && HasCamera && SelectedDate.HasValue && FromTime.HasValue && ToTime.HasValue && FromTime < ToTime;
+    private bool CanSearch()
+    {
+        return !_shutdown && HasCamera && SelectedDate.HasValue && FromTime.HasValue && ToTime.HasValue && FromTime < ToTime;
+    }
 
-    private bool CanSeek() => CanSearch();
+    private bool CanSeek()
+    {
+        return CanSearch();
+    }
 
     [RelayCommand(CanExecute = nameof(CanSearch), AllowConcurrentExecutions = true)]
     private Task SearchAsync()
@@ -399,14 +413,20 @@ public sealed partial class PlaybackWorkspaceViewModel : ViewModelBase, IDisposa
 
     partial void OnSelectedDateChanged(DateTime? value)
     {
-        ExportFromDate = ExportToDate = value;
+        ExportRange.SetDay(value);
 
         RangeChanged();
     }
 
-    partial void OnFromTimeChanged(TimeSpan? value) => RangeChanged();
+    partial void OnFromTimeChanged(TimeSpan? value)
+    {
+        RangeChanged();
+    }
 
-    partial void OnToTimeChanged(TimeSpan? value) => RangeChanged();
+    partial void OnToTimeChanged(TimeSpan? value)
+    {
+        RangeChanged();
+    }
 
     private void RangeChanged()
     {
@@ -637,7 +657,10 @@ public sealed partial class PlaybackWorkspaceViewModel : ViewModelBase, IDisposa
     }
 
     [RelayCommand]
-    private void NormalSpeed() => SelectedSpeed = Speeds.Single(speed => speed.Rate == 1);
+    private void NormalSpeed()
+    {
+        SelectedSpeed = Speeds.Single(speed => speed.Rate == 1);
+    }
 
     private async void OnTick(object? sender, EventArgs args)
     {

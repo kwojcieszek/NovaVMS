@@ -41,7 +41,10 @@ public sealed class MaxFrameRateTests
     {
         var changed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        void OnChanged(object? sender, EventArgs e) => changed.TrySetResult();
+        void OnChanged(object? sender, EventArgs e)
+        {
+            changed.TrySetResult();
+        }
 
         configuration.Changed += OnChanged;
 

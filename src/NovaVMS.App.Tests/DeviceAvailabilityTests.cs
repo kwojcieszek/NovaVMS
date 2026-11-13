@@ -3,7 +3,6 @@ using System.Net;
 using System.Net.Sockets;
 using NovaVMS.App.Services;
 using NovaVMS.App.ViewModels;
-using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Exceptions;
 using NovaVMS.Core.Models;
 using NovaVMS.Infrastructure.Storage;
@@ -30,7 +29,7 @@ public sealed class DeviceAvailabilityTests
             SecondaryPort = 18000
         };
         var seen = new ConcurrentBag<(string, int)>();
-        var probe = new Probe((endpoint, _) =>
+        var probe = new FakeReachability((endpoint, _) =>
         {
             seen.Add((endpoint.Host, endpoint.ConnectionPort));
 
@@ -96,7 +95,7 @@ public sealed class DeviceAvailabilityTests
     {
         var device = new Device { Host = "a", SecondaryHost = "b" };
 
-        Assert.True(await DeviceAvailability.CheckAsync(new Probe((endpoint, _) => endpoint.Host == "a"
+        Assert.True(await DeviceAvailability.CheckAsync(new FakeReachability((endpoint, _) => endpoint.Host == "a"
             ? Task.FromException<bool>(new SocketException()) : Task.FromResult(true)), device));
     }
 
@@ -105,7 +104,7 @@ public sealed class DeviceAvailabilityTests
     {
         var calls = 0;
         var device = new Device { Host = "same", SecondaryHost = " SAME ", HttpPort = 80, SecondaryPort = 80 };
-        var probe = new Probe((_, _) =>
+        var probe = new FakeReachability((_, _) =>
         {
             calls++;
 
@@ -121,7 +120,7 @@ public sealed class DeviceAvailabilityTests
     {
         var entered = new ConcurrentBag<string>();
         var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var check = DeviceAvailability.CheckAsync(new Probe((endpoint, _) =>
+        var check = DeviceAvailability.CheckAsync(new FakeReachability((endpoint, _) =>
         {
             entered.Add(endpoint.Host);
 
@@ -138,7 +137,7 @@ public sealed class DeviceAvailabilityTests
     public async Task SdkDeviceIsAvailableWhenOnlyRtspAnswers()
     {
         var device = new Device { Host = "nvr", Protocol = DeviceProtocol.HikvisionSdk, SdkPort = 8000, HttpPort = 80, RtspPort = 554 };
-        var probe = new Probe((_, _) => Task.FromResult(false), (_, port) => port == 554);
+        var probe = new FakeReachability((_, _) => Task.FromResult(false), (_, port) => port == 554);
 
         Assert.True(await DeviceAvailability.CheckAsync(probe, device));
         Assert.Contains(("nvr", 554), probe.Ports);
@@ -151,9 +150,9 @@ public sealed class DeviceAvailabilityTests
     public async Task HttpDeviceIsAvailableWhenOnlySdkOrRtspAnswers(DeviceProtocol protocol)
     {
         var device = new Device { Host = "camera", Protocol = protocol, HttpPort = 80, SdkPort = 8000, RtspPort = 554 };
-        var sdk = new Probe((_, _) => Task.FromResult(false), (_, port) => port == 8000);
-        var rtsp = new Probe((_, _) => Task.FromResult(false), (_, port) => port == 554);
-        var none = new Probe((_, _) => Task.FromResult(false));
+        var sdk = new FakeReachability((_, _) => Task.FromResult(false), (_, port) => port == 8000);
+        var rtsp = new FakeReachability((_, _) => Task.FromResult(false), (_, port) => port == 554);
+        var none = new FakeReachability((_, _) => Task.FromResult(false));
 
         Assert.True(await DeviceAvailability.CheckAsync(sdk, device));
         Assert.True(await DeviceAvailability.CheckAsync(rtsp, device));
@@ -176,7 +175,7 @@ public sealed class DeviceAvailabilityTests
             SecondarySdkPort = 18000,
             SecondaryRtspPort = 10554
         };
-        var probe = new Probe((_, _) => Task.FromResult(false));
+        var probe = new FakeReachability((_, _) => Task.FromResult(false));
 
         Assert.False(await DeviceAvailability.CheckAsync(probe, device));
         Assert.Contains(("second", 18000), probe.Ports);
@@ -189,7 +188,7 @@ public sealed class DeviceAvailabilityTests
     public async Task DoesNotProbeAlternativePortEqualToControlPort()
     {
         var device = new Device { Host = "same", Protocol = DeviceProtocol.Isapi, HttpPort = 554, RtspPort = 554, SdkPort = 554 };
-        var probe = new Probe((_, _) => Task.FromResult(false));
+        var probe = new FakeReachability((_, _) => Task.FromResult(false));
 
         Assert.False(await DeviceAvailability.CheckAsync(probe, device));
         Assert.Empty(probe.Ports);
@@ -214,7 +213,7 @@ public sealed class DeviceAvailabilityTests
         Assert.False(sync.IsOffline(device.Id));
         Assert.False(sync.IsOnline(device.Id));
 
-        await sync.RefreshAvailabilityAsync(new Probe((_, _) => Task.FromResult(false)), default);
+        await sync.RefreshAvailabilityAsync(new FakeReachability((_, _) => Task.FromResult(false)), default);
 
         Assert.True(sync.IsOffline(device.Id));
     }
@@ -244,7 +243,7 @@ public sealed class DeviceAvailabilityTests
         Assert.False(recorder.IsRecorderOffline);
 
         bool backupOnline = false;
-        var probe = new Probe((endpoint, _) => Task.FromResult(backupOnline && endpoint.Host == "backup"));
+        var probe = new FakeReachability((endpoint, _) => Task.FromResult(backupOnline && endpoint.Host == "backup"));
 
         await sync.RefreshAvailabilityAsync(probe, default);
         Assert.True(recorder.IsRecorderOffline);
@@ -256,19 +255,5 @@ public sealed class DeviceAvailabilityTests
 
         await sync.RefreshAvailabilityAsync(probe, default);
         Assert.False(recorder.IsRecorderOffline);
-    }
-
-    private sealed class Probe(Func<Device, CancellationToken, Task<bool>> check, Func<string, int, bool>? portCheck = null) : IDeviceReachability
-    {
-        public ConcurrentBag<(string Host, int Port)> Ports { get; } = new();
-
-        public Task<bool> IsReachableAsync(Device device, CancellationToken cancellationToken = default) => check(device, cancellationToken);
-
-        public Task<bool> IsPortReachableAsync(string host, int port, CancellationToken cancellationToken = default)
-        {
-            Ports.Add((host, port));
-
-            return Task.FromResult(portCheck?.Invoke(host, port) ?? false);
-        }
     }
 }

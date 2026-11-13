@@ -161,26 +161,49 @@ public sealed class OnvifRecordingServiceTests
         Assert.True(ended);
     }
 
-    private static Device Device() => new()
+    private static Device Device()
     {
-        Host = "recorder",
-        Protocol = DeviceProtocol.Onvif,
-        Channels = [new Channel { Number = 1 }, new Channel { Number = 2 }]
-    };
-    private static XElement Services() => new("GetServicesResponse", new[] { "search", "replay", "recording" }.Select(name =>
-        new XElement("Service", new XElement("Namespace", $"http://www.onvif.org/ver10/{name}/wsdl"),
-            new XElement("XAddr", $"http://internal/onvif/{name}"))));
-    private static XElement Token(string token) => new("Response", new XElement("SearchToken", token));
-    private static XElement RecordingPage() => new("Response", new XElement("ResultList", new XElement("SearchState", "Completed"),
-        new[] { 1, 2 }.Select(i => new XElement("RecordingInformation", new XElement("RecordingToken", $"recording{i}"),
-            new XElement("Source", new XElement("VideoSourceToken", $"source{i}")),
-            new XElement("Track", new XElement("TrackToken", "video"), new XElement("TrackType", "Video"),
-                new XElement("DataFrom", Day.ToUniversalTime().ToString("O")), new XElement("DataTo", Day.AddDays(1).ToUniversalTime().ToString("O")))))));
-    private static XElement Event(string track, int hour, bool present) => new(Schema + "Result",
-        new XElement(Schema + "TrackToken", track), new XElement(Schema + "Time", Day.AddHours(hour).ToUniversalTime().ToString("O")),
-        new XElement(Schema + "Event", new XElement(Schema + "SimpleItem", new XAttribute("Name", "IsDataPresent"), new XAttribute("Value", present))));
-    private static XElement Events(string state, params XElement[] events) => new("Response",
-        new XElement("ResultList", new XElement("SearchState", state), events));
+        return new()
+        {
+            Host = "recorder",
+            Protocol = DeviceProtocol.Onvif,
+            Channels = [new Channel { Number = 1 }, new Channel { Number = 2 }]
+        };
+    }
+
+    private static XElement Services()
+    {
+        return new("GetServicesResponse", new[] { "search", "replay", "recording" }.Select(name =>
+            new XElement("Service", new XElement("Namespace", $"http://www.onvif.org/ver10/{name}/wsdl"),
+                new XElement("XAddr", $"http://internal/onvif/{name}"))));
+    }
+
+    private static XElement Token(string token)
+    {
+        return new("Response", new XElement("SearchToken", token));
+    }
+
+    private static XElement RecordingPage()
+    {
+        return new("Response", new XElement("ResultList", new XElement("SearchState", "Completed"),
+            new[] { 1, 2 }.Select(i => new XElement("RecordingInformation", new XElement("RecordingToken", $"recording{i}"),
+                new XElement("Source", new XElement("VideoSourceToken", $"source{i}")),
+                new XElement("Track", new XElement("TrackToken", "video"), new XElement("TrackType", "Video"),
+                    new XElement("DataFrom", Day.ToUniversalTime().ToString("O")), new XElement("DataTo", Day.AddDays(1).ToUniversalTime().ToString("O")))))));
+    }
+
+    private static XElement Event(string track, int hour, bool present)
+    {
+        return new(Schema + "Result",
+            new XElement(Schema + "TrackToken", track), new XElement(Schema + "Time", Day.AddHours(hour).ToUniversalTime().ToString("O")),
+            new XElement(Schema + "Event", new XElement(Schema + "SimpleItem", new XAttribute("Name", "IsDataPresent"), new XAttribute("Value", present))));
+    }
+
+    private static XElement Events(string state, params XElement[] events)
+    {
+        return new("Response",
+            new XElement("ResultList", new XElement("SearchState", state), events));
+    }
 
     private static XElement Replay(XElement request)
     {

@@ -7,21 +7,30 @@ namespace NovaVMS.Protocols.Rtsp;
 /// (VPS for H.265, SPS, PPS) needed to decode it. Parameter set NAL units are never part of <see cref="Nals"/>.
 /// The parameter set list is replaced, never changed, so a decoder can compare it by reference.
 /// </summary>
-public sealed class VideoAccessUnit(VideoCodec codec, IReadOnlyList<byte[]> nals, IReadOnlyList<byte[]> parameterSets, bool isKeyFrame, long timestamp)
+public sealed class VideoAccessUnit
 {
-    public VideoCodec Codec { get; } = codec;
+    public VideoCodec Codec { get; }
 
-    public IReadOnlyList<byte[]> Nals { get; } = nals;
+    public IReadOnlyList<byte[]> Nals { get; }
 
-    public IReadOnlyList<byte[]> ParameterSets { get; } = parameterSets;
+    public IReadOnlyList<byte[]> ParameterSets { get; }
 
     /// <summary>A picture that can be decoded without earlier ones (IDR in H.264, IRAP in H.265).</summary>
-    public bool IsKeyFrame { get; } = isKeyFrame;
+    public bool IsKeyFrame { get; }
 
     /// <summary>Presentation time in 90 kHz ticks, counted from the first picture of the stream.</summary>
-    public long Timestamp { get; } = timestamp;
+    public long Timestamp { get; }
 
     public int Size => Nals.Sum(nal => nal.Length);
+
+    public VideoAccessUnit(VideoCodec codec, IReadOnlyList<byte[]> nals, IReadOnlyList<byte[]> parameterSets, bool isKeyFrame, long timestamp)
+    {
+        Codec = codec;
+        Nals = nals;
+        ParameterSets = parameterSets;
+        IsKeyFrame = isKeyFrame;
+        Timestamp = timestamp;
+    }
 
     /// <summary>NAL units each preceded by a 4-byte big-endian length (AVCC/HVCC), as Apple decoders expect.</summary>
     public byte[] ToLengthPrefixed()

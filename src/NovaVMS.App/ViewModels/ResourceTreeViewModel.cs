@@ -5,6 +5,7 @@ using NovaVMS.App.Models;
 using NovaVMS.App.Services;
 using NovaVMS.Core.Models;
 using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -287,14 +288,26 @@ public sealed partial class ResourceTreeViewModel : ViewModelBase
     }
 
     [RelayCommand(CanExecute = nameof(CanMoveViewUp))]
-    private Task MoveViewUpAsync(ResourceGroupNodeViewModel? node) => MoveViewAsync(node, -1);
+    private Task MoveViewUpAsync(ResourceGroupNodeViewModel? node)
+    {
+        return MoveViewAsync(node, -1);
+    }
 
     [RelayCommand(CanExecute = nameof(CanMoveViewDown))]
-    private Task MoveViewDownAsync(ResourceGroupNodeViewModel? node) => MoveViewAsync(node, 1);
+    private Task MoveViewDownAsync(ResourceGroupNodeViewModel? node)
+    {
+        return MoveViewAsync(node, 1);
+    }
 
-    private bool CanMoveViewUp(ResourceGroupNodeViewModel? node) => CanMoveView(node, -1);
+    private bool CanMoveViewUp(ResourceGroupNodeViewModel? node)
+    {
+        return CanMoveView(node, -1);
+    }
 
-    private bool CanMoveViewDown(ResourceGroupNodeViewModel? node) => CanMoveView(node, 1);
+    private bool CanMoveViewDown(ResourceGroupNodeViewModel? node)
+    {
+        return CanMoveView(node, 1);
+    }
 
     private bool CanMoveView(ResourceGroupNodeViewModel? node, int offset)
     {

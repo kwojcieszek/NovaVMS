@@ -21,7 +21,10 @@ internal sealed class PlayCtrlApi : IPlayCtrlApi
     private PlayCtrlApi(IntPtr library)
     {
         // Delegates and the library stay loaded for the lifetime of the process, including late native callbacks.
-        T Export<T>(string name) where T : Delegate => Marshal.GetDelegateForFunctionPointer<T>(NativeLibrary.GetExport(library, name));
+        T Export<T>(string name) where T : Delegate
+        {
+            return Marshal.GetDelegateForFunctionPointer<T>(NativeLibrary.GetExport(library, name));
+        }
 
         _getPort = Export<GetPortCall>("PlayM4_GetPort");
         _mode = Export<ModeCall>("PlayM4_SetStreamOpenMode");
@@ -36,29 +39,65 @@ internal sealed class PlayCtrlApi : IPlayCtrlApi
         _error = Export<ErrorCall>("PlayM4_GetLastError");
     }
 
-    public static IPlayCtrlApi Get() => Instance.Value;
+    public static IPlayCtrlApi Get()
+    {
+        return Instance.Value;
+    }
 
-    public bool GetPort(out int port) => _getPort(out port);
+    public bool GetPort(out int port)
+    {
+        return _getPort(out port);
+    }
 
-    public bool SetMode(int port, uint mode) => _mode(port, mode);
+    public bool SetMode(int port, uint mode)
+    {
+        return _mode(port, mode);
+    }
 
-    public bool OpenStream(int port, byte[] header, uint size, uint capacity) => _open(port, header, size, capacity);
+    public bool OpenStream(int port, byte[] header, uint size, uint capacity)
+    {
+        return _open(port, header, size, capacity);
+    }
 
-    public bool SetKey(int port, int type, byte[] key, int lengthBits) => _key(port, type, key, lengthBits);
+    public bool SetKey(int port, int type, byte[] key, int lengthBits)
+    {
+        return _key(port, type, key, lengthBits);
+    }
 
-    public bool SetCallback(int port, PlayCtrlDecodeCallback callback, IntPtr destination, int size, IntPtr user) => _callback(port, callback, destination, size, user);
+    public bool SetCallback(int port, PlayCtrlDecodeCallback callback, IntPtr destination, int size, IntPtr user)
+    {
+        return _callback(port, callback, destination, size, user);
+    }
 
-    public bool Play(int port, IntPtr window) => _play(port, window);
+    public bool Play(int port, IntPtr window)
+    {
+        return _play(port, window);
+    }
 
-    public bool Input(int port, byte[] bytes, uint size) => _input(port, bytes, size);
+    public bool Input(int port, byte[] bytes, uint size)
+    {
+        return _input(port, bytes, size);
+    }
 
-    public bool Stop(int port) => _stop(port);
+    public bool Stop(int port)
+    {
+        return _stop(port);
+    }
 
-    public bool Close(int port) => _close(port);
+    public bool Close(int port)
+    {
+        return _close(port);
+    }
 
-    public bool Free(int port) => _free(port);
+    public bool Free(int port)
+    {
+        return _free(port);
+    }
 
-    public uint Error(int port) => _error(port);
+    public uint Error(int port)
+    {
+        return _error(port);
+    }
 
     private static PlayCtrlApi Load()
     {

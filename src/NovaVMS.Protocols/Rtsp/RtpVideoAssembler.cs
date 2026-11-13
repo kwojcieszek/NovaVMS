@@ -195,6 +195,7 @@ public sealed class RtpVideoAssembler : IDisposable
                 }
 
                 AddNal(payload.Slice(index, size), _packetFlagged);
+
                 index += size;
             }
 

@@ -28,6 +28,9 @@ internal struct NetDvrTime
         };
     }
 
-    public readonly DateTime ToDateTime() => new((int)Year, (int)Month, (int)Day,
-        (int)Hour, (int)Minute, (int)Second, DateTimeKind.Unspecified);
+    public readonly DateTime ToDateTime()
+    {
+        return new((int)Year, (int)Month, (int)Day,
+            (int)Hour, (int)Minute, (int)Second, DateTimeKind.Unspecified);
+    }
 }

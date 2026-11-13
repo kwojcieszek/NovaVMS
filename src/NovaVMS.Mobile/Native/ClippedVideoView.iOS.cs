@@ -24,6 +24,7 @@ public sealed class ClippedVideoView : UIView, IVideoRenderer
 
     private readonly object _gate = new();
     private readonly AVSampleBufferDisplayLayer _display = new();
+
     private readonly CALayer _mask = new()
     {
         BackgroundColor = UIColor.Black.CGColor

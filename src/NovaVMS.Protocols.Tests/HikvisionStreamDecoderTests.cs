@@ -220,7 +220,10 @@ public sealed class HikvisionStreamDecoderTests
             return true;
         }
 
-        public bool SetMode(int port, uint mode) => mode is 0 or 1;
+        public bool SetMode(int port, uint mode)
+        {
+            return mode is 0 or 1;
+        }
 
         public bool OpenStream(int port, byte[] header, uint size, uint capacity)
         {
@@ -252,7 +255,10 @@ public sealed class HikvisionStreamDecoderTests
             return true;
         }
 
-        public bool Play(int port, IntPtr window) => true;
+        public bool Play(int port, IntPtr window)
+        {
+            return true;
+        }
 
         public bool Input(int port, byte[] bytes, uint size)
         {
@@ -300,6 +306,9 @@ public sealed class HikvisionStreamDecoderTests
             return true;
         }
 
-        public uint Error(int port) => 11;
+        public uint Error(int port)
+        {
+            return 11;
+        }
     }
 }

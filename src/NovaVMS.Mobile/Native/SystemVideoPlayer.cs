@@ -243,10 +243,16 @@ public sealed class SystemVideoPlayer : IMobilePlayer
     /// Hosts the native video view. Inside a scroll viewer the view is cut to the area of the viewer,
     /// because native views are drawn above Avalonia content and are not clipped by it.
     /// </summary>
-    private sealed class VideoHost(SystemVideoPlayer player) : NativeControlHost
+    private sealed class VideoHost : NativeControlHost
     {
+        private readonly SystemVideoPlayer _player;
         private ClippedVideoView? _native;
         private Rect? _visibleArea;
+
+        public VideoHost(SystemVideoPlayer player)
+        {
+            _player = player;
+        }
 
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
@@ -269,16 +275,17 @@ public sealed class SystemVideoPlayer : IMobilePlayer
 #else
             _native = new ClippedVideoView();
 #endif
-            _native.SetFill(player._fill);
-            _native.SetAspectRatio(player._aspectRatio);
-            _native.SetOverlay(player._overlay);
-            _native.SetOverlayVisible(player._overlayVisible);
+
+            _native.SetFill(_player._fill);
+            _native.SetAspectRatio(_player._aspectRatio);
+            _native.SetOverlay(_player._overlay);
+            _native.SetOverlayVisible(_player._overlayVisible);
 
             _visibleArea = null;
 
             UpdateVisibleArea();
 
-            player._renderer = _native;
+            _player._renderer = _native;
 
 #if ANDROID
             return new AndroidViewControlHandle(_native);
@@ -289,9 +296,9 @@ public sealed class SystemVideoPlayer : IMobilePlayer
 
         protected override void DestroyNativeControlCore(IPlatformHandle control)
         {
-            if (ReferenceEquals(player._renderer, _native))
+            if (ReferenceEquals(_player._renderer, _native))
             {
-                player._renderer = null;
+                _player._renderer = null;
             }
 
             _native?.Detach();

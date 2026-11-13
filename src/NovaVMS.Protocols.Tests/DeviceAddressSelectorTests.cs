@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
-using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
 using Xunit;
 
@@ -16,13 +15,13 @@ public sealed class DeviceAddressSelectorTests
     public async Task ChoosesInOrderAndNeverRechecksEvenWhenConnectivityChanges(bool primary, bool secondary, string expected, int calls)
     {
         var device = Device();
-        var probe = new Probe(d => Task.FromResult(d.Host == "primary" ? primary : secondary));
+        var probe = new FakeReachability((d, _) => Task.FromResult(d.Host == "primary" ? primary : secondary));
         var selector = new DeviceAddressSelector(probe);
 
         Assert.Null(selector.GetSelectedHost(device));
         Assert.Equal(expected, await selector.ResolveAsync(device, true, default));
 
-        probe.Check = _ => throw new InvalidOperationException("A selected address must not be checked again.");
+        probe.Check = (_, _) => throw new InvalidOperationException("A selected address must not be checked again.");
 
         for (var i = 0; i < 3; i++)
         {
@@ -43,7 +42,7 @@ public sealed class DeviceAddressSelectorTests
     {
         var device = Device();
         device.SecondaryHost = secondary;
-        var probe = new Probe(_ => throw new InvalidOperationException());
+        var probe = new FakeReachability((_, _) => throw new InvalidOperationException());
         var selector = new DeviceAddressSelector(probe);
 
         Assert.Equal("primary", await selector.ResolveAsync(device, true, default));
@@ -54,7 +53,7 @@ public sealed class DeviceAddressSelectorTests
     public async Task ConcurrentCameraOpeningsShareOneChoiceAndCancellationDoesNotPoisonIt()
     {
         var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var probe = new Probe(async d =>
+        var probe = new FakeReachability(async (d, _) =>
         {
             await gate.Task;
 
@@ -76,18 +75,18 @@ public sealed class DeviceAddressSelectorTests
     [Fact]
     public async Task SetupDoesNotPinAnAddressButUsesAnExistingChoice()
     {
-        var probe = new Probe(d => Task.FromResult(d.Host == "secondary"));
+        var probe = new FakeReachability((d, _) => Task.FromResult(d.Host == "secondary"));
         var selector = new DeviceAddressSelector(probe);
         var device = Device();
 
         Assert.Equal("secondary", await selector.ResolveAsync(device, false, default));
         Assert.Null(selector.GetSelectedHost(device));
 
-        probe.Check = _ => Task.FromResult(true);
+        probe.Check = (_, _) => Task.FromResult(true);
 
         Assert.Equal("primary", await selector.ResolveAsync(device, true, default));
 
-        probe.Check = _ => throw new InvalidOperationException();
+        probe.Check = (_, _) => throw new InvalidOperationException();
 
         Assert.Equal("primary", await selector.ResolveAsync(device, false, default));
         Assert.Equal(3, probe.Hosts.Count);
@@ -96,7 +95,7 @@ public sealed class DeviceAddressSelectorTests
     [Fact]
     public async Task EditingAddressesOrRestartingTheAppAllowsANewChoice()
     {
-        var probe = new Probe(d => Task.FromResult(d.Host != "primary"));
+        var probe = new FakeReachability((d, _) => Task.FromResult(d.Host != "primary"));
         var device = Device();
         var selector = new DeviceAddressSelector(probe);
 
@@ -117,7 +116,7 @@ public sealed class DeviceAddressSelectorTests
         var device = Device();
         device.Protocol = protocol;
         device.Channels = [new Channel { Number = 1, MainStreamUri = "rtsp://primary:8554/video/main?channel=1" }];
-        var factory = new DeviceClientFactory(new Probe(d => Task.FromResult(d.Host == "secondary")));
+        var factory = new DeviceClientFactory(new FakeReachability((d, _) => Task.FromResult(d.Host == "secondary")));
         using var client = await factory.CreateAsync(device);
 
         Assert.Equal("secondary", client.GetLiveSource(1, StreamType.Main).Uri!.Host);
@@ -138,7 +137,7 @@ public sealed class DeviceAddressSelectorTests
     [Fact]
     public async Task RetainOnlyForgetsRemovedDevicesAndPreviousSettings()
     {
-        var probe = new Probe(d => Task.FromResult(d.Host == "secondary"));
+        var probe = new FakeReachability((d, _) => Task.FromResult(d.Host == "secondary"));
         var selector = new DeviceAddressSelector(probe);
         var kept = Device();
         var edited = Device();
@@ -191,21 +190,8 @@ public sealed class DeviceAddressSelectorTests
         }
     }
 
-    private static Device Device() => new() { Host = "primary", SecondaryHost = "secondary" };
-
-    private sealed class Probe(Func<Device, Task<bool>> check) : IDeviceReachability
+    private static Device Device()
     {
-        public Func<Device, Task<bool>> Check = check;
-        public ConcurrentQueue<string> Hosts { get; } = new();
-
-        public Task<bool> IsReachableAsync(Device device, CancellationToken cancellationToken = default)
-        {
-            Hosts.Enqueue(device.Host);
-
-            return Check(device);
-        }
-
-        public Task<bool> IsPortReachableAsync(string host, int port, CancellationToken cancellationToken = default)
-            => Task.FromResult(false);
+        return new() { Host = "primary", SecondaryHost = "secondary" };
     }
 }

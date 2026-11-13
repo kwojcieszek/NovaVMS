@@ -154,10 +154,13 @@ public sealed class DatabaseRemoteSettingsStoreTests
         return new DatabaseRemoteSettingsStore(dialect, options, new JsonConfigurationSerializer());
     }
 
-    private static AppConfiguration Configuration(string deviceName, string password) => new()
+    private static AppConfiguration Configuration(string deviceName, string password)
     {
-        Devices = [new Device { Name = deviceName, Host = "192.168.1.10", Password = password }]
-    };
+        return new()
+        {
+            Devices = [new Device { Name = deviceName, Host = "192.168.1.10", Password = password }]
+        };
+    }
 
     private static async Task<SettingsSyncOptions?> PrepareAsync(SettingsDatabaseType type)
     {

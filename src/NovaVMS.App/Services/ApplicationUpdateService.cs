@@ -162,7 +162,10 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
         }
     }
 
-    private bool CanCheck() => !IsBusy && !_lifetime.IsCancellationRequested;
+    private bool CanCheck()
+    {
+        return !IsBusy && !_lifetime.IsCancellationRequested;
+    }
 
     [RelayCommand(CanExecute = nameof(CanCheck))]
     private async Task CheckAsync()
@@ -251,7 +254,10 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
         }
     }
 
-    private bool CanInstall() => HasUpdate && !IsBusy && !_lifetime.IsCancellationRequested;
+    private bool CanInstall()
+    {
+        return HasUpdate && !IsBusy && !_lifetime.IsCancellationRequested;
+    }
 
     private async Task PromptForDownloadedUpdateAsync(ApplicationUpdate update)
     {
@@ -467,5 +473,8 @@ public sealed partial class ApplicationUpdateService : ObservableObject, IDispos
     }
 
     [RelayCommand(CanExecute = nameof(IsBusy))]
-    private void Cancel() => _operation?.Cancel();
+    private void Cancel()
+    {
+        _operation?.Cancel();
+    }
 }

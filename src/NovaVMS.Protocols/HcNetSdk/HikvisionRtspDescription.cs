@@ -2,8 +2,27 @@ using System.Text.RegularExpressions;
 
 namespace NovaVMS.Protocols.HcNetSdk;
 
-internal sealed record HikvisionRtspDescription(byte[] Header, Uri Track, int PayloadType, string Codec, IReadOnlyList<byte[]> Parameters)
+internal sealed record HikvisionRtspDescription
 {
+    public byte[] Header { get; init; }
+
+    public Uri Track { get; init; }
+
+    public int PayloadType { get; init; }
+
+    public string Codec { get; init; }
+
+    public IReadOnlyList<byte[]> Parameters { get; init; }
+
+    public HikvisionRtspDescription(byte[] header, Uri track, int payloadType, string codec, IReadOnlyList<byte[]> parameters)
+    {
+        Header = header;
+        Track = track;
+        PayloadType = payloadType;
+        Codec = codec;
+        Parameters = parameters;
+    }
+
     internal static HikvisionRtspDescription Parse(string sdp, Uri baseUri)
     {
         var headerMatch = Regex.Match(sdp, @"a=Media_header:MEDIAINFO=([0-9a-f]+)", RegexOptions.IgnoreCase);

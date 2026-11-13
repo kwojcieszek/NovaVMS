@@ -29,7 +29,10 @@ public sealed class LayoutPersistenceTests
             {
                 var saved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-                void OnSaved(object? sender, EventArgs args) => saved.TrySetResult();
+                void OnSaved(object? sender, EventArgs args)
+                {
+                    saved.TrySetResult();
+                }
 
                 configuration.Saved += OnSaved;
 
@@ -89,6 +92,9 @@ public sealed class LayoutPersistenceTests
         }
     }
 
-    private static LiveViewViewModel Create(LibVLC vlc, ConfigurationService configuration) => new(vlc, configuration,
-        new FakeDeviceClientFactory(), new StatusBarService(), null!, TestSessions.Create(configuration));
+    private static LiveViewViewModel Create(LibVLC vlc, ConfigurationService configuration)
+    {
+        return new(vlc, configuration,
+            new FakeDeviceClientFactory(), new StatusBarService(), null!, TestSessions.Create(configuration));
+    }
 }

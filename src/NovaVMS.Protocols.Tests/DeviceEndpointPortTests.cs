@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Sockets;
-using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
 using Xunit;
 
@@ -24,7 +23,7 @@ public sealed class DeviceEndpointPortTests
             SecondaryPort = 18000
         };
         var probed = new List<(string, int)>();
-        var factory = new DeviceClientFactory(new Probe(d =>
+        var factory = new DeviceClientFactory(FakeReachability.Answering(d =>
         {
             probed.Add((d.Host, d.ConnectionPort));
 
@@ -90,7 +89,7 @@ public sealed class DeviceEndpointPortTests
     public async Task EditingOnlySecondaryPortInvalidatesChoiceAndConnectionSignature()
     {
         var device = new Device { Host = "a", SecondaryHost = "b", SecondaryPort = 8001 };
-        var selector = new DeviceAddressSelector(new Probe(d => d.Host == "b"));
+        var selector = new DeviceAddressSelector(FakeReachability.Answering(d => d.Host == "b"));
         var signature = device.GetConnectionSignature();
 
         Assert.Equal(8001, (await selector.ResolveConnectionAsync(device, true, default)).ConnectionPort);
@@ -106,16 +105,8 @@ public sealed class DeviceEndpointPortTests
     public async Task LegacySecondaryAddressUsesPrimaryProtocolPort()
     {
         var device = new Device { Host = "a", SecondaryHost = "b", SdkPort = 8123, Protocol = DeviceProtocol.HikvisionSdk };
-        var selector = new DeviceAddressSelector(new Probe(d => d.Host == "b"));
+        var selector = new DeviceAddressSelector(FakeReachability.Answering(d => d.Host == "b"));
 
         Assert.Equal(8123, (await selector.ResolveConnectionAsync(device, true, default)).ConnectionPort);
-    }
-
-    private sealed class Probe(Func<Device, bool> check) : IDeviceReachability
-    {
-        public Task<bool> IsReachableAsync(Device device, CancellationToken cancellationToken = default) => Task.FromResult(check(device));
-
-        public Task<bool> IsPortReachableAsync(string host, int port, CancellationToken cancellationToken = default)
-            => Task.FromResult(false);
     }
 }

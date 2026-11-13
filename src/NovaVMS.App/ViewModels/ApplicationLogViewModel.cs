@@ -4,6 +4,7 @@ using NovaVMS.App.Services;
 using NovaVMS.Presentation.Localization;
 using NovaVMS.Presentation.Models;
 using NovaVMS.Presentation.Services;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -27,14 +28,25 @@ public sealed partial class ApplicationLogViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
     private bool _isBusy;
 
-    internal static IReadOnlyList<ApplicationLogEntry> ParseEntries(string text) => ApplicationLogFile.ParseEntries(text);
+    internal static IReadOnlyList<ApplicationLogEntry> ParseEntries(string text)
+    {
+        return ApplicationLogFile.ParseEntries(text);
+    }
 
     internal static (string Path, string Text, bool Truncated) ReadLatest(params string[] directories)
-        => ApplicationLogFile.ReadLatest(directories);
+    {
+        return ApplicationLogFile.ReadLatest(directories);
+    }
 
-    private bool CanRefresh() => !IsBusy;
+    private bool CanRefresh()
+    {
+        return !IsBusy;
+    }
 
-    private bool CanClear() => !IsBusy && FilePath.Length > 0;
+    private bool CanClear()
+    {
+        return !IsBusy && FilePath.Length > 0;
+    }
 
     [RelayCommand(CanExecute = nameof(CanClear))]
     private async Task ClearAsync()

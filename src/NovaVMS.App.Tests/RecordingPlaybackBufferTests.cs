@@ -178,8 +178,13 @@ public sealed class RecordingPlaybackBufferTests
         Assert.True(ready());
     }
 
-    private static LibVLC Engine() => VideoPlayerFactory.CreateRecordingEngine("--vout=dummy", "--aout=dummy", "--avcodec-hw=none");
+    private static LibVLC Engine()
+    {
+        return VideoPlayerFactory.CreateRecordingEngine("--vout=dummy", "--aout=dummy", "--avcodec-hw=none");
+    }
 
-    private static VideoMedia Media(LibVLC vlc, Stream stream) =>
-        VideoMedia.Create(vlc, VideoSource.FromStream(() => stream), "", "", 0, withAudio: false, paceStream: true);
+    private static VideoMedia Media(LibVLC vlc, Stream stream)
+    {
+        return VideoMedia.Create(vlc, VideoSource.FromStream(() => stream), "", "", 0, withAudio: false, paceStream: true);
+    }
 }

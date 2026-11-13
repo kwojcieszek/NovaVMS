@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -15,6 +16,25 @@ namespace NovaVMS.Mobile.ViewModels;
 /// </summary>
 public sealed partial class GeneralSettingsViewModel : PageViewModel
 {
+    // Every change of these settings is applied and saved at once.
+    private static readonly HashSet<string> AppliedProperties =
+    [
+        nameof(SelectedLanguage),
+        nameof(SelectedTheme),
+        nameof(SelectedStreamMode),
+        nameof(SelectedAspectMode),
+        nameof(DefaultLayout),
+        nameof(NetworkCachingMs),
+        nameof(MainStreamCachingMs),
+        nameof(SubStreamMaxFrameRate),
+        nameof(MainStreamMaxFrameRate),
+        nameof(HiddenTileReleaseSeconds),
+        nameof(ShowTileTitles),
+        nameof(ShowCameraSearch),
+        nameof(WarnWhenGroupExceedsLayout),
+        nameof(AutoCreateDeviceGroups)
+    ];
+
     private readonly ShellViewModel _shell;
 
     [ObservableProperty]
@@ -129,6 +149,16 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
         shell.ShowSettings();
     }
 
+    protected override void OnPropertyChanged(PropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+
+        if (e.PropertyName is not null && AppliedProperties.Contains(e.PropertyName))
+        {
+            ApplyChanges();
+        }
+    }
+
     [RelayCommand]
     private async Task ExportAsync()
     {
@@ -228,16 +258,6 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
         _ = _shell.SaveConfigurationAsync();
     }
 
-    partial void OnSelectedLanguageChanged(LanguageOption value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnSelectedThemeChanged(ThemeOption value)
-    {
-        ApplyChanges();
-    }
-
     partial void OnUseOptionalProtocolChanged(bool value)
     {
         _shell.LocalSettings.UseOptionalProtocol = value;
@@ -255,65 +275,5 @@ public sealed partial class GeneralSettingsViewModel : PageViewModel
     partial void OnLockRotationChanged(bool value)
     {
         _ = _shell.SetRotationLockedAsync(value);
-    }
-
-    partial void OnSelectedStreamModeChanged(StreamModeOption value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnSelectedAspectModeChanged(VideoAspectModeOption value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnDefaultLayoutChanged(GridLayoutOption value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnNetworkCachingMsChanged(decimal? value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnMainStreamCachingMsChanged(decimal? value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnSubStreamMaxFrameRateChanged(decimal? value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnMainStreamMaxFrameRateChanged(decimal? value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnHiddenTileReleaseSecondsChanged(decimal? value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnShowTileTitlesChanged(bool value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnShowCameraSearchChanged(bool value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnWarnWhenGroupExceedsLayoutChanged(bool value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnAutoCreateDeviceGroupsChanged(bool value)
-    {
-        ApplyChanges();
     }
 }

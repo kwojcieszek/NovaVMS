@@ -1,5 +1,4 @@
 using NovaVMS.App.Services;
-using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
 using NovaVMS.Infrastructure.Storage;
 using Xunit;
@@ -11,7 +10,7 @@ public sealed class IvmsReplacementTests
     [Fact]
     public async Task ReplacementRemovesOldResourcesAndLayoutsAndPreservesGeneralSettings()
     {
-        var store = new MemoryStore();
+        var store = new MemoryConfigurationStore();
         var configuration = new ConfigurationService(store, new JsonConfigurationSerializer());
         var old = new Device { Host = "old" };
 
@@ -48,7 +47,7 @@ public sealed class IvmsReplacementTests
     [Fact]
     public async Task FailedWriteKeepsExistingConfigurationAndDoesNotSignalReplacement()
     {
-        var store = new MemoryStore { Fail = true };
+        var store = new MemoryConfigurationStore { FailSaves = true };
         var configuration = new ConfigurationService(store, new JsonConfigurationSerializer());
         var original = configuration.Current;
         var device = new Device { Host = "old" };
@@ -70,30 +69,10 @@ public sealed class IvmsReplacementTests
     [Fact]
     public async Task ImportWithoutGroupsClearsPreviousGroups()
     {
-        var configuration = new ConfigurationService(new MemoryStore(), new JsonConfigurationSerializer());
+        var configuration = new ConfigurationService(new MemoryConfigurationStore(), new JsonConfigurationSerializer());
 
         configuration.Current.Groups.Add(new CameraGroup());
         await configuration.ReplaceDevicesAndGroupsAsync([new Device()], []);
         Assert.Empty(configuration.Current.Groups);
-    }
-
-    private sealed class MemoryStore : IConfigurationStore
-    {
-        public bool Fail { get; init; }
-        public AppConfiguration? Saved { get; private set; }
-
-        public Task<AppConfiguration> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(new AppConfiguration());
-
-        public Task SaveAsync(AppConfiguration configuration, CancellationToken cancellationToken = default)
-        {
-            if (Fail)
-            {
-                throw new IOException("Test write failure");
-            }
-
-            Saved = configuration;
-
-            return Task.CompletedTask;
-        }
     }
 }

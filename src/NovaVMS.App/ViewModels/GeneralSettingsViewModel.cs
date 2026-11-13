@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -6,6 +7,7 @@ using NovaVMS.App.Services;
 using NovaVMS.Core.Models;
 using NovaVMS.Presentation.Localization;
 using NovaVMS.Presentation.Models;
+using NovaVMS.Presentation.ViewModels;
 using NovaVMS.Protocols.HcNetSdk;
 
 namespace NovaVMS.App.ViewModels;
@@ -16,6 +18,31 @@ namespace NovaVMS.App.ViewModels;
 /// </summary>
 public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposable
 {
+    // Every change of these settings is applied and saved at once.
+    private static readonly HashSet<string> AppliedProperties =
+    [
+        nameof(SelectedLanguage),
+        nameof(SelectedTheme),
+        nameof(SelectedStreamMode),
+        nameof(SelectedAspectMode),
+        nameof(DefaultLayout),
+        nameof(NetworkCachingMs),
+        nameof(MainStreamCachingMs),
+        nameof(MainStreamMinimumHeight),
+        nameof(HiddenTileReleaseSeconds),
+        nameof(SubStreamMaxFrameRate),
+        nameof(MainStreamMaxFrameRate),
+        nameof(AutoCreateDeviceGroups),
+        nameof(WarnWhenGroupExceedsLayout),
+        nameof(ShowTileTitles),
+        nameof(ShowCameraSearch),
+        nameof(AutoCheckForUpdates),
+        nameof(AutoDownloadUpdates),
+        nameof(AutoInstallUpdates),
+        nameof(UpdateCheckIntervalMinutes),
+        nameof(UpdateServerUrl)
+    ];
+
     private readonly ConfigurationService _configuration;
     private readonly LocalSettingsService _localSettings;
     private readonly IDialogService _dialogs;
@@ -178,6 +205,16 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         Localizer.Instance.LanguageChanged -= OnLanguageChanged;
     }
 
+    protected override void OnPropertyChanged(PropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+
+        if (e.PropertyName is not null && AppliedProperties.Contains(e.PropertyName))
+        {
+            ApplyChanges();
+        }
+    }
+
     private static string ReadSdkStatus(string configuredDirectory)
     {
         if (!HcNetSdkRuntime.IsPlatformSupported)
@@ -222,85 +259,12 @@ public sealed partial class GeneralSettingsViewModel : ViewModelBase, IDisposabl
         }
     }
 
-    partial void OnSelectedLanguageChanged(LanguageOption value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnSelectedThemeChanged(ThemeOption value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnSelectedStreamModeChanged(StreamModeOption value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnSelectedAspectModeChanged(VideoAspectModeOption value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnDefaultLayoutChanged(GridLayoutOption value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnNetworkCachingMsChanged(decimal? value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnMainStreamCachingMsChanged(decimal? value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnMainStreamMinimumHeightChanged(decimal? value) => ApplyChanges();
-
-    partial void OnHiddenTileReleaseSecondsChanged(decimal? value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnSubStreamMaxFrameRateChanged(decimal? value) => ApplyChanges();
-
-    partial void OnMainStreamMaxFrameRateChanged(decimal? value) => ApplyChanges();
-
-    partial void OnAutoCreateDeviceGroupsChanged(bool value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnWarnWhenGroupExceedsLayoutChanged(bool value) => ApplyChanges();
-
-    partial void OnShowTileTitlesChanged(bool value)
-    {
-        ApplyChanges();
-    }
-
-    partial void OnShowCameraSearchChanged(bool value)
-    {
-        ApplyChanges();
-    }
-
     partial void OnHcNetSdkDirectoryChanged(string value)
     {
         _ = RefreshSdkStatusAsync();
 
         ApplyChanges();
     }
-
-    partial void OnAutoCheckForUpdatesChanged(bool value) => ApplyChanges();
-
-    partial void OnAutoDownloadUpdatesChanged(bool value) => ApplyChanges();
-
-    partial void OnAutoInstallUpdatesChanged(bool value) => ApplyChanges();
-
-    partial void OnUpdateCheckIntervalMinutesChanged(decimal? value) => ApplyChanges();
-
-    partial void OnUpdateServerUrlChanged(string value) => ApplyChanges();
 
     partial void OnStartFullScreenChanged(bool value)
     {

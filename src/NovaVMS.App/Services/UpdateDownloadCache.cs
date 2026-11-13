@@ -7,8 +7,17 @@ using NovaVMS.Updater;
 namespace NovaVMS.App.Services;
 
 /// <summary>Retains verified downloads for later installation, including after a restart.</summary>
-internal sealed class UpdateDownloadCache(HttpClient http, string directory)
+internal sealed class UpdateDownloadCache
 {
+    private readonly HttpClient _http;
+    private readonly string _directory;
+
+    internal UpdateDownloadCache(HttpClient http, string directory)
+    {
+        _http = http;
+        _directory = directory;
+    }
+
     internal async Task<DownloadedUpdate?> TryGetAsync(ApplicationUpdate update, CancellationToken token)
     {
         var package = PackagePath(update);
@@ -38,14 +47,14 @@ internal sealed class UpdateDownloadCache(HttpClient http, string directory)
             return cached;
         }
 
-        Directory.CreateDirectory(directory);
+        Directory.CreateDirectory(_directory);
 
         var package = PackagePath(update);
         var partial = package + "." + Guid.NewGuid().ToString("N") + ".partial";
 
         try
         {
-            using (var response = await http.GetAsync(update.PackageUri, HttpCompletionOption.ResponseHeadersRead, token))
+            using (var response = await _http.GetAsync(update.PackageUri, HttpCompletionOption.ResponseHeadersRead, token))
             {
                 response.EnsureSuccessStatusCode();
 
@@ -81,30 +90,33 @@ internal sealed class UpdateDownloadCache(HttpClient http, string directory)
         }
     }
 
-    private static Task<string> VerifyAsync(ApplicationUpdate update, string package, CancellationToken token) => Task.Run(() =>
+    private static Task<string> VerifyAsync(ApplicationUpdate update, string package, CancellationToken token)
     {
-        token.ThrowIfCancellationRequested();
-
-        var hash = UpdatePackage.Sha256(package);
-
-        if (update.Sha256 is not null && !hash.Equals(update.Sha256, StringComparison.OrdinalIgnoreCase))
+        return Task.Run(() =>
         {
-            throw new InvalidDataException(Localizer.Text("Updates_ChecksumFailed"));
-        }
+            token.ThrowIfCancellationRequested();
 
-        using var archive = ZipFile.OpenRead(package);
+            var hash = UpdatePackage.Sha256(package);
 
-        UpdatePackage.Validate(archive);
-        token.ThrowIfCancellationRequested();
+            if (update.Sha256 is not null && !hash.Equals(update.Sha256, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException(Localizer.Text("Updates_ChecksumFailed"));
+            }
 
-        return hash;
-    }, token);
+            using var archive = ZipFile.OpenRead(package);
+
+            UpdatePackage.Validate(archive);
+            token.ThrowIfCancellationRequested();
+
+            return hash;
+        }, token);
+    }
 
     private string PackagePath(ApplicationUpdate update)
     {
         var identity = update.PackageUri.AbsoluteUri + "\n" + update.Sha256;
         var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)));
 
-        return Path.Combine(directory, key + ".zip");
+        return Path.Combine(_directory, key + ".zip");
     }
 }

@@ -52,12 +52,20 @@ public sealed class GridLayoutOption
     }
 
     public static GridLayoutOption Find(string? id, int fallbackCount = 4)
-        => All.FirstOrDefault(option => option.Id == id) ?? Find(fallbackCount);
+    {
+        return All.FirstOrDefault(option => option.Id == id) ?? Find(fallbackCount);
+    }
 
     // Legacy six-camera configurations used a regular 2×3 grid.
-    public static GridLayoutOption Find(int count) => count == 6 ? All.First(option => option.Id == "wide-6")
-        : All.FirstOrDefault(option => option.Count == count) ?? All[1];
+    public static GridLayoutOption Find(int count)
+    {
+        return count == 6 ? All.First(option => option.Id == "wide-6")
+            : All.FirstOrDefault(option => option.Count == count) ?? All[1];
+    }
 
-    public static GridLayoutOption FitFor(int count) => All.Where(option => option.Count >= count)
-        .OrderBy(option => option.Count).FirstOrDefault() ?? All.First(option => option.Count == 64);
+    public static GridLayoutOption FitFor(int count)
+    {
+        return All.Where(option => option.Count >= count)
+            .OrderBy(option => option.Count).FirstOrDefault() ?? All.First(option => option.Count == 64);
+    }
 }

@@ -147,6 +147,7 @@ public sealed partial class CameraViewModel : PageViewModel
     {
         _overlayTimer.Stop();
         _positionTimer.Stop();
+
         _shell.PropertyChanged -= OnShellPropertyChanged;
         _shell.Player.ConnectingChanged -= OnPlayerConnectingChanged;
 

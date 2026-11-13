@@ -5,6 +5,7 @@ using NovaVMS.App.Services;
 using NovaVMS.Core.Models;
 using NovaVMS.Core.Security;
 using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -230,7 +231,10 @@ public sealed partial class UsersSettingsViewModel : ViewModelBase, IDisposable
         LoadUsers(null);
     }
 
-    private bool CanDeleteUser() => SelectedUser is not null;
+    private bool CanDeleteUser()
+    {
+        return SelectedUser is not null;
+    }
 
     /// <summary>
     /// Returns the key of the validation message, or null when the edited user can be saved.

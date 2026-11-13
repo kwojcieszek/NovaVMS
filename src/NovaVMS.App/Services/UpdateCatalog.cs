@@ -7,7 +7,10 @@ namespace NovaVMS.App.Services;
 
 internal static partial class UpdateCatalog
 {
-    public static DateOnly ParseVersion(string version) => DateOnly.ParseExact(version, "yyyy.MM.dd", CultureInfo.InvariantCulture);
+    public static DateOnly ParseVersion(string version)
+    {
+        return DateOnly.ParseExact(version, "yyyy.MM.dd", CultureInfo.InvariantCulture);
+    }
 
     public static Uri ServerUri(string address)
     {

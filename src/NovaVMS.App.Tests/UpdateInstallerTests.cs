@@ -187,13 +187,20 @@ public sealed class UpdateInstallerTests
         Assert.Contains(UpdatePackage.Validate(archive), item => item.Name == "NovaVMS.exe");
     }
 
-    private sealed class Host(Action? wait = null) : IUpdateProcessHost
+    private sealed class Host : IUpdateProcessHost
     {
+        private readonly Action? _wait;
+
         public int Starts { get; private set; }
+
+        public Host(Action? wait = null)
+        {
+            _wait = wait;
+        }
 
         public Task WaitForExitAsync(string executable, CancellationToken token)
         {
-            wait?.Invoke();
+            _wait?.Invoke();
 
             return Task.CompletedTask;
         }

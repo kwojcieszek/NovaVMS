@@ -7,6 +7,7 @@ using NovaVMS.Core.Models;
 using NovaVMS.Mobile.Models;
 using NovaVMS.Mobile.Services;
 using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.Mobile.ViewModels;
 
@@ -74,6 +75,7 @@ public sealed partial class CameraTileViewModel : ViewModelBase
             _player = _shell.CreatePreviewPlayer();
 
             _player.ConnectingChanged += OnPlayerConnectingChanged;
+
             _player.SetFillArea(_shell.Current.Settings.VideoAspectMode == VideoAspectMode.Fit);
 
             Video = _player.View;

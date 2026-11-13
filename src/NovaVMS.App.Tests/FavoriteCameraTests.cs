@@ -115,16 +115,22 @@ public sealed class FavoriteCameraTests
         return (configuration, tree, store);
     }
 
-    private sealed class MemoryStore(AppConfiguration initial) : IConfigurationStore
+    private sealed class MemoryStore : IConfigurationStore
     {
+        private readonly AppConfiguration _initial;
         private readonly JsonConfigurationSerializer _serializer = new();
         private byte[]? _saved;
+
+        public MemoryStore(AppConfiguration initial)
+        {
+            _initial = initial;
+        }
 
         public async Task<AppConfiguration> LoadAsync(CancellationToken cancellationToken = default)
         {
             if (_saved is null)
             {
-                return initial;
+                return _initial;
             }
 
             using var stream = new MemoryStream(_saved);
@@ -144,22 +150,63 @@ public sealed class FavoriteCameraTests
 
     private sealed class FakeClientFactory : IDeviceClientFactory
     {
-        public IDeviceClient Create(Device device) => new FakeClient();
+        public IDeviceClient Create(Device device)
+        {
+            return new FakeClient();
+        }
     }
 
     private sealed class FakeClient : IDeviceClient
     {
-        public Task<DeviceInfo> GetDeviceInfoAsync(CancellationToken cancellationToken = default) => Task.FromResult(new DeviceInfo());
+        public Task<DeviceInfo> GetDeviceInfoAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new DeviceInfo());
+        }
+
         public Task<IReadOnlyList<Channel>> GetChannelsAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<Channel>>([new Channel { Number = 2, Name = "Office" }, new Channel { Number = 1, Name = "Entrance" }]);
-        public Task<byte[]> GetSnapshotAsync(int channelNumber, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public VideoSource GetLiveSource(int channelNumber, StreamType streamType) => throw new NotSupportedException();
-        public Task PtzMoveAsync(int channelNumber, int pan, int tilt, int zoom, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task PtzStopAsync(int channelNumber, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<IReadOnlyList<PtzPreset>> GetPtzPresetsAsync(int channelNumber, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task GotoPtzPresetAsync(int channelNumber, PtzPreset preset, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<IReadOnlyList<RecordingSegment>> SearchRecordingsAsync(int channelNumber, DateTime from, DateTime to, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public VideoSource GetPlaybackSource(int channelNumber, DateTime start, DateTime end) => throw new NotSupportedException();
+        {
+            return Task.FromResult<IReadOnlyList<Channel>>([new Channel { Number = 2, Name = "Office" }, new Channel { Number = 1, Name = "Entrance" }]);
+        }
+
+        public Task<byte[]> GetSnapshotAsync(int channelNumber, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public VideoSource GetLiveSource(int channelNumber, StreamType streamType)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task PtzMoveAsync(int channelNumber, int pan, int tilt, int zoom, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task PtzStopAsync(int channelNumber, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<IReadOnlyList<PtzPreset>> GetPtzPresetsAsync(int channelNumber, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task GotoPtzPresetAsync(int channelNumber, PtzPreset preset, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<IReadOnlyList<RecordingSegment>> SearchRecordingsAsync(int channelNumber, DateTime from, DateTime to, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public VideoSource GetPlaybackSource(int channelNumber, DateTime start, DateTime end)
+        {
+            throw new NotSupportedException();
+        }
 
         public void Dispose()
         {

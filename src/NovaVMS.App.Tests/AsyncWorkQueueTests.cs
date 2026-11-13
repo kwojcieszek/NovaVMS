@@ -118,6 +118,9 @@ public sealed class AsyncWorkQueueTests
 
     private sealed class RejectingContext : SynchronizationContext
     {
-        public override void Post(SendOrPostCallback callback, object? state) => throw new InvalidOperationException("Captured UI context");
+        public override void Post(SendOrPostCallback callback, object? state)
+        {
+            throw new InvalidOperationException("Captured UI context");
+        }
     }
 }

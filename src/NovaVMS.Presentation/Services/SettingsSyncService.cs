@@ -308,8 +308,11 @@ public sealed partial class SettingsSyncService : ObservableObject, IDisposable
         _configuration.Saved -= OnConfigurationSaved;
 
         _checkTimer.Tick -= OnCheckTimerTick;
+
         _checkTimer.Dispose();
+
         _uploadTimer.Tick -= OnUploadTimerTick;
+
         _uploadTimer.Dispose();
 
         _store?.Dispose();

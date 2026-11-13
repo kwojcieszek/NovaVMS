@@ -1,4 +1,3 @@
-using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
 using Xunit;
 
@@ -21,7 +20,7 @@ public sealed class SecondaryRtspPortTests
             SecondaryRtspPort = 18554,
             Channels = [new Channel { Number = 1, MainStreamUri = "rtsp://internal:8554/video/main?channel=1" }]
         };
-        var factory = new DeviceClientFactory(new Probe(false));
+        var factory = new DeviceClientFactory(Probe(false));
         using var client = await factory.CreateAsync(device);
         var uri = client.GetLiveSource(1, StreamType.Main).Uri!;
 
@@ -55,7 +54,7 @@ public sealed class SecondaryRtspPortTests
             SecondaryRtspPort = secondaryPort,
             Channels = [new Channel { Number = 1, MainStreamUri = "rtsp://internal:8554/live" }]
         };
-        var factory = new DeviceClientFactory(new Probe(primary));
+        var factory = new DeviceClientFactory(Probe(primary));
         using var client = await factory.CreateAsync(device);
 
         Assert.Equal(expected, client.GetLiveSource(1, StreamType.Main).Uri!.Port);
@@ -65,7 +64,7 @@ public sealed class SecondaryRtspPortTests
     public async Task EditingSecondaryRtspPortInvalidatesPinnedEndpoint()
     {
         var device = new Device { Host = "primary", SecondaryHost = "secondary", SecondaryRtspPort = 18554 };
-        var selector = new DeviceAddressSelector(new Probe(false));
+        var selector = new DeviceAddressSelector(Probe(false));
         var signature = device.GetConnectionSignature();
 
         await selector.ResolveConnectionAsync(device, true, default);
@@ -77,12 +76,8 @@ public sealed class SecondaryRtspPortTests
         Assert.Equal(19554, (await selector.ResolveConnectionAsync(device, true, default)).RtspPort);
     }
 
-    private sealed class Probe(bool primary) : IDeviceReachability
+    private static FakeReachability Probe(bool primary)
     {
-        public Task<bool> IsReachableAsync(Device device, CancellationToken cancellationToken = default)
-            => Task.FromResult(device.Host == "secondary" || primary);
-
-        public Task<bool> IsPortReachableAsync(string host, int port, CancellationToken cancellationToken = default)
-            => Task.FromResult(false);
+        return FakeReachability.Answering(device => device.Host == "secondary" || primary);
     }
 }

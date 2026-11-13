@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.Input;
 using NovaVMS.Mobile.Models;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.Mobile.ViewModels;
 

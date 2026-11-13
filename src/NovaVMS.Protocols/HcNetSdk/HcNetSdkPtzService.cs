@@ -1,9 +1,15 @@
 namespace NovaVMS.Protocols.HcNetSdk;
 
 /// <summary>Controls PTZ over the recorder's native SDK channel, independently of ISAPI proxy support.</summary>
-internal sealed class HcNetSdkPtzService(IHcNetSdkPtzApi api)
+internal sealed class HcNetSdkPtzService
 {
+    private readonly IHcNetSdkPtzApi _api;
     private readonly Dictionary<int, (uint Command, uint Speed)> _active = new();
+
+    public HcNetSdkPtzService(IHcNetSdkPtzApi api)
+    {
+        _api = api;
+    }
 
     public Task MoveAsync(HcNetSdkSession session, int channelNumber, int pan, int tilt, int zoom, CancellationToken token)
     {
@@ -68,12 +74,12 @@ internal sealed class HcNetSdkPtzService(IHcNetSdkPtzApi api)
     private void Send(HcNetSdkSession session, int channelNumber, uint command, uint stop, uint speed)
     {
         // Read the SDK error on the same worker thread as the failed native call.
-        if (api.Control(session.UserId, session.ToSdkChannel(channelNumber), command, stop, speed))
+        if (_api.Control(session.UserId, session.ToSdkChannel(channelNumber), command, stop, speed))
         {
             return;
         }
 
-        var code = api.GetLastError();
+        var code = _api.GetLastError();
 
         if (HcNetSdkErrors.InvalidatesSession(code))
         {

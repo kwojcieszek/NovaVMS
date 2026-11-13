@@ -165,8 +165,10 @@ internal sealed class ProgramStreamTimestampAligner
         return data[..offset];
     }
 
-    private static bool IsPacketStart(byte[] data, int offset) =>
-        data[offset] == 0 && data[offset + 1] == 0 && data[offset + 2] == 1 && data[offset + 3] >= EndCode;
+    private static bool IsPacketStart(byte[] data, int offset)
+    {
+        return data[offset] == 0 && data[offset + 1] == 0 && data[offset + 2] == 1 && data[offset + 3] >= EndCode;
+    }
 
     private static bool IsVideo(byte streamId)
     {

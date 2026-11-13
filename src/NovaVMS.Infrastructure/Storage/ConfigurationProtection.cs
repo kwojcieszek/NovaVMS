@@ -11,7 +11,10 @@ internal sealed class ConfigurationProtection : IConfigurationProtection
     private static ReadOnlySpan<byte> Header => "NovaVMS.Settings.DPAPI.v1\0"u8;
     private static ReadOnlySpan<byte> Purpose => "NovaVMS.Configuration"u8;
 
-    public static bool IsEncrypted(ReadOnlySpan<byte> data) => data.StartsWith("NovaVMS.Settings."u8);
+    public static bool IsEncrypted(ReadOnlySpan<byte> data)
+    {
+        return data.StartsWith("NovaVMS.Settings."u8);
+    }
 
     public byte[] Protect(ReadOnlySpan<byte> plaintext)
     {

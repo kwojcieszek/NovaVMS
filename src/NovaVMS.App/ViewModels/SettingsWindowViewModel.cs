@@ -1,4 +1,5 @@
 using NovaVMS.App.Services;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.App.ViewModels;
 

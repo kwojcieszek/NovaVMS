@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NovaVMS.Core.Models;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -35,11 +36,20 @@ public sealed partial class PlaybackTileViewModel : ViewModelBase
         };
     }
 
-    partial void OnIsExportSelectedChanged(bool value) => _workspace.RefreshExportSelection();
+    partial void OnIsExportSelectedChanged(bool value)
+    {
+        _workspace.RefreshExportSelection();
+    }
 
     [RelayCommand]
-    private void Select() => _workspace.SelectTile(this);
+    private void Select()
+    {
+        _workspace.SelectTile(this);
+    }
 
     [RelayCommand]
-    private void Close() => _workspace.ClearCamera(this);
+    private void Close()
+    {
+        _workspace.ClearCamera(this);
+    }
 }

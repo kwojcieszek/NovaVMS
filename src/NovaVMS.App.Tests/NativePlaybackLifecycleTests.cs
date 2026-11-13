@@ -105,9 +105,9 @@ public sealed class NativePlaybackLifecycleTests
         }
     }
 
-    private sealed class NonSeekableStream(byte[] bytes) : Stream
+    private sealed class NonSeekableStream : Stream
     {
-        private readonly MemoryStream _stream = new(bytes, writable: false);
+        private readonly MemoryStream _stream;
         public override bool CanRead => true;
         public override bool CanSeek => false;
         public override bool CanWrite => false;
@@ -119,11 +119,35 @@ public sealed class NativePlaybackLifecycleTests
             set => throw new NotSupportedException();
         }
 
-        public override int Read(byte[] buffer, int offset, int count) => _stream.Read(buffer, offset, count);
-        public override int Read(Span<byte> buffer) => _stream.Read(buffer);
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-        public override void SetLength(long value) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public NonSeekableStream(byte[] bytes)
+        {
+            _stream = new(bytes, writable: false);
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            return _stream.Read(buffer, offset, count);
+        }
+
+        public override int Read(Span<byte> buffer)
+        {
+            return _stream.Read(buffer);
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void SetLength(long value)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            throw new NotSupportedException();
+        }
 
         public override void Flush()
         {

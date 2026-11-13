@@ -8,8 +8,13 @@ using NovaVMS.Mobile.Services;
 namespace NovaVMS.Mobile.Android;
 
 [Application]
-public sealed class MainApplication(nint handle, JniHandleOwnership ownership) : AvaloniaAndroidApplication<App>(handle, ownership)
+public sealed class MainApplication : AvaloniaAndroidApplication<App>
 {
+    public MainApplication(nint handle, JniHandleOwnership ownership)
+        : base(handle, ownership)
+    {
+    }
+
     protected override AppBuilder CustomizeAppBuilder(AppBuilder builder)
     {
         App.Platform = new MobilePlatform(FilesDir!.AbsolutePath, new AndroidProtection(), () => new SystemVideoPlayer(), AndroidDeviceDisplay.Instance);

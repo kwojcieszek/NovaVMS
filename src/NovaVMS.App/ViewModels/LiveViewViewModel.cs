@@ -9,6 +9,7 @@ using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Exceptions;
 using NovaVMS.Core.Models;
 using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -416,7 +417,10 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         }
     }
 
-    public void Dispose() => _disposal ??= DisposeCoreAsync();
+    public void Dispose()
+    {
+        _disposal ??= DisposeCoreAsync();
+    }
 
     public void SelectTile(VideoTileViewModel tile)
     {
@@ -534,7 +538,10 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
     }
 
     [RelayCommand]
-    private void ShowVideoOnly() => IsVideoOnly = true;
+    private void ShowVideoOnly()
+    {
+        IsVideoOnly = true;
+    }
 
     private void OnResizeStreamTick(object? sender, EventArgs e)
     {
@@ -561,14 +568,17 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
         _ = SaveGroupViewsAsync();
     }
 
-    private GroupLiveView CaptureView() => new()
+    private GroupLiveView CaptureView()
     {
-        LayoutId = SelectedLayout.Id,
-        LayoutCount = SelectedLayout.Count,
-        EmptySlots = _emptySlots.ToHashSet(),
-        Cameras = Enumerable.Range(0, SelectedLayout.Count).Select(index => index < Tiles.Count
-            ? _assignments.GetValueOrDefault(Tiles[index]) ?? Tiles[index].Camera : null).ToList()
-    };
+        return new()
+        {
+            LayoutId = SelectedLayout.Id,
+            LayoutCount = SelectedLayout.Count,
+            EmptySlots = _emptySlots.ToHashSet(),
+            Cameras = Enumerable.Range(0, SelectedLayout.Count).Select(index => index < Tiles.Count
+                ? _assignments.GetValueOrDefault(Tiles[index]) ?? Tiles[index].Camera : null).ToList()
+        };
+    }
 
     private void RememberSavedView()
     {
@@ -1103,8 +1113,11 @@ public sealed partial class LiveViewViewModel : ViewModelBase, ITileHost, IDispo
             Tiles.Count == 1 || ReferenceEquals(tile, MaximizedTile));
     }
 
-    private bool HasPendingPlay(VideoTileViewModel tile) => _pendingPlayRequests.TryGetValue(tile, out var version)
-        && version == tile.PlayRequestVersion;
+    private bool HasPendingPlay(VideoTileViewModel tile)
+    {
+        return _pendingPlayRequests.TryGetValue(tile, out var version)
+            && version == tile.PlayRequestVersion;
+    }
 
     private void PlayOnTile(VideoTileViewModel tile, CameraReference reference)
     {

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NovaVMS.App.Models;
@@ -22,29 +23,12 @@ public sealed partial class PlaybackWorkspaceViewModel
     [ObservableProperty]
     private string _exportStatus = string.Empty;
 
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
-    private DateTime? _exportFromDate = DateTime.Today;
+    public ExportRangeViewModel ExportRange { get; } = new();
 
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
-    private DateTime? _exportToDate = DateTime.Today;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
-    private TimeSpan? _exportFromTime = TimeSpan.Zero;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
-    private TimeSpan? _exportToTime = new(23, 59, 59);
-
-    [ObservableProperty]
-    private string _exportFromText = "00:00:00";
-
-    [ObservableProperty]
-    private string _exportToText = "23:59:59";
-
-    internal void RefreshExportSelection() => ExportCommand.NotifyCanExecuteChanged();
+    internal void RefreshExportSelection()
+    {
+        ExportCommand.NotifyCanExecuteChanged();
+    }
 
     internal IReadOnlyList<(CameraDescriptor Camera, string Folder)> GetExportTargets()
     {
@@ -80,41 +64,22 @@ public sealed partial class PlaybackWorkspaceViewModel
         return targets;
     }
 
-    partial void OnExportFromTextChanged(string value) => ExportFromTime = ExportTimeRange.Parse(value);
-
-    partial void OnExportToTextChanged(string value) => ExportToTime = ExportTimeRange.Parse(value);
-
-    partial void OnExportFromTimeChanged(TimeSpan? value)
+    private bool CanExport()
     {
-        if (value.HasValue)
-        {
-            ExportFromText = ExportTimeRange.Format(value.Value);
-        }
+        return !_shutdown && !IsExporting && Tiles.Any(tile => tile.IsExportSelected && tile.Playback.HasCamera)
+            && ExportRange.IsValid;
     }
-
-    partial void OnExportToTimeChanged(TimeSpan? value)
-    {
-        if (value.HasValue)
-        {
-            ExportToText = ExportTimeRange.Format(value.Value);
-        }
-    }
-
-    private bool CanExport() => !_shutdown && !IsExporting && Tiles.Any(tile => tile.IsExportSelected && tile.Playback.HasCamera)
-        && ExportTimeRange.IsValid(ExportFromDate, ExportFromTime, ExportToDate, ExportToTime);
 
     [RelayCommand(CanExecute = nameof(HasCamera))]
     private void MarkExportStart()
     {
-        ExportFromDate = Day;
-        ExportFromTime = TimeSpan.FromSeconds(Math.Floor(TimelinePosition));
+        ExportRange.MarkStart(Day, TimelinePosition);
     }
 
     [RelayCommand(CanExecute = nameof(HasCamera))]
     private void MarkExportEnd()
     {
-        ExportToDate = Day;
-        ExportToTime = TimeSpan.FromSeconds(Math.Floor(TimelinePosition));
+        ExportRange.MarkEnd(Day, TimelinePosition);
     }
 
     [RelayCommand(CanExecute = nameof(CanExport))]
@@ -135,8 +100,8 @@ public sealed partial class PlaybackWorkspaceViewModel
     private async Task ExportCamerasAsync()
     {
         var targets = GetExportTargets();
-        var from = ExportFromDate!.Value.Date + ExportFromTime!.Value;
-        var to = ExportToDate!.Value.Date + ExportToTime!.Value;
+        var from = ExportRange.From;
+        var to = ExportRange.To;
         using var cancellation = new CancellationTokenSource();
         _exportCancellation = cancellation;
         IsExporting = true;
@@ -260,5 +225,13 @@ public sealed partial class PlaybackWorkspaceViewModel
     }
 
     [RelayCommand(CanExecute = nameof(IsExporting))]
-    private void CancelExport() => _exportCancellation?.Cancel();
+    private void CancelExport()
+    {
+        _exportCancellation?.Cancel();
+    }
+
+    private void OnExportRangeChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        ExportCommand.NotifyCanExecuteChanged();
+    }
 }

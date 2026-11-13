@@ -9,7 +9,10 @@ public partial class SettingsWindow : Window
     private bool _closing;
     private bool _canClose;
 
-    public SettingsWindow() => InitializeComponent();
+    public SettingsWindow()
+    {
+        InitializeComponent();
+    }
 
     protected override void OnOpened(EventArgs e)
     {

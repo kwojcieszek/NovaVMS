@@ -23,7 +23,7 @@ public sealed class AutomaticUpdateDownloadTests
         var directory = DirectoryPath();
         var handler = new Server(Package());
         var configuration = await ConfigurationAsync(autoDownload: true);
-        var dialogs = new Dialogs();
+        var dialogs = new FakeDialogService();
 
         using (var updates = new ApplicationUpdateService(configuration, dialogs, new HttpClient(handler, false), directory))
         {
@@ -61,7 +61,7 @@ public sealed class AutomaticUpdateDownloadTests
         var configuration = await ConfigurationAsync(autoDownload: false);
         configuration.Current.Settings.AutoInstallUpdates = true;
         var handler = new Server(Package());
-        var dialogs = new Dialogs();
+        var dialogs = new FakeDialogService();
         using var updates = new ApplicationUpdateService(configuration, dialogs, new HttpClient(handler), DirectoryPath());
 
         await updates.CheckCommand.ExecuteAsync(null);
@@ -81,7 +81,7 @@ public sealed class AutomaticUpdateDownloadTests
         }
 
         var handler = new Server(Package());
-        var dialogs = new Dialogs();
+        var dialogs = new FakeDialogService();
         using var updates = new ApplicationUpdateService(await ConfigurationAsync(false), dialogs, new HttpClient(handler), DirectoryPath());
 
         await updates.CheckCommand.ExecuteAsync(null);
@@ -104,7 +104,7 @@ public sealed class AutomaticUpdateDownloadTests
         Assert.False(configuration.Current.Settings.AutoCheckForUpdates);
 
         var handler = new Server(Package());
-        var dialogs = new Dialogs();
+        var dialogs = new FakeDialogService();
         using var updates = new ApplicationUpdateService(configuration, dialogs, new HttpClient(handler), DirectoryPath());
         var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -132,7 +132,7 @@ public sealed class AutomaticUpdateDownloadTests
 
         var directory = DirectoryPath();
         var handler = new Server(Package()) { AdvertisedHash = new string('0', 64) };
-        var dialogs = new Dialogs();
+        var dialogs = new FakeDialogService();
         using var updates = new ApplicationUpdateService(await ConfigurationAsync(true), dialogs, new HttpClient(handler), directory);
 
         await updates.CheckCommand.ExecuteAsync(null);
@@ -153,7 +153,7 @@ public sealed class AutomaticUpdateDownloadTests
         var directory = DirectoryPath();
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var handler = new Server(Package()) { SlowDownload = entered };
-        var dialogs = new Dialogs();
+        var dialogs = new FakeDialogService();
         using var updates = new ApplicationUpdateService(await ConfigurationAsync(true), dialogs, new HttpClient(handler), directory);
         var checking = updates.CheckCommand.ExecuteAsync(null);
 
@@ -182,14 +182,14 @@ public sealed class AutomaticUpdateDownloadTests
         }
 
         var reply = new TaskCompletionSource<bool>();
-        var dialogs = new Dialogs { Reply = reply.Task };
+        var dialogs = new FakeDialogService { ConfirmReply = reply.Task };
         var handler = new Server(Package());
         using var updates = new ApplicationUpdateService(await ConfigurationAsync(true), dialogs, new HttpClient(handler), DirectoryPath());
         var checking = updates.CheckCommand.ExecuteAsync(null);
 
         try
         {
-            await dialogs.Shown.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await dialogs.ConfirmShown.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.True(updates.IsDownloaded);
             Assert.Equal(100, updates.Progress);
             Assert.False(checking.IsCompleted);
@@ -217,7 +217,7 @@ public sealed class AutomaticUpdateDownloadTests
         var directory = DirectoryPath();
         var configuration = await ConfigurationAsync(true);
         var handler = new Server(Package());
-        var dialogs = new Dialogs();
+        var dialogs = new FakeDialogService();
 
         for (var start = 0; start < 2; start++)
         {
@@ -261,7 +261,10 @@ public sealed class AutomaticUpdateDownloadTests
         Assert.Empty(Directory.GetFiles(directory));
     }
 
-    private static string DirectoryPath() => Path.Combine(Path.GetTempPath(), "NovaVMS-update-tests", Guid.NewGuid().ToString("N"));
+    private static string DirectoryPath()
+    {
+        return Path.Combine(Path.GetTempPath(), "NovaVMS-update-tests", Guid.NewGuid().ToString("N"));
+    }
 
     private static async Task<ConfigurationService> ConfigurationAsync(bool autoDownload)
     {
@@ -293,17 +296,24 @@ public sealed class AutomaticUpdateDownloadTests
         return output.ToArray();
     }
 
-    private sealed class Server(byte[] package) : HttpMessageHandler
+    private sealed class Server : HttpMessageHandler
     {
+        private readonly byte[] _package;
+
         public int Downloads { get; private set; }
         public string? AdvertisedHash { get; init; }
         public TaskCompletionSource? SlowDownload { get; set; }
+
+        public Server(byte[] package)
+        {
+            _package = package;
+        }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             if (request.RequestUri!.AbsolutePath.EndsWith("latest.json"))
             {
-                var hash = AdvertisedHash ?? Convert.ToHexString(SHA256.HashData(package));
+                var hash = AdvertisedHash ?? Convert.ToHexString(SHA256.HashData(_package));
 
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
                 {
@@ -315,13 +325,15 @@ public sealed class AutomaticUpdateDownloadTests
 
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = SlowDownload is { } entered ? new StreamContent(new WaitingStream(entered)) : new ByteArrayContent(package)
+                Content = SlowDownload is { } entered ? new StreamContent(new WaitingStream(entered)) : new ByteArrayContent(_package)
             });
         }
     }
 
-    private sealed class WaitingStream(TaskCompletionSource entered) : Stream
+    private sealed class WaitingStream : Stream
     {
+        private readonly TaskCompletionSource _entered;
+
         public override bool CanRead => true;
         public override bool CanSeek => false;
         public override bool CanWrite => false;
@@ -333,43 +345,42 @@ public sealed class AutomaticUpdateDownloadTests
             set => throw new NotSupportedException();
         }
 
+        public WaitingStream(TaskCompletionSource entered)
+        {
+            _entered = entered;
+        }
+
         public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken token = default)
         {
-            entered.TrySetResult();
+            _entered.TrySetResult();
             await Task.Delay(Timeout.Infinite, token);
 
             return 0;
         }
 
-        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-        public override void Flush() => throw new NotSupportedException();
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-        public override void SetLength(long value) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-    }
-
-    private sealed class Dialogs : IDialogService
-    {
-        public Task<bool> Reply { get; init; } = Task.FromResult(false);
-        public TaskCompletionSource Shown { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public int Confirmations { get; private set; }
-
-        public Task<bool> ConfirmAsync(string title, string message)
+        public override int Read(byte[] buffer, int offset, int count)
         {
-            Confirmations++;
-
-            Shown.TrySetResult();
-
-            return Reply;
+            throw new NotSupportedException();
         }
 
-        public Task<string?> PromptTextAsync(string title, string message, string initialValue) => throw new NotSupportedException();
-        public Task<bool> LoginAsync(UserSessionService session, string userName) => throw new NotSupportedException();
-        public Task<Stream?> OpenJsonFileAsync(string title) => throw new NotSupportedException();
-        public Task<Stream?> SaveJsonFileAsync(string title, string suggestedFileName) => throw new NotSupportedException();
-        public Task<Stream?> OpenCsvFileAsync(string title) => throw new NotSupportedException();
-        public Task<(Stream Content, Stream? Setup)?> OpenIvmsFileAsync(string title) => throw new NotSupportedException();
-        public Task<Stream?> SaveCsvFileAsync(string title, string suggestedFileName) => throw new NotSupportedException();
-        public Task<string?> PickFolderAsync(string title) => throw new NotSupportedException();
+        public override void Flush()
+        {
+            throw new NotSupportedException();
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void SetLength(long value)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            throw new NotSupportedException();
+        }
     }
 }

@@ -63,5 +63,8 @@ public sealed class Channel
         ? string.Format(CultureInfo.CurrentCulture, DefaultNameFormat, Number)
         : Name;
 
-    internal Channel Copy() => (Channel)MemberwiseClone();
+    internal Channel Copy()
+    {
+        return (Channel)MemberwiseClone();
+    }
 }

@@ -59,7 +59,11 @@ public sealed class ConfigurationAsyncTests
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public List<AppConfiguration> Saved { get; } = new();
-        public Task<AppConfiguration> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(new AppConfiguration());
+
+        public Task<AppConfiguration> LoadAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new AppConfiguration());
+        }
 
         public async Task SaveAsync(AppConfiguration configuration, CancellationToken cancellationToken = default)
         {

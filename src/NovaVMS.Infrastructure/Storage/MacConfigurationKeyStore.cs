@@ -125,11 +125,20 @@ internal sealed class MacConfigurationKeyStore : IConfigurationKeyStore
             }
         }
 
-        public void SetConstant(string name, nint value) => CFDictionarySetValue(Handle, Constant(name), value);
+        public void SetConstant(string name, nint value)
+        {
+            CFDictionarySetValue(Handle, Constant(name), value);
+        }
 
-        public void Dispose() => CFRelease(Handle);
+        public void Dispose()
+        {
+            CFRelease(Handle);
+        }
 
-        private static nint Constant(string name) => Marshal.ReadIntPtr(NativeLibrary.GetExport(SecurityLibrary.Value, name));
+        private static nint Constant(string name)
+        {
+            return Marshal.ReadIntPtr(NativeLibrary.GetExport(SecurityLibrary.Value, name));
+        }
 
         private void SetString(string name, string value)
         {

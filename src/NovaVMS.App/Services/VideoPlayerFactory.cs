@@ -15,13 +15,19 @@ internal static class VideoPlayerFactory
     // not media options. SDK recordings can start with timestamps behind the
     // initial clock; dropping then leaves only their first picture visible.
     // A separate instance preserves low-latency dropping for live cameras.
-    public static LibVLC CreateRecordingEngine(params string[] options) => new(
-        new[] { "--no-osd", "--no-snapshot-preview", "--no-video-title-show",
-            "--no-avcodec-hurry-up", "--no-drop-late-frames", "--no-skip-frames" }
-        .Concat(options).ToArray());
-
-    public static MediaPlayer Create(LibVLC libVlc) => new(libVlc)
+    public static LibVLC CreateRecordingEngine(params string[] options)
     {
-        EnableHardwareDecoding = UseHardwareDecoding
-    };
+        return new(
+            new[] { "--no-osd", "--no-snapshot-preview", "--no-video-title-show",
+                "--no-avcodec-hurry-up", "--no-drop-late-frames", "--no-skip-frames" }
+            .Concat(options).ToArray());
+    }
+
+    public static MediaPlayer Create(LibVLC libVlc)
+    {
+        return new(libVlc)
+        {
+            EnableHardwareDecoding = UseHardwareDecoding
+        };
+    }
 }

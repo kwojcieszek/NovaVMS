@@ -76,7 +76,10 @@ public sealed class AppSettings
     /// </summary>
     public string HcNetSdkDirectory { get; set; } = "hcnetsdk";
 
-    internal AppSettings Copy() => (AppSettings)MemberwiseClone();
+    internal AppSettings Copy()
+    {
+        return (AppSettings)MemberwiseClone();
+    }
 
     public StreamType GetLiveStreamType(double videoHeight, bool singleOrMaximized)
     {

@@ -107,11 +107,14 @@ public sealed class SettingsSyncServiceTests
         Assert.Equal(1, _remote.Count);
     }
 
-    private static AppConfiguration Configuration(string deviceName, string sdkDirectory) => new()
+    private static AppConfiguration Configuration(string deviceName, string sdkDirectory)
     {
-        Devices = [new Device { Name = deviceName, Host = "192.168.1.10" }],
-        Settings = new AppSettings { HcNetSdkDirectory = sdkDirectory }
-    };
+        return new()
+        {
+            Devices = [new Device { Name = deviceName, Host = "192.168.1.10" }],
+            Settings = new AppSettings { HcNetSdkDirectory = sdkDirectory }
+        };
+    }
 
     private async Task<SettingsSyncService> StartAsync()
     {

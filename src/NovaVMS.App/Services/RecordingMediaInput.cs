@@ -19,5 +19,8 @@ internal sealed class RecordingMediaInput : StreamMediaInput
         CanSeek = true;
     }
 
-    public override bool Seek(ulong offset) => _seekable && base.Seek(offset);
+    public override bool Seek(ulong offset)
+    {
+        return _seekable && base.Seek(offset);
+    }
 }

@@ -29,5 +29,8 @@ public sealed class LocalSettings
     /// </summary>
     public string AutoLoginUserName { get; set; } = string.Empty;
 
-    public LocalSettings Copy() => (LocalSettings)MemberwiseClone();
+    public LocalSettings Copy()
+    {
+        return (LocalSettings)MemberwiseClone();
+    }
 }

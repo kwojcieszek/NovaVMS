@@ -12,6 +12,7 @@ using NovaVMS.Mobile.Models;
 using NovaVMS.Mobile.Services;
 using NovaVMS.Presentation.Localization;
 using NovaVMS.Presentation.Services;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.Mobile.ViewModels;
 
@@ -242,7 +243,9 @@ public sealed partial class ShellViewModel : ViewModelBase, IAsyncDisposable
 
         Player.StatusChanged -= PlayerStatusChanged;
         Sync.Notified -= OnSyncNotified;
+
         Sync.Dispose();
+
         Configuration.Changed -= OnConfigurationChanged;
         Configuration.Replaced -= OnConfigurationReplaced;
 

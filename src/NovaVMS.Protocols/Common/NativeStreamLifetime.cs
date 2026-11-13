@@ -31,7 +31,10 @@ internal sealed class NativeStreamLifetime : IDisposable
         }
     }
 
-    public void Start() => _start.TrySetResult();
+    public void Start()
+    {
+        _start.TrySetResult();
+    }
 
     public void Dispose()
     {

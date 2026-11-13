@@ -108,8 +108,9 @@ public sealed class RecordingExporterTests
         }
     }
 
-    private sealed class SlowStream(Stream inner) : Stream
+    private sealed class SlowStream : Stream
     {
+        private readonly Stream _inner;
         private readonly object _sync = new();
         private bool _closed;
         public override bool CanRead => true;
@@ -123,13 +124,18 @@ public sealed class RecordingExporterTests
             set => throw new NotSupportedException();
         }
 
+        public SlowStream(Stream inner)
+        {
+            _inner = inner;
+        }
+
         public override int Read(byte[] buffer, int offset, int count)
         {
             Thread.Sleep(40);
 
             lock (_sync)
             {
-                return _closed ? 0 : inner.Read(buffer, offset, Math.Min(count, 4096));
+                return _closed ? 0 : _inner.Read(buffer, offset, Math.Min(count, 4096));
             }
         }
 
@@ -137,9 +143,20 @@ public sealed class RecordingExporterTests
         {
         }
 
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-        public override void SetLength(long value) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void SetLength(long value)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            throw new NotSupportedException();
+        }
 
         protected override void Dispose(bool disposing)
         {
@@ -149,7 +166,7 @@ public sealed class RecordingExporterTests
                 {
                     _closed = true;
 
-                    inner.Dispose();
+                    _inner.Dispose();
                 }
             }
 

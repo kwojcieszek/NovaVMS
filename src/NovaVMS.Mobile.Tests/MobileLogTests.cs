@@ -69,6 +69,8 @@ public sealed class MobileLogTests : IDisposable
         Assert.EndsWith("   at Frame200()\n", text);
     }
 
-    private static string Entry(int number) =>
-        $"[2026-11-12 14:05:{number % 60:00}.000 +01:00] [PID 1, thread 2] Entry {number}\n{new string('x', 300)}\n\n";
+    private static string Entry(int number)
+    {
+        return $"[2026-11-12 14:05:{number % 60:00}.000 +01:00] [PID 1, thread 2] Entry {number}\n{new string('x', 300)}\n\n";
+    }
 }

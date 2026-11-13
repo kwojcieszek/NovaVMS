@@ -12,6 +12,7 @@ using NovaVMS.Core.Models;
 using NovaVMS.Infrastructure.Import;
 using NovaVMS.Presentation.Localization;
 using NovaVMS.Presentation.Models;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.App.ViewModels;
 

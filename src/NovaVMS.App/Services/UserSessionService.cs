@@ -52,7 +52,10 @@ public sealed partial class UserSessionService : ObservableObject
         _configuration.Changed += (_, _) => Refresh();
     }
 
-    public bool Has(UserPermissions permission) => CurrentUser?.Has(permission) == true;
+    public bool Has(UserPermissions permission)
+    {
+        return CurrentUser?.Has(permission) == true;
+    }
 
     public bool TryLogin(string userName, string password)
     {

@@ -82,11 +82,14 @@ public sealed class HcNetSdkRecordingServiceTests
         Assert.Equal(100, Marshal.OffsetOf<NetDvrFindData>(nameof(NetDvrFindData.Start)).ToInt32());
     }
 
-    private static NetDvrFindData File(int start, int end) => new()
+    private static NetDvrFindData File(int start, int end)
     {
-        Start = NetDvrTime.From(Day.AddHours(start)),
-        End = NetDvrTime.From(Day.AddHours(end))
-    };
+        return new()
+        {
+            Start = NetDvrTime.From(Day.AddHours(start)),
+            End = NetDvrTime.From(Day.AddHours(end))
+        };
+    }
 
     private static HcNetSdkSession Session()
     {
@@ -141,6 +144,9 @@ public sealed class HcNetSdkRecordingServiceTests
             return true;
         }
 
-        public uint GetLastError() => 23;
+        public uint GetLastError()
+        {
+            return 23;
+        }
     }
 }

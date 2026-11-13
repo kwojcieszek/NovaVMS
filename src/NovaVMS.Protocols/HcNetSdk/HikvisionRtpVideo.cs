@@ -7,8 +7,12 @@ namespace NovaVMS.Protocols.HcNetSdk;
 /// remain unchanged. Elementary streams are wrapped in MPEG-2 PES for PlayCtrl.
 /// MPEG program streams carried over RTP are passed through after removing RTP headers.
 /// </summary>
-internal sealed class HikvisionRtpVideo(string codec, int payloadType, IReadOnlyList<byte[]> parameterSets, Action<byte[]> output)
+internal sealed class HikvisionRtpVideo
 {
+    private readonly string _codec;
+    private readonly int _payloadType;
+    private readonly IReadOnlyList<byte[]> _parameterSets;
+    private readonly Action<byte[]> _output;
     private readonly MemoryStream _fragment = new();
     private ushort _nextSequence;
     private uint _fragmentTimestamp;
@@ -16,6 +20,14 @@ internal sealed class HikvisionRtpVideo(string codec, int payloadType, IReadOnly
     private uint _previousTimestamp;
     private long _ticks = 90000;
     private bool _started;
+
+    public HikvisionRtpVideo(string codec, int payloadType, IReadOnlyList<byte[]> parameterSets, Action<byte[]> output)
+    {
+        _codec = codec;
+        _payloadType = payloadType;
+        _parameterSets = parameterSets;
+        _output = output;
+    }
 
     internal static byte[] WrapPes(ReadOnlySpan<byte> elementary, ulong timestamp)
     {
@@ -55,7 +67,7 @@ internal sealed class HikvisionRtpVideo(string codec, int payloadType, IReadOnly
             throw new IOException("Invalid RTP packet.");
         }
 
-        if ((packet[1] & 0x7f) != payloadType)
+        if ((packet[1] & 0x7f) != _payloadType)
         {
             return;
         }
@@ -104,16 +116,16 @@ internal sealed class HikvisionRtpVideo(string codec, int payloadType, IReadOnly
         _previousTimestamp = timestamp;
         var payload = packet.Slice(offset, end - offset);
 
-        if (codec is "MP2P" or "PS")
+        if (_codec is "MP2P" or "PS")
         {
-            output(payload.ToArray());
+            _output(payload.ToArray());
 
             return;
         }
 
         if (!_started)
         {
-            foreach (var parameter in parameterSets)
+            foreach (var parameter in _parameterSets)
             {
                 SendNal(parameter);
             }
@@ -121,7 +133,7 @@ internal sealed class HikvisionRtpVideo(string codec, int payloadType, IReadOnly
             _started = true;
         }
 
-        var hevc = codec is "H265" or "HEVC";
+        var hevc = _codec is "H265" or "HEVC";
         var type = hevc ? (payload[0] >> 1) & 63 : payload[0] & 31;
         var aggregation = hevc ? 48 : 24;
         var fragmentation = hevc ? 49 : 28;
@@ -234,6 +246,6 @@ internal sealed class HikvisionRtpVideo(string codec, int payloadType, IReadOnly
         elementary[3] = 1;
 
         nal.CopyTo(elementary.AsSpan(4));
-        output(WrapPes(elementary, unchecked((ulong)_ticks)));
+        _output(WrapPes(elementary, unchecked((ulong)_ticks)));
     }
 }

@@ -127,14 +127,14 @@
           </ScrollViewer>
           <TextBlock Classes="muted" Text="{l:Tr Playback_ExportFrom}" />
           <StackPanel Orientation="Horizontal" Spacing="4">
-            <CalendarDatePicker SelectedDate="{Binding ExportFromDate}" Width="145" />
-            <TextBox Text="{Binding ExportFromText}" Width="105" Watermark="HH:mm:ss" />
+            <CalendarDatePicker SelectedDate="{Binding ExportRange.FromDate}" Width="145" />
+            <TextBox Text="{Binding ExportRange.FromText}" Width="105" Watermark="HH:mm:ss" />
           </StackPanel>
           <Button Command="{Binding MarkExportStartCommand}" Content="{l:Tr Playback_MarkFrom}" />
           <TextBlock Classes="muted" Text="{l:Tr Playback_ExportTo}" />
           <StackPanel Orientation="Horizontal" Spacing="4">
-            <CalendarDatePicker SelectedDate="{Binding ExportToDate}" Width="145" />
-            <TextBox Text="{Binding ExportToText}" Width="105" Watermark="HH:mm:ss" />
+            <CalendarDatePicker SelectedDate="{Binding ExportRange.ToDate}" Width="145" />
+            <TextBox Text="{Binding ExportRange.ToText}" Width="105" Watermark="HH:mm:ss" />
           </StackPanel>
           <Button Command="{Binding MarkExportEndCommand}" Content="{l:Tr Playback_MarkTo}" />
           <TextBlock Classes="muted" Text="{l:Tr Playback_ExportHint}" TextWrapping="Wrap" FontSize="11" />

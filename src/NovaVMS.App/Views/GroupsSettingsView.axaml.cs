@@ -12,7 +12,10 @@ public partial class GroupsSettingsView : UserControl
     // The preview runs only while the page is shown. The data context can arrive after the page is attached.
     private GroupsSettingsViewModel? _viewModel;
 
-    public GroupsSettingsView() => InitializeComponent();
+    public GroupsSettingsView()
+    {
+        InitializeComponent();
+    }
 
     protected override void OnDataContextChanged(EventArgs e)
     {

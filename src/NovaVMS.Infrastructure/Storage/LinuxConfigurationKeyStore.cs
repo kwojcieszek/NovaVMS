@@ -10,54 +10,60 @@ internal sealed class LinuxConfigurationKeyStore : IConfigurationKeyStore
 
     private static readonly Lazy<nint> GlibLibrary = new(() => NativeLibrary.Load(Glib));
 
-    public byte[]? ReadKey(string id) => WithService(() =>
+    public byte[]? ReadKey(string id)
     {
-        using var query = new Query(id);
-        var password = secret_password_lookupv_sync(query.Schema, query.Attributes, 0, out var error);
-
-        try
+        return WithService(() =>
         {
-            Check(error);
-
-            if (password == 0)
-            {
-                return null;
-            }
+            using var query = new Query(id);
+            var password = secret_password_lookupv_sync(query.Schema, query.Attributes, 0, out var error);
 
             try
             {
-                return Convert.FromBase64String(Marshal.PtrToStringUTF8(password)!);
-            }
-            catch (FormatException)
-            {
-                throw new IOException("Secret Service contains an invalid configuration key.");
-            }
-        }
-        finally
-        {
-            if (password != 0)
-            {
-                secret_password_free(password);
-            }
-        }
-    });
+                Check(error);
 
-    public void CreateKey(string id, byte[] key) => WithService(() =>
+                if (password == 0)
+                {
+                    return null;
+                }
+
+                try
+                {
+                    return Convert.FromBase64String(Marshal.PtrToStringUTF8(password)!);
+                }
+                catch (FormatException)
+                {
+                    throw new IOException("Secret Service contains an invalid configuration key.");
+                }
+            }
+            finally
+            {
+                if (password != 0)
+                {
+                    secret_password_free(password);
+                }
+            }
+        });
+    }
+
+    public void CreateKey(string id, byte[] key)
     {
-        using var query = new Query(id);
-        // The identifier is random and unique to this configuration; other files keep their own keys.
-        var success = secret_password_storev_sync(query.Schema, query.Attributes, "default", "NovaVMS settings",
-            Convert.ToBase64String(key), 0, out var error);
-
-        Check(error);
-
-        if (success == 0)
+        WithService(() =>
         {
-            throw new IOException("Secret Service did not save the configuration key.");
-        }
+            using var query = new Query(id);
+            // The identifier is random and unique to this configuration; other files keep their own keys.
+            var success = secret_password_storev_sync(query.Schema, query.Attributes, "default", "NovaVMS settings",
+                Convert.ToBase64String(key), 0, out var error);
 
-        return true;
-    });
+            Check(error);
+
+            if (success == 0)
+            {
+                throw new IOException("Secret Service did not save the configuration key.");
+            }
+
+            return true;
+        });
+    }
 
     private static T WithService<T>(Func<T> action)
     {

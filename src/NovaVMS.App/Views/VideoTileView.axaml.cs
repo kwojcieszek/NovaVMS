@@ -189,9 +189,15 @@ public partial class VideoTileView : UserControl
         UpdateOverlayWindow();
     }
 
-    private void OnOverlayPositionChanged(object? sender, PixelPointEventArgs e) => QueueOverlayUpdate();
+    private void OnOverlayPositionChanged(object? sender, PixelPointEventArgs e)
+    {
+        QueueOverlayUpdate();
+    }
 
-    private void OnOverlaySizeChanged(object? sender, SizeChangedEventArgs e) => QueueOverlayUpdate();
+    private void OnOverlaySizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        QueueOverlayUpdate();
+    }
 
     private void QueueOverlayUpdate()
     {
@@ -240,7 +246,10 @@ public partial class VideoTileView : UserControl
         UpdateOverlayWindow();
     }
 
-    private void OnOwnerPositionChanged(object? sender, PixelPointEventArgs e) => UpdateOverlayWindow();
+    private void OnOwnerPositionChanged(object? sender, PixelPointEventArgs e)
+    {
+        UpdateOverlayWindow();
+    }
 
     private void OnOwnerPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {

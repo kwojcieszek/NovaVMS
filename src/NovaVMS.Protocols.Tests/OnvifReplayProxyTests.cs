@@ -98,7 +98,9 @@ public sealed class OnvifReplayProxyTests
     }
 
     private static async Task SendAsync(Stream stream, string message, CancellationToken token)
-        => await stream.WriteAsync(Encoding.UTF8.GetBytes(message), token);
+    {
+        await stream.WriteAsync(Encoding.UTF8.GetBytes(message), token);
+    }
 
     private static async Task<(string Header, string Body)> ReadAsync(Stream stream, CancellationToken token)
     {

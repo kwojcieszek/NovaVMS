@@ -1,12 +1,17 @@
 using NovaVMS.Core.Abstractions;
 using NovaVMS.Core.Models;
 
-namespace NovaVMS.Mobile.Tests;
+namespace NovaVMS.Testing;
 
 /// <summary>Settings database connection kept in memory.</summary>
-internal sealed class MemorySyncOptionsStore(SettingsSyncOptions options) : ISettingsSyncOptionsStore
+public sealed class MemorySyncOptionsStore : ISettingsSyncOptionsStore
 {
-    public SettingsSyncOptions Options { get; private set; } = options;
+    public SettingsSyncOptions Options { get; private set; }
+
+    public MemorySyncOptionsStore(SettingsSyncOptions options)
+    {
+        Options = options;
+    }
 
     public Task<SettingsSyncOptions> LoadAsync(CancellationToken cancellationToken = default)
     {

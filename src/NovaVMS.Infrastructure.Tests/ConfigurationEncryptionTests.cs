@@ -166,16 +166,22 @@ public sealed class ConfigurationEncryptionTests : IDisposable
         }
     }
 
-    private static AppConfiguration Configuration() => new()
+    private static AppConfiguration Configuration()
     {
-        Devices = [new Device
+        return new()
         {
-            Name = "Secret camera", Host = "192.168.101.102", Password = "unique-password-marker",
-            StreamEncryptionKey = "unique-stream-key-marker", Channels = [new Channel { IsFavorite = true }]
-        }]
-    };
+            Devices = [new Device
+            {
+                Name = "Secret camera", Host = "192.168.101.102", Password = "unique-password-marker",
+                StreamEncryptionKey = "unique-stream-key-marker", Channels = [new Channel { IsFavorite = true }]
+            }]
+        };
+    }
 
-    private JsonConfigurationStore Store() => new(_serializer, FilePath);
+    private JsonConfigurationStore Store()
+    {
+        return new(_serializer, FilePath);
+    }
 
     private sealed class FailingSerializer : IConfigurationSerializer
     {
@@ -187,6 +193,8 @@ public sealed class ConfigurationEncryptionTests : IDisposable
         }
 
         public Task<AppConfiguration> DeserializeAsync(Stream stream, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
+        {
+            throw new NotSupportedException();
+        }
     }
 }

@@ -40,7 +40,9 @@ public sealed class VideoDisplayGeometryTests
     [InlineData(1920u, 1080u, 0u, 0u, "16:9")]
     [InlineData(0u, 576u, 1u, 1u, null)]
     public void DisplayProportionsIncludePixelAspectRatio(uint width, uint height, uint sarNum, uint sarDen, string? expected)
-        => Assert.Equal(expected, VideoDisplayGeometry.FromDimensions(width, height, sarNum, sarDen));
+    {
+        Assert.Equal(expected, VideoDisplayGeometry.FromDimensions(width, height, sarNum, sarDen));
+    }
 
     [Theory]
     [InlineData("1920", "1536", "5:4")]
@@ -68,29 +70,55 @@ public sealed class VideoDisplayGeometryTests
         Assert.False(channels[1].Enabled);
     }
 
-    private sealed class ChannelTransport(string width, string height, bool includeOffline = false) : IIsapiTransport
+    private sealed class ChannelTransport : IIsapiTransport
     {
-        public Task<XDocument> GetXmlAsync(string path, CancellationToken cancellationToken) => Task.FromResult(
-            path == "ISAPI/Streaming/channels" ? XDocument.Parse($"""
-                <StreamingChannelList xmlns="http://www.hikvision.com/ver20/XMLSchema">
-                  <StreamingChannel><id>101</id><Video>
-                    <videoResolutionWidth>{width}</videoResolutionWidth>
-                    <videoResolutionHeight>{height}</videoResolutionHeight>
-                  </Video></StreamingChannel>
-                  <StreamingChannel><id>102</id><Video>
-                    <videoResolutionWidth>960</videoResolutionWidth>
-                    <videoResolutionHeight>576</videoResolutionHeight>
-                  </Video></StreamingChannel>
-                </StreamingChannelList>
-                """) : includeOffline ? XDocument.Parse("""
-                <InputProxyChannelStatusList>
-                  <InputProxyChannelStatus><id>1</id><online>true</online></InputProxyChannelStatus>
-                  <InputProxyChannelStatus><id>4</id><online>false</online></InputProxyChannelStatus>
-                </InputProxyChannelStatusList>
-                """) : new XDocument(new XElement("InputProxyChannelStatusList")));
-        public Task<XDocument> PostXmlAsync(string path, XElement body, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task PutAsync(string path, XElement? body, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<byte[]> GetBytesAsync(string path, CancellationToken cancellationToken) => throw new NotSupportedException();
+        private readonly string _width;
+        private readonly string _height;
+        private readonly bool _includeOffline;
+
+        public ChannelTransport(string width, string height, bool includeOffline = false)
+        {
+            _width = width;
+            _height = height;
+            _includeOffline = includeOffline;
+        }
+
+        public Task<XDocument> GetXmlAsync(string path, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(
+                path == "ISAPI/Streaming/channels" ? XDocument.Parse($"""
+                    <StreamingChannelList xmlns="http://www.hikvision.com/ver20/XMLSchema">
+                      <StreamingChannel><id>101</id><Video>
+                        <videoResolutionWidth>{_width}</videoResolutionWidth>
+                        <videoResolutionHeight>{_height}</videoResolutionHeight>
+                      </Video></StreamingChannel>
+                      <StreamingChannel><id>102</id><Video>
+                        <videoResolutionWidth>960</videoResolutionWidth>
+                        <videoResolutionHeight>576</videoResolutionHeight>
+                      </Video></StreamingChannel>
+                    </StreamingChannelList>
+                    """) : _includeOffline ? XDocument.Parse("""
+                    <InputProxyChannelStatusList>
+                      <InputProxyChannelStatus><id>1</id><online>true</online></InputProxyChannelStatus>
+                      <InputProxyChannelStatus><id>4</id><online>false</online></InputProxyChannelStatus>
+                    </InputProxyChannelStatusList>
+                    """) : new XDocument(new XElement("InputProxyChannelStatusList")));
+        }
+
+        public Task<XDocument> PostXmlAsync(string path, XElement body, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task PutAsync(string path, XElement? body, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<byte[]> GetBytesAsync(string path, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
 
         public void Dispose()
         {

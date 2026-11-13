@@ -111,5 +111,22 @@ public sealed class VideoTileGrid : Panel
         return new TileLayout(automatic, rows, width / automatic, height / rows);
     }
 
-    private readonly record struct TileLayout(int Columns, int Rows, double CellWidth, double CellHeight);
+    private readonly record struct TileLayout
+    {
+        public int Columns { get; init; }
+
+        public int Rows { get; init; }
+
+        public double CellWidth { get; init; }
+
+        public double CellHeight { get; init; }
+
+        public TileLayout(int columns, int rows, double cellWidth, double cellHeight)
+        {
+            Columns = columns;
+            Rows = rows;
+            CellWidth = cellWidth;
+            CellHeight = cellHeight;
+        }
+    }
 }

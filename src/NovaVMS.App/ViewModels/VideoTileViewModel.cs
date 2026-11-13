@@ -8,6 +8,7 @@ using NovaVMS.App.Services;
 using NovaVMS.Core.Exceptions;
 using NovaVMS.Core.Models;
 using NovaVMS.Presentation.Localization;
+using NovaVMS.Presentation.ViewModels;
 
 namespace NovaVMS.App.ViewModels;
 
@@ -266,7 +267,10 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         _ = _operations.RunAsync(() => player.AspectRatio = ratio);
     }
 
-    internal int ReservePlayRequest() => ++PlayRequestVersion;
+    internal int ReservePlayRequest()
+    {
+        return ++PlayRequestVersion;
+    }
 
     public void ShowLoading()
     {
@@ -602,11 +606,15 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         _openings.Add(task);
     }
 
-    private void StopMedia(MediaPlayer player, VideoMedia? media) =>
+    private void StopMedia(MediaPlayer player, VideoMedia? media)
+    {
         _ = _operations.RunAsync(() => VideoMedia.Stop(player, media));
+    }
 
-    private void SetMute(MediaPlayer player, bool muted) =>
+    private void SetMute(MediaPlayer player, bool muted)
+    {
         _ = _operations.RunAsync(() => player.Mute = muted);
+    }
 
     [RelayCommand]
     private void Select()
@@ -641,7 +649,10 @@ public sealed partial class VideoTileViewModel : ViewModelBase, IDisposable
         QueuePendingStart();
     }
 
-    private void StartPlayback() => TrackOpening(StartPlaybackAsync());
+    private void StartPlayback()
+    {
+        TrackOpening(StartPlaybackAsync());
+    }
 
     private async Task StartPlaybackAsync()
     {

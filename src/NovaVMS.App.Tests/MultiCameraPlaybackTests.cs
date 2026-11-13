@@ -7,7 +7,6 @@ using Avalonia.Headless.XUnit;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using LibVLCSharp.Shared;
-using NovaVMS.App.Models;
 using NovaVMS.App.Services;
 using NovaVMS.App.ViewModels;
 using NovaVMS.App.Views;
@@ -273,19 +272,19 @@ public sealed class MultiCameraPlaybackTests
     public async Task ExportWritesOnlyCheckedCamerasIntoNamedRecordingFolders()
     {
         var directory = Path.Combine(Path.GetTempPath(), "NovaVMS-multi-export-" + Guid.NewGuid().ToString("N"));
-        var dialogs = new FolderDialogs(directory);
+        var dialogs = new FakeDialogService { FolderReply = directory };
         await using var scene = await Scene.CreateAsync(3, dialogs: dialogs);
 
         try
         {
             scene.Workspace.SelectedDate = DateTime.Today.AddDays(-1);
             scene.Workspace.Tiles[1].IsExportSelected = false;
-            scene.Workspace.ExportFromTime = TimeSpan.Zero;
-            scene.Workspace.ExportToTime = TimeSpan.FromSeconds(2);
+            scene.Workspace.ExportRange.FromTime = TimeSpan.Zero;
+            scene.Workspace.ExportRange.ToTime = TimeSpan.FromSeconds(2);
             var targets = scene.Workspace.GetExportTargets();
 
             await scene.Workspace.ExportCommand.ExecuteAsync(null);
-            Assert.Equal(1, dialogs.Picks);
+            Assert.Equal(1, dialogs.FolderPicks);
             Assert.Equal(2, scene.Opened.Count);
             Assert.DoesNotContain(scene.Opened, opened => opened.Channel == 2);
             Assert.All(scene.Opened, opened => Assert.Equal(scene.Workspace.Day, opened.Start));
@@ -317,7 +316,9 @@ public sealed class MultiCameraPlaybackTests
     [InlineData("LPT1.txt", "_LPT1.txt")]
     [InlineData("Kotłownia: garaż", "Kotłownia garaż")]
     public void ExportFolderNamesStayInsideTheirCameraDirectory(string input, string expected)
-        => Assert.Equal(expected, RecordingExporter.CameraDirectoryName(input));
+    {
+        Assert.Equal(expected, RecordingExporter.CameraDirectoryName(input));
+    }
 
     [AvaloniaFact]
     public async Task RapidSeeksKeepOnlyTheLatestRequestedTimeOnEveryCamera()
@@ -352,10 +353,19 @@ public sealed class MultiCameraPlaybackTests
         Assert.True(ready());
     }
 
-    private sealed class Scene(LibVLC engine, PlaybackWorkspaceViewModel workspace) : IAsyncDisposable
+    private sealed class Scene : IAsyncDisposable
     {
-        public PlaybackWorkspaceViewModel Workspace { get; } = workspace;
+        private readonly LibVLC _engine;
+
+        public PlaybackWorkspaceViewModel Workspace { get; }
+
         public ConcurrentQueue<(int Channel, DateTime Start)> Opened { get; } = new();
+
+        public Scene(LibVLC engine, PlaybackWorkspaceViewModel workspace)
+        {
+            _engine = engine;
+            Workspace = workspace;
+        }
 
         public static async Task<Scene> CreateAsync(int count,
             Func<int, DateTime, DateTime, IReadOnlyList<RecordingSegment>>? coverage = null,
@@ -398,28 +408,7 @@ public sealed class MultiCameraPlaybackTests
         {
             Workspace.Dispose();
             await Workspace.Disposal;
-            engine.Dispose();
+            _engine.Dispose();
         }
-    }
-
-    private sealed class FolderDialogs(string directory) : IDialogService
-    {
-        public int Picks { get; private set; }
-
-        public Task<string?> PickFolderAsync(string title)
-        {
-            Picks++;
-
-            return Task.FromResult<string?>(directory);
-        }
-
-        public Task<string?> PromptTextAsync(string title, string message, string initialValue) => throw new NotSupportedException();
-        public Task<bool> ConfirmAsync(string title, string message) => throw new NotSupportedException();
-        public Task<bool> LoginAsync(UserSessionService session, string userName) => throw new NotSupportedException();
-        public Task<Stream?> OpenJsonFileAsync(string title) => throw new NotSupportedException();
-        public Task<Stream?> SaveJsonFileAsync(string title, string suggestedFileName) => throw new NotSupportedException();
-        public Task<Stream?> OpenCsvFileAsync(string title) => throw new NotSupportedException();
-        public Task<(Stream Content, Stream? Setup)?> OpenIvmsFileAsync(string title) => throw new NotSupportedException();
-        public Task<Stream?> SaveCsvFileAsync(string title, string suggestedFileName) => throw new NotSupportedException();
     }
 }

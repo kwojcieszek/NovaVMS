@@ -11,8 +11,10 @@ internal struct NetDvrFileCondition
     public uint FileType;
     public uint IsLocked;
     public uint UseCardNumber;
+
     [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
     public byte[] CardNumber;
+
     public NetDvrTime Start;
     public NetDvrTime End;
 }
